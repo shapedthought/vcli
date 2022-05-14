@@ -23,14 +23,15 @@ func GetData[T any](url string, profile models.Profile) T {
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)
 
-	connstring := fmt.Sprintf("https://%v%v/%v", creds.Server, profile.URL, url)
+	// example https://192.168.0.123:9194/api/v1/jobs
+	connstring := fmt.Sprintf("https://%v:%v/api/%v/%v", creds.Server, profile.Port, profile.APIVersion, url)
 
-	fmt.Printf("connstring: %v\n", connstring)
+	// fmt.Printf("connstring: %v\n", connstring)
 
 	r, err := http.NewRequest("GET", connstring, nil)
 	utils.IsErr(err)
-	r.Header.Add("accept", profile.Header.Accept)
-	r.Header.Add("x-api-version", profile.Header.XAPIVersion)
+	r.Header.Add("accept", profile.Headers.Accept)
+	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
 	r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
 
 	res, err := client.Do(r)
@@ -50,6 +51,8 @@ func GetData[T any](url string, profile models.Profile) T {
 	if err := json.Unmarshal(body, &udata); err != nil {
 		log.Fatalf("Could not unmarshal - %v", err)
 	}
+
+	utils.UpdateTime()
 
 	return udata
 

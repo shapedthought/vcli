@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"sort"
 
 	"github.com/shapedthought/veeamcli/utils"
 	"github.com/spf13/cobra"
@@ -72,9 +73,17 @@ func printCurrentProfile() {
 func listProfiles() {
 	profiles := utils.ReadProfiles()
 
+	var names []string
+
+	for _, i := range profiles {
+		names = append(names, i.Name)
+	}
+
+	sort.Strings(names)
+
 	fmt.Println("Profiles available")
-	for _, s := range profiles {
-		fmt.Println(s.Name)
+	for _, n := range names {
+		fmt.Println(n)
 	}
 
 }

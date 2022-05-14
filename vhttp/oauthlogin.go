@@ -39,7 +39,7 @@ func ApiLogin() {
 
 	client := &http.Client{Transport: tr}
 
-	fmt.Printf("username %s, password %s\n", creds.Username, creds.Password)
+	// fmt.Printf("username %s, password %s\n", creds.Username, creds.Password)
 
 	data := url.Values{}
 	data.Add("grant_type", "password")
@@ -48,12 +48,13 @@ func ApiLogin() {
 
 	connstring := fmt.Sprintf("https://%s%s", creds.Server, profile.URL)
 
-	fmt.Println(connstring)
+	// fmt.Println(connstring)
+	// fmt.Println(profile)
 
 	r, err := http.NewRequest("POST", connstring, strings.NewReader(data.Encode()))
-	r.Header.Add("accept", profile.Header.Accept)
-	r.Header.Add("x-api-version", profile.Header.XAPIVersion)
-	r.Header.Add("Content-Type", profile.Header.ContentType)
+	r.Header.Add("accept", profile.Headers.Accept)
+	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
+	r.Header.Add("Content-Type", profile.Headers.ContentType)
 	utils.IsErr(err)
 
 	res, err := client.Do(r)
@@ -78,5 +79,5 @@ func ApiLogin() {
 		log.Fatalf("Could not save headers file - %v", err)
 	}
 
-	fmt.Println("All good dude")
+	fmt.Println("Login OK")
 }

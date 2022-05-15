@@ -52,7 +52,7 @@ func GetData[T any](url string, profile models.Profile) T {
 		log.Fatalf("Could not unmarshal - %v", err)
 	}
 
-	utils.UpdateTime()
+	// utils.UpdateTime()
 
 	return udata
 

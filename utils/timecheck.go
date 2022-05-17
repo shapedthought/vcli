@@ -4,8 +4,16 @@ import (
 	"time"
 )
 
-func CheckTime(ctime string) bool {
-	otime, err := time.Parse(time.RFC3339, ctime)
+func CheckTime(ctime string, api string) bool {
+	var otime time.Time
+	var err error
+
+	if api == "vbr" {
+		otime, err = time.Parse(time.RFC3339, ctime)
+	} else if api == "vbm365" {
+		otime, err = time.Parse(time.RFC1123, ctime)
+	}
+
 	IsErr(err)
 
 	ntime := time.Now()

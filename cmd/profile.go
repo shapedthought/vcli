@@ -104,6 +104,7 @@ func setProfile(name string) {
 		settings.SelectedProfile = name
 	} else {
 		fmt.Println("profile name not allowed")
+		return
 	}
 
 	file, _ := json.Marshal(settings)

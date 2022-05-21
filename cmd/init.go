@@ -104,7 +104,19 @@ func initApp() {
 		APIVersion: "v1",
 	}
 
-	ps := [5]models.Profile{vbm365, aws, vbr, azure, gcp}
+	vone := models.Profile{
+		Name: "vone",
+		Headers: models.Headers{
+			Accept:      "application/json",
+			ContentType: "application/x-www-form-urlencoded",
+			XAPIVersion: "1.0-rev2",
+		},
+		URL:        ":1239/api/token",
+		Port:       ":1239",
+		APIVersion: "v2",
+	}
+
+	ps := [6]models.Profile{vbm365, aws, vbr, azure, gcp, vone}
 
 	utils.SaveJson(&ps, "profiles")
 

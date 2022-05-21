@@ -58,6 +58,9 @@ func ApiLogin() {
 	utils.IsErr(err)
 
 	res, err := client.Do(r)
+	if res.StatusCode == 401 {
+		log.Fatalf("Not Authorised: %v", res.StatusCode)
+	}
 	utils.IsErr(err)
 
 	if res.StatusCode != 200 {

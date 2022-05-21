@@ -18,24 +18,9 @@ func CheckTime(ctime string, api string) bool {
 
 	ntime := time.Now()
 
-	if ntime.After(otime) {
+	if ntime.After(otime) && len(ctime) > 0 {
 		return true
 	} else {
 		return false
 	}
 }
-
-// func UpdateTime() {
-// 	headers := ReadHeader()
-
-// 	ntime := time.Now().Add(time.Minute * 15).Format(time.RFC3339)
-
-// 	headers.Expires = ntime
-
-// 	d, err := json.Marshal(headers)
-// 	IsErr(err)
-
-// 	if err := ioutil.WriteFile("headers.json", d, 0655); err != nil {
-// 		log.Fatalf("Could not save headers file - %v", err)
-// 	}
-// }

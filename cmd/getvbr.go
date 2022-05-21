@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -47,6 +48,94 @@ func getVbrJobStates(profile models.Profile) {
 
 }
 
+func getVbrJob(profile models.Profile, id string, name string) {
+	if len(id) == 0 && len(name) == 0 {
+		log.Fatal("name or id needs to be passed")
+	}
+
+	jId := id
+
+	if len(name) > 0 {
+		jobs := vhttp.GetData[vbrmodels.VbrJobs]("jobs", profile)
+		check := false
+		for _, i := range jobs.Data {
+			if i.Name == name {
+				jId = i.ID
+				check = true
+			}
+		}
+		if !check {
+			log.Fatal("Job Name could not be found")
+		}
+	}
+
+	jn := fmt.Sprintf("jobs/%v", jId)
+	j := vhttp.GetData[vbrmodels.VbrJob](jn, profile)
+	repos := vhttp.GetData[vbrmodels.Repos]("backupInfrastructure/repositories", profile)
+
+	if !jsonF && !yamlF {
+		t := tabby.New()
+		t.AddHeader(
+			"ENABLED",
+			"NAME",
+			"VMs",
+			"APP AWARE",
+			"PROXY AUTO",
+			"REPO NAME",
+			"MODE",
+			"SYNTH",
+			"ENCRYPT",
+			"DAYS",
+			"WEEKS",
+			"MONTHS",
+			"YEARS")
+		vms := len(j.VirtualMachines.Includes)
+		gw := 0
+		gm := 0
+		gy := 0
+		rn := repos.GetName(j.Storage.BackupRepositoryID)
+		if j.Storage.GfsPolicy.IsEnabled {
+			if j.Storage.GfsPolicy.Weekly.IsEnabled {
+				gw = j.Storage.GfsPolicy.Weekly.KeepForNumberOfWeeks
+			}
+			if j.Storage.GfsPolicy.Monthly.IsEnabled {
+				gm = j.Storage.GfsPolicy.Monthly.KeepForNumberOfMonths
+			}
+			if j.Storage.GfsPolicy.Yearly.IsEnabled {
+				gy = j.Storage.GfsPolicy.Yearly.KeepForNumberOfYears
+			}
+		}
+		t.AddLine(
+			!j.IsDisabled,
+			j.Name,
+			vms,
+			j.GuestProcessing.AppAwareProcessing.IsEnabled,
+			j.Storage.BackupProxies.AutoSelection,
+			rn,
+			j.Storage.AdvancedSettings.BackupModeType,
+			j.Storage.AdvancedSettings.SynthenticFulls.IsEnabled,
+			j.Storage.AdvancedSettings.StorageData.Encryption.IsEnabled,
+			j.Storage.RetentionPolicy.Quantity,
+			gw,
+			gm,
+			gy,
+		)
+		t.Print()
+	}
+
+	if jsonF && !yamlF {
+		utils.PrintJson(&j)
+	}
+
+	if yamlF && !jsonF {
+		utils.PrintYaml(&j)
+	}
+
+	if save {
+		utils.SaveData(&j, "vbrJob")
+	}
+}
+
 func getVbrJobs(profile models.Profile) {
 	url := "jobs"
 	if len(nameF) > 0 {
@@ -55,7 +144,7 @@ func getVbrJobs(profile models.Profile) {
 	// get the job states which have the name and id
 	jobs := vhttp.GetData[vbrmodels.VbrJobs](url, profile)
 
-	repos := vhttp.GetData[vbrmodels.Repos](url, profile)
+	repos := vhttp.GetData[vbrmodels.Repos]("backupInfrastructure/repositories", profile)
 
 	if !jsonF && !yamlF {
 		t := tabby.New()

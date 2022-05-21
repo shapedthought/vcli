@@ -16,9 +16,9 @@ func PostData[T any](url string, profile models.Profile, data T) bool {
 	creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
-	if utils.CheckTime(headers.Expires, profile.Name) {
-		log.Fatal("API key has expired, please login again")
-	}
+	// if utils.CheckTime(headers.Expires, profile.Name) {
+	// 	log.Fatal("API key has expired, please login again")
+	// }
 
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)
@@ -33,19 +33,28 @@ func PostData[T any](url string, profile models.Profile, data T) bool {
 	r, err := http.NewRequest("POST", connstring, bytes.NewReader(b))
 	utils.IsErr(err)
 	r.Header.Add("accept", profile.Headers.Accept)
+	r.Header.Add("content-type", "application/json")
 	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
 	r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
 
 	res, err := client.Do(r)
-	utils.IsErr(err)
 
-	if res.StatusCode != 201 {
-		log.Fatalf("Error %v", res.StatusCode)
-		log.Fatal(res.Status)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer res.Body.Close()
+
+	var js map[string]interface{}
+
+	json.NewDecoder(res.Body).Decode(&js)
+
+	if res.StatusCode != 201 && res.StatusCode != 200 {
+		fmt.Println(js)
+		fmt.Printf("Error code: %v\n", res.StatusCode)
+		return false
 	} else {
 		return true
 	}
-
-	return false
 
 }

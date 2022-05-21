@@ -13,7 +13,7 @@ import (
 
 func vbrCreateJob(profile models.Profile, path string) {
 
-	var jobdata vbrmodels.VbrJob
+	var jobdata vbrmodels.VbrJobCreate
 
 	yml, err := os.Open(path)
 	utils.IsErr(err)

@@ -16,9 +16,9 @@ func GetData[T any](url string, profile models.Profile) T {
 	creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
-	if utils.CheckTime(headers.Expires, profile.Name) {
-		log.Fatal("API key has expired, please login again")
-	}
+	// if utils.CheckTime(headers.Expires, profile.Name) {
+	// 	log.Fatal("API key has expired, please login again")
+	// }
 
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)

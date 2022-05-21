@@ -364,3 +364,333 @@ type VbrJob struct {
 		} `json:"backupWindow" yaml:"backupWindow"`
 	} `json:"schedule" yaml:"schedule"`
 }
+
+type VbrJobCreate struct {
+	IsHighPriority  bool   `json:"isHighPriority" yaml:"isHighPriority"`
+	Type            string `json:"type" yaml:"type"`
+	Name            string `json:"name" yaml:"name"`
+	Description     string `json:"description" yaml:"description"`
+	IsDisabled      bool   `json:"isDisabled" yaml:"isDisabled"`
+	VirtualMachines struct {
+		Includes []struct {
+			HostName string `json:"hostName" yaml:"hostName"`
+			Name     string `json:"name" yaml:"name"`
+			Type     string `json:"type"  yaml:"type"`
+			ObjectID string `json:"objectId" yaml:"objectId"`
+		} `json:"includes," yaml:"includes"`
+		Excludes *struct {
+			Vms *[]struct {
+				HostName string `json:"hostName" yaml:"hostName"`
+				Name     string `json:"name" yaml:"name"`
+				Type     string `json:"type" yaml:"type"`
+				ObjectID string `json:"objectId" yaml:"objectId"`
+			} `json:"vms,omitempty" yaml:"vms"`
+			Disks *[]struct {
+				VMObject struct {
+					HostName string `json:"hostName" yaml:"hostName"`
+					Name     string `json:"name" yaml:"name"`
+					Type     string `json:"type" yaml:"type"`
+					ObjectID string `json:"objectId" yaml:"objectId"`
+				} `json:"vmObject,omitempty" yaml:"vmObject"`
+				DisksToProcess            *string   `json:"disksToProcess,omitempty" yaml:"disksToProcess"`
+				Disks                     *[]string `json:"disks,omitempty" yaml:"disks"`
+				RemoveFromVMConfiguration *bool     `json:"removeFromVMConfiguration,omitempty" yaml:"removeVMConfiguration"`
+			} `json:"disks,omitempty" yaml:"disks"`
+			Templates *struct {
+				IsEnabled              bool `json:"isEnabled" yaml:"isEnabled"`
+				ExcludeFromIncremental bool `json:"excludeFromIncremental" yaml:"excludeFromIncremental"`
+			} `json:"templates,omitempty" yaml:"templates"`
+		} `json:"excludes,omitempty" yaml:"excludes,omitempty"`
+	} `json:"virtualMachines" yaml:"virtualMachines"`
+	Storage struct {
+		BackupRepositoryID string `json:"backupRepositoryId" yaml:"backupRepositoryId"`
+		BackupProxies      struct {
+			AutoSelection bool      `json:"autoSelection" yaml:"autoSelection"`
+			ProxyIds      *[]string `json:"proxyIds,omitempty" yaml:"proxyIds"`
+		} `json:"backupProxies" yaml:"backupProxies"`
+		RetentionPolicy struct {
+			Type     string `json:"type" yaml:"type"`
+			Quantity int    `json:"quantity" yaml:"quantity"`
+		} `json:"retentionPolicy" yaml:"retentionPolicy"`
+		GfsPolicy *struct {
+			IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+			Weekly    *struct {
+				IsEnabled            bool   `json:"isEnabled" yaml:"isEnabled"`
+				KeepForNumberOfWeeks int    `json:"keepForNumberOfWeeks" yaml:"keyForNumberOfWeeks"`
+				DesiredTime          string `json:"desiredTime" yaml:"desiredTime"`
+			} `json:"weekly,omitempty" yaml:"weekly"`
+			Monthly *struct {
+				IsEnabled             bool   `json:"isEnabled" yaml:"isEnabled"`
+				KeepForNumberOfMonths int    `json:"keepForNumberOfMonths" yaml:"keepForNumberOfMonths"`
+				DesiredTime           string `json:"desiredTime" yaml:"desiredTime"`
+			} `json:"monthly,omitempty" yaml:"monthly"`
+			Yearly *struct {
+				IsEnabled            bool   `json:"isEnabled" yaml:"isEnabled"`
+				KeepForNumberOfYears int    `json:"keepForNumberOfYears" yaml:"keepforNumberOfYears"`
+				DesiredTime          string `json:"desiredTime" yaml:"desiredTime"`
+			} `json:"yearly,omitempty" yaml:"yearly"`
+		} `json:"gfsPolicy,omitempty" yaml:"gfsPolicy"`
+		AdvancedSettings *struct {
+			BackupModeType  string `json:"backupModeType" yaml:"backupModeType"`
+			SynthenticFulls *struct {
+				IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+				Days      []string `json:"days" yaml:"days"`
+			} `json:"synthenticFulls,omitempty" yaml:"synthenticFulls"`
+			ActiveFulls *struct {
+				IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+				Weekly    *struct {
+					IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+					Days      []string `json:"days" yaml:"days"`
+				} `json:"weekly,omitempty" yaml:"weekly"`
+				Monthly *struct {
+					IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+					DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+					DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+					DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonths"`
+					Months           []string `json:"months" yaml:"months"`
+				} `json:"monthly,omitempty" yaml:"months"`
+			} `json:"activeFulls,omitempty" yaml:"activeFulls"`
+			BackupHealth *struct {
+				IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+				Weekly    *struct {
+					IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+					Days      []string `json:"days" yaml:"days"`
+				} `json:"weekly,omitempty" yaml:"weekly"`
+				Monthly *struct {
+					IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+					DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+					DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+					DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonth"`
+					Months           []string `json:"months" yaml:"months"`
+				} `json:"monthly,omitempty" yaml:"monthly"`
+			} `json:"backupHealth,omitempty" yaml:"backupHealth"`
+			FullBackupMaintenance *struct {
+				RemoveData *struct {
+					IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+					AfterDays int  `json:"afterDays" yaml:"afterDays"`
+				} `json:"RemoveData,omitempty" yaml:"RemoveData"`
+				DefragmentAndCompact *struct {
+					IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+					Weekly    *struct {
+						IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+						Days      []string `json:"days" yaml:"days"`
+					} `json:"weekly,omitempty" yaml:"weekly"`
+					Monthly *struct {
+						IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+						DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+						DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+						DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonths"`
+						Months           []string `json:"months" yaml:"months"`
+					} `json:"monthly,omitempty" yaml:"monthly"`
+				} `json:"defragmentAndCompact,omitempty" yaml:"defragmentAndCompact"`
+			} `json:"fullBackupMaintenance,omitempty" yaml:"fullBackupMaintenance"`
+			StorageData *struct {
+				EnableInlineDataDedup    *bool   `json:"enableInlineDataDedup,omitempty" yaml:"enabledInlineDataDedup"`
+				ExcludeSwapFileBlocks    *bool   `json:"excludeSwapFileBlocks,omitempty" yaml:"excludeSwapFileBlocks"`
+				ExcludeDeletedFileBlocks *bool   `json:"excludeDeletedFileBlocks,omitempty" yaml:"excludeDeletedFileBlocks"`
+				CompressionLevel         *string `json:"compressionLevel,omitempty" yaml:"compressionLevel"`
+				StorageOptimization      *string `json:"storageOptimization,omitempty" yaml:"storageOptimization"`
+				Encryption               *struct {
+					IsEnabled                  bool   `json:"isEnabled" yaml:"isEnabled"`
+					EncryptionPasswordIDOrNull string `json:"encryptionPasswordIdOrNull" yaml:"encryptionPasswordIdOrNull"`
+					EncryptionPasswordTag      string `json:"encryptionPasswordTag" yaml:"encryptionPasswordTag"`
+				} `json:"encryption,omitempty" yaml:"encryption"`
+			} `json:"storageData,omitempty" yaml:"storageData"`
+			Notifications *struct {
+				SendSNMPNotifications bool `json:"sendSNMPNotifications"`
+				EmailNotifications    *struct {
+					IsEnabled                  bool     `json:"isEnabled"`
+					Recipients                 []string `json:"recipients"`
+					NotificationType           string   `json:"notificationType"`
+					CustomNotificationSettings *struct {
+						Subject                            string `json:"subject"`
+						NotifyOnSuccess                    bool   `json:"notifyOnSuccess"`
+						NotifyOnWarning                    bool   `json:"notifyOnWarning"`
+						NotifyOnError                      bool   `json:"notifyOnError"`
+						SuppressNotificationUntilLastRetry bool   `json:"SuppressNotificationUntilLastRetry"`
+					} `json:"customNotificationSettings,omitempty" yaml:"customNotificationSettings"`
+				} `json:"emailNotifications,omitempty" yaml:"emailNotifications"`
+				VMAttribute *struct {
+					IsEnabled              bool   `json:"isEnabled" yaml:"isEnabled"`
+					Notes                  string `json:"notes" yaml:"notes"`
+					AppendToExisitingValue bool   `json:"appendToExisitingValue" yaml:"appendToExisitingValue"`
+				} `json:"vmAttribute,omitempty" yaml:"vmAttribute"`
+			} `json:"notifications,omitempty" yaml:"notifications"`
+			VSphere *struct {
+				EnableVMWareToolsQuiescence bool `json:"enableVMWareToolsQuiescence" yaml:"enableVMWareToolsQuiescence"`
+				ChangedBlockTracking        *struct {
+					IsEnabled              bool `json:"isEnabled" yaml:"isEnabled"`
+					EnableCBTautomatically bool `json:"enableCBTautomatically" yaml:"enableCBTautomatically"`
+					ResetCBTonActiveFull   bool `json:"resetCBTonActiveFull" yaml:"resetCBTonActiveFull"`
+				} `json:"changedBlockTracking,omitempty" yaml:"changedBlockTracking"`
+			} `json:"vSphere,omitempty" yaml:"vSphere"`
+			StorageIntegration *struct {
+				IsEnabled                bool `json:"isEnabled" yaml:"isEnabled"`
+				LimitProcessedVM         bool `json:"limitProcessedVm" yaml:"limitProcessedVm"`
+				LimitProcessedVMCount    int  `json:"limitProcessedVmCount" yaml:"limitProcessedVmCount"`
+				FailoverToStandardBackup bool `json:"failoverToStandardBackup" yaml:"failoverToStandardBackup"`
+			} `json:"storageIntegration,omitempty" yaml:"storageIntegration"`
+			Scripts *struct {
+				PreCommand struct {
+					IsEnabled bool   `json:"isEnabled" yaml:"isEnabled"`
+					Command   string `json:"command" yaml:"command"`
+				} `json:"preCommand" yaml:"preCommand"`
+				PostCommand struct {
+					IsEnabled bool   `json:"isEnabled" yaml:"isEnabled"`
+					Command   string `json:"command" yaml:"command"`
+				} `json:"postCommand" yaml:"postCommand"`
+				PeriodicityType string   `json:"periodicityType" yaml:"periodicityType"`
+				RunScriptEvery  int      `json:"runScriptEvery" yaml:"runScriptEvery"`
+				DayOfWeek       []string `json:"dayOfWeek" yaml:"dayOfWeek"`
+			} `json:"scripts,omitempty" yaml:"scripts"`
+		} `json:"advancedSettings,omitempty" yaml:"advancedSettings"`
+	} `json:"storage" yaml:"storage"`
+	GuestProcessing struct {
+		AppAwareProcessing *struct {
+			IsEnabled   bool `json:"isEnabled" yaml:"isEnabled"`
+			AppSettings []struct {
+				VMObject *struct {
+					HostName string `json:"hostName" yaml:"hostName"`
+					Name     string `json:"name" yaml:"name"`
+					Type     string `json:"type" yaml:"type"`
+					ObjectID string `json:"objectId" yaml:"objectId"`
+				} `json:"vmObject,omitempty" yaml:"vmObject"`
+				Vss                     string `json:"vss" yaml:"vss"`
+				UsePersistentGuestAgent bool   `json:"usePersistentGuestAgent" yaml:"usePersistentGuestAgent"`
+				TransactionLogs         string `json:"transactionLogs" yaml:"transactionLogs"`
+				SQL                     *struct {
+					LogsProcessing     string `json:"logsProcessing" yaml:"logsProcessing"`
+					BackupMinsCount    int    `json:"backupMinsCount" yaml:"backupMinsCount"`
+					RetainLogBackups   string `json:"retainLogBackups" yaml:"retainLogBackups"`
+					KeepDaysCount      int    `json:"keepDaysCount" yaml:"keepDaysCount"`
+					LogShippingServers *struct {
+						AutoSelection     bool     `json:"autoSelection" yaml:"autoSelection"`
+						ShippingServerIds []string `json:"shippingServerIds" yaml:"shippingServerIds"`
+					} `json:"logShippingServers,omitempty" yaml:"logShippingServers"`
+				} `json:"sql,omitempty" yaml:"sql"`
+				Oracle *struct {
+					UseGuestCredentials bool   `json:"useGuestCredentials" yaml:"useGuestCredentials"`
+					CredentialsID       string `json:"credentialsId" yaml:"credentialsId"`
+					ArchiveLogs         string `json:"archiveLogs" yaml:"archiveLogs"`
+					DeleteHoursCount    int    `json:"deleteHoursCount" yaml:"deleteHoursCount"`
+					DeleteGBsCount      int    `json:"deleteGBsCount" yaml:"deleteGBsCount"`
+					BackupLogs          bool   `json:"backupLogs" yaml:"backupLogs"`
+					BackupMinsCount     int    `json:"backupMinsCount" yaml:"backupMinsCount"`
+					RetainLogBackups    string `json:"retainLogBackups" yaml:"retainLogBackups"`
+					KeepDaysCount       int    `json:"keepDaysCount" yaml:"keepDaysCount"`
+					LogShippingServers  *struct {
+						AutoSelection     bool     `json:"autoSelection" yaml:"autoSelection"`
+						ShippingServerIds []string `json:"shippingServerIds" yaml:"shippingServerIds"`
+					} `json:"logShippingServers" yaml:"logShippingServers"`
+				} `json:"oracle,omitempty" yaml:"oracle"`
+				Exclusions *struct {
+					ExclusionPolicy string   `json:"exclusionPolicy" yaml:"exclusionPolicy"`
+					ItemsList       []string `json:"itemsList" yaml:"itemsList"`
+				} `json:"exclusions,omitempty" yaml:"exclusions"`
+				Scripts *struct {
+					ScriptProcessingMode string `json:"scriptProcessingMode" yaml:"scriptProcessingMode"`
+					WindowsScripts       *struct {
+						PreFreezeScript string `json:"preFreezeScript" yaml:"preFreezeScript"`
+						PostThawScript  string `json:"postThawScript" yaml:"postThawScript"`
+					} `json:"windowsScripts,omitempty" yaml:"windowsScripts"`
+					LinuxScripts *struct {
+						PreFreezeScript string `json:"preFreezeScript" yaml:"preFreezeScript"`
+						PostThawScript  string `json:"postThawScript" yaml:"postThawScript"`
+					} `json:"linuxScripts,omitempty" yaml:"linuxScripts"`
+				} `json:"scripts,omitempty" yaml:"scripts"`
+			} `json:"appSettings,omitempty" yaml:"appSettings"`
+		} `json:"appAwareProcessing,omitempty" yaml:"appAwareProcessing"`
+		GuestFSIndexing *struct {
+			IsEnabled        bool `json:"isEnabled" yaml:"isEnabled"`
+			IndexingSettings []struct {
+				VMObject struct {
+					HostName string `json:"hostName" yaml:"hostName"`
+					Name     string `json:"name" yaml:"name"`
+					Type     string `json:"type" yaml:"type"`
+					ObjectID string `json:"objectId" yaml:"objectId"`
+				} `json:"vmObject" yaml:"vmObject"`
+				WindowsIndexing *struct {
+					GuestFSIndexingMode string   `json:"guestFSIndexingMode" yaml:"guestFSIndexingMode"`
+					IndexingList        []string `json:"indexingList" yaml:"indexingList"`
+				} `json:"WindowsIndexing,omitempty" yaml:"WindowsIndexing"`
+				LinuxIndexing *struct {
+					GuestFSIndexingMode string   `json:"guestFSIndexingMode" yaml:"guestFSIndexingMode"`
+					IndexingList        []string `json:"indexingList" yaml:"indexingList"`
+				} `json:"LinuxIndexing,omitempty" yaml:"LinuxIndexing"`
+			} `json:"indexingSettings,omitempty" yaml:"indexingSettings"`
+		} `json:"guestFSIndexing,omitempty" yaml:"guestFSIndexing"`
+		GuestInteractionProxies *struct {
+			AutoSelection bool      `json:"autoSelection" yaml:"autoSelection"`
+			ProxyIds      *[]string `json:"proxyIds,omitempty" yaml:"proxyIds"`
+		} `json:"guestInteractionProxies,omitempty" yaml:"guestInteractionProxies"`
+		GuestCredentials *struct {
+			CredsID               string `json:"credsId" yaml:"credsId"`
+			CredsType             string `json:"credsType" yaml:"credsType"`
+			CredentialsPerMachine *[]struct {
+				WindowsCredsID string `json:"windowsCredsId,omitempty" yaml:"windowsCredsId"`
+				LinuxCredsID   string `json:"linuxCredsId,omitempty" yaml:"linuxCredsId"`
+				VMObject       *struct {
+					HostName string `json:"hostName" yaml:"hostName"`
+					Name     string `json:"name" yaml:"name"`
+					Type     string `json:"type" yaml:"type"`
+					ObjectID string `json:"objectId" yaml:"objectId"`
+				} `json:"vmObject,omitempty" yaml:"vmObject"`
+			} `json:"credentialsPerMachine,omitempty" yaml:"credentialsPerMachine"`
+		} `json:"guestCredentials,omitempty" yaml:"guestCredentials"`
+	} `json:"guestProcessing,omitempty" yaml:"guestProcessing"`
+	Schedule struct {
+		RunAutomatically bool `json:"runAutomatically" yaml:"runAutomatically"`
+		Daily            *struct {
+			IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+			LocalTime string   `json:"localTime" yaml:"localTIme"`
+			DailyKind string   `json:"dailyKind" yaml:"dailyKind"`
+			Days      []string `json:"days" yaml:"days"`
+		} `json:"daily,omitempty" yaml:"daily"`
+		Monthly *struct {
+			IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+			LocalTime        string   `json:"localTime" yaml:"localTime"`
+			DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+			DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumnberInMonth"`
+			DayOfMonth       int      `json:"dayOfMonth" yaml:"dayOfMonth"`
+			Months           []string `json:"months" yaml:"months"`
+		} `json:"monthly,omitempty" yaml:"monthly"`
+		Periodically *struct {
+			IsEnabled        bool   `json:"isEnabled" yaml:"isEnabled"`
+			PeriodicallyKind string `json:"periodicallyKind" yaml:"periodicallyKind"`
+			Frequency        int    `json:"frequency" yaml:"frequency"`
+			BackupWindow     *struct {
+				Days []struct {
+					Day   string `json:"day" yaml:"day"`
+					Hours string `json:"hours" yaml:"hours"`
+				} `json:"days" yaml:"days"`
+			} `json:"backupWindow,omitempty" yaml:"backupWindow"`
+		} `json:"periodically,omitempty" yaml:"periodically"`
+		Continuously *struct {
+			IsEnabled     bool `json:"isEnabled" yaml:"isEnabled"`
+			WindowSetting *struct {
+				Days []struct {
+					Day   string `json:"day" yaml:"day"`
+					Hours string `json:"hours" yaml:"hours"`
+				} `json:"days" yaml:"days"`
+			} `json:"WindowSetting,omitempty" yaml:"WindowSetting"`
+		} `json:"continuously,omitempty" yaml:"continuously"`
+		AfterThisJob *struct {
+			IsEnabled bool   `json:"isEnabled" yaml:"isEnabled"`
+			JobName   string `json:"jobName" yaml:"jobName"`
+		} `json:"afterThisJob,omitempty" yaml:"afterThisJob"`
+		Retry *struct {
+			IsEnabled    bool `json:"isEnabled" yaml:"isEnabled"`
+			RetryCount   int  `json:"retryCount" yaml:"retryCount"`
+			AwaitMinutes int  `json:"awaitMinutes" yaml:"awaitMinutes"`
+		} `json:"retry,omitempty" yaml:"retry"`
+		BackupWindow *struct {
+			IsEnabled     bool `json:"isEnabled" yaml:"isEnabled"`
+			WindowSetting *struct {
+				Days []struct {
+					Day   string `json:"day" yaml:"day"`
+					Hours string `json:"hours" yaml:"hours"`
+				} `json:"days" yaml:"days"`
+			} `json:"WindowSetting,omitempty" yaml:"WindowSettings"`
+		} `json:"backupWindow,omitempty" yaml:"backupWindow"`
+	} `json:"schedule" yaml:"schedule"`
+}

@@ -480,7 +480,7 @@ func getInventory(profile models.Profile) {
 	}
 	hosts := vhttp.GetData[vbrmodels.Hosts]("inventory/vmware/hosts", profile)
 
-	println("Select Host to Inventory")
+	fmt.Println("Select Host to Inventory")
 	for i, h := range hosts.Data {
 		fmt.Println(i, h.InventoryObject.Name)
 	}

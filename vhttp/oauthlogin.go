@@ -14,6 +14,60 @@ import (
 	"github.com/shapedthought/veeamcli/utils"
 )
 
+func ApiLogout() {
+	settings := utils.ReadSettings()
+	profiles := utils.ReadProfiles()
+
+	var profile models.Profile
+
+	check := false
+	for _, v := range profiles {
+		if v.Name == settings.SelectedProfile {
+			profile = v
+			check = true
+		}
+	}
+
+	if !check {
+		log.Fatalf("Error with selected profile %v", settings.SelectedProfile)
+	}
+
+	var url string
+
+	switch settings.SelectedProfile {
+	case "vbr":
+		url = "oauth2/logout"
+	case "vone":
+		url = "revoke"
+	case "vmb365":
+		fmt.Println("logout is automatic")
+		return
+	default:
+		fmt.Println("profile not implemented")
+		return
+	}
+
+	fmt.Println("Are you sure? Y/n")
+	var confirm string
+	fmt.Scanln(&confirm)
+
+	lg := false
+	var d struct{}
+
+	if confirm == "Y" {
+		lg = PostData(url, profile, d)
+	} else {
+		fmt.Println("Logout Cancelled")
+	}
+
+	if lg {
+		fmt.Println("Logout successful")
+	} else {
+		fmt.Println("Logout could not be completed")
+	}
+
+}
+
 func ApiLogin() {
 	settings := utils.ReadSettings()
 	creds := utils.ReadCreds()

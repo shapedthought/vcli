@@ -1,8 +1,8 @@
 # veeamcli
 
-Early stages of a Veeam CLI project. 
+Early stages of a Veeam CLI project.
 
-NOTE: This is not an official Veeam tool and is provided under the MIT license. 
+NOTE: This is not an official Veeam tool and is provided under the MIT license.
 
 This is project is also in the early stages of development, there maybe future breaking changes.
 
@@ -10,38 +10,39 @@ This is project is also in the early stages of development, there maybe future b
 
 The veeamcli provides a single interface to work with all Veeam products, these include:
 
-* VBR
-* VB365
-* VONE - Partial
-* VB for Azure - TBA
-* VB for AWS -TBA
-* VB for GCP -TBA
-* VSPC - TBA
+- VBR
+- VB365
+- VONE - Partial
+- VB for Azure - TBA
+- VB for AWS -TBA
+- VB for GCP -TBA
+- VSPC - TBA
 
 It uses each of the products' API to provide a simple-to-use interface for basic day-to-day operations.
 
-Additional functionality includes certain reports that usually require seperate scripts. 
+Additional functionality includes certain reports that usually require separate scripts.
+
 ## Why?
 
-The main aim here is to make using Veeam APIs more accessable by handeling many of the 
+The main aim here is to make using Veeam APIs more accessible by handling many of the
 barriers to entry such as authentication.
 
-If you are already a power API user with your own tools, then fantastic, please carray on with what you are doing!
+If you are already a power API user with your own tools, then fantastic, please carry on with what you are doing!
 
 The benefits include:
 
-* simple to install
-* simple syntax
-* run anywhere
-* run on anything
+- simple to install
+- simple syntax
+- run anywhere
+- run on anything
 
 VBR and VB365 have powerful PowerShell cmdlets which I encourage you to use if that is your preference. Veeamcli is not designed as a replacement, just a compliment.
 
-However, products such as VB for AWS/Azure/GCP do not have a commandline interface, this is where the veeamcli can really help. 
+However, products such as VB for AWS/Azure/GCP do not have a command line interface, this is where the veeamcli can really help.
 
 ## How to use
 
-Please see the user guide for more infomation
+Please see the user guide for more information
 
 https://github.com/shapedthought/veeamcli/user_guide.md
 
@@ -51,9 +52,9 @@ https://github.com/shapedthought/veeamcli/user_guide.md
 
 <b>Please also check the checksum of the downloaded file before running.</b>
 
-Veeamcli runs in place without needing to be installed on a computer. 
+Veeamcli runs in place without needing to be installed on a computer.
 
-It can be added to your system's path to allow system wide access. 
+It can be added to your system's path to allow system wide access.
 
 To download please go to the releases tab.
 
@@ -75,7 +76,7 @@ If you wish to compile the tool from source, please clone this repo, install Gol
 
 Windows:
 
-    go build -o veeamcli.exe 
+    go build -o veeamcli.exe
 
 Mac/ Linux
 
@@ -95,7 +96,7 @@ To run veeamcli in an isolated environment you can use a Docker container.
 
 Persisting the init fils can be done with a bindmount, but note that this does open a potential security hole.
 
-You can of course create your own docker image with veeamcli installed which can be built from source. 
+You can of course create your own docker image with veeamcli installed which can be built from source.
 
 Example using local git clone:
 
@@ -111,7 +112,7 @@ Example using local git clone:
 
     RUN go build -v -o /usr/local/bin/veeamcli
 
-    FROM ubuntu:latest 
+    FROM ubuntu:latest
 
     WORKDIR /home/veeamcli
 
@@ -131,19 +132,17 @@ With the --rm flag the container will deleted immediately after use.
 
 Even when downloading the veeamcli into a Docker container, ensure you check the checksum!
 
-
-
 ## Why Golang?
 
 The main reason for using Golang, after careful consideration, was that it compiles to a single binary with all depencies included.
 
-Python was a close second, and is a great language, but some of the complexities of dependency management can make it more difficult to get started. 
+Python was a close second, and is a great language, but some of the complexities of dependency management can make it more difficult to get started.
 
 Why not .NET, RUST, etc?
 
 Mainly due to experiance with the language. If you prefer these languages, feel free to take this implementation as an example and build your own.
 
-## Contribution 
+## Contribution
 
 If you think something is missing, or you think you can make it better, feel free to send us a pull request.
 

@@ -4,10 +4,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/shapedthought/veeamcli/models"
@@ -68,9 +69,14 @@ func ApiLogout() {
 
 }
 
+func CheckEnv(name string, data string) {
+	if data == "" {
+		log.Fatalf("Cannot find environment variable: %v", name)
+	}
+}
+
 func ApiLogin() {
 	settings := utils.ReadSettings()
-	creds := utils.ReadCreds()
 	profiles := utils.ReadProfiles()
 
 	var profile models.Profile
@@ -94,13 +100,19 @@ func ApiLogin() {
 	client := &http.Client{Transport: tr}
 
 	// fmt.Printf("username %s, password %s\n", creds.Username, creds.Password)
+	username := os.Getenv("VCLI_USERNAME")
+	password := os.Getenv("VCLI_PASSWORD")
+	vcliUrl := os.Getenv("VCLI_URL")
+	CheckEnv("VCLI_USERNAME", username)
+	CheckEnv("VCLI_PASSWORD", password)
+	CheckEnv("VCLI_URL", vcliUrl)
 
 	data := url.Values{}
 	data.Add("grant_type", "password")
-	data.Add("username", creds.Username)
-	data.Add("password", creds.Password)
+	data.Add("username", username)
+	data.Add("password", password)
 
-	connstring := fmt.Sprintf("https://%s%s", creds.Server, profile.URL)
+	connstring := fmt.Sprintf("https://%s%s", vcliUrl, profile.URL)
 
 	// fmt.Println(connstring)
 	// fmt.Println(profile)
@@ -123,7 +135,7 @@ func ApiLogin() {
 
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	utils.IsErr(err)
 
 	var token models.TokenModel
@@ -132,7 +144,7 @@ func ApiLogin() {
 		log.Fatalf("Could not unmarshal - %v", err)
 	}
 
-	if err := ioutil.WriteFile("headers.json", body, 0644); err != nil {
+	if err := os.WriteFile("headers.json", body, 0644); err != nil {
 		log.Fatalf("Could not save headers file - %v", err)
 	}
 

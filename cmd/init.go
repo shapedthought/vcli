@@ -1,12 +1,12 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
 
+	"github.com/pterm/pterm"
 	"github.com/shapedthought/veeamcli/models"
 	"github.com/shapedthought/veeamcli/utils"
 	"github.com/spf13/cobra"
@@ -24,7 +24,7 @@ var initCmd = &cobra.Command{
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		initApp()
-		fmt.Println("Initalised, please update creds.yaml file")
+		fmt.Println("Initialized, ensure all environment variables are set.")
 	},
 }
 
@@ -45,7 +45,7 @@ func init() {
 func initApp() {
 
 	vbm365 := models.Profile{
-		Name: "vbm365",
+		Name: "vb365",
 		Headers: models.Headers{
 			Accept:      "application/json",
 			ContentType: "application/x-www-form-urlencoded",
@@ -120,19 +120,15 @@ func initApp() {
 
 	utils.SaveJson(&ps, "profiles")
 
+	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"
+
+	result, _ := pterm.DefaultInteractiveConfirm.Show()
+
 	settings := models.Settings{
 		SelectedProfile: "vbr",
-		ApiNotSecure:    false,
+		ApiNotSecure:    result,
 	}
 
 	utils.SaveJson(&settings, "settings")
-
-	creds := models.CredSpec{
-		Username: "admin@yourdomain.com",
-		Password: "SECURE_PASSWORD",
-		Server:   "192.168.0.123",
-	}
-
-	utils.SaveData(&creds, "creds")
 
 }

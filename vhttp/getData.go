@@ -3,9 +3,10 @@ package vhttp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/shapedthought/veeamcli/models"
 	"github.com/shapedthought/veeamcli/utils"
@@ -13,26 +14,24 @@ import (
 
 func GetData[T any](url string, profile models.Profile) T {
 	headers := utils.ReadHeader()
-	creds := utils.ReadCreds()
+	// creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
-	// if utils.CheckTime(headers.Expires, profile.Name) {
-	// 	log.Fatal("API key has expired, please login again")
-	// }
+	env_url := os.Getenv("VCLI_URL")
+	if env_url == "" {
+		log.Fatal("VCLI_URL environment variable not set")
+	}
 
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)
 
-	// example https://192.168.0.123:9194/api/v1/jobs
 	apibit := "/api/"
 
 	if profile.Name == "vbm365" {
 		apibit = "/"
 	}
 
-	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", creds.Server, profile.Port, apibit, profile.APIVersion, url)
-
-	// fmt.Printf("connstring: %v\n", connstring)
+	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", env_url, profile.Port, apibit, profile.APIVersion, url)
 
 	r, err := http.NewRequest("GET", connstring, nil)
 	utils.IsErr(err)
@@ -49,7 +48,7 @@ func GetData[T any](url string, profile models.Profile) T {
 
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	utils.IsErr(err)
 
 	var udata T
@@ -57,8 +56,6 @@ func GetData[T any](url string, profile models.Profile) T {
 	if err := json.Unmarshal(body, &udata); err != nil {
 		log.Fatalf("Could not unmarshal - %v", err)
 	}
-
-	// utils.UpdateTime()
 
 	return udata
 

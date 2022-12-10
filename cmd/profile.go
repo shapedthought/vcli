@@ -1,16 +1,15 @@
 /*
 Copyright © 2022 Ed Howard exfhoward@protonmail.com
-
 */
 package cmd
 
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"os"
 	"sort"
 
+	"github.com/pterm/pterm"
 	"github.com/shapedthought/veeamcli/utils"
 	"github.com/spf13/cobra"
 )
@@ -35,10 +34,7 @@ var profileCmd = &cobra.Command{
 			listProfiles()
 		}
 		if setFlag {
-			if len(args) > 1 {
-				log.Fatal("Too many arguments")
-			}
-			setProfile(args[0])
+			setProfile()
 		}
 		if profileFlag {
 			utils.ReadCurrentProfile()
@@ -88,29 +84,32 @@ func listProfiles() {
 
 }
 
-func setProfile(name string) {
+func setProfile() {
 	settings := utils.ReadSettings()
 
 	profiles := utils.ReadProfiles()
 
-	check := false
-	for _, v := range profiles {
-		if v.Name == name {
-			check = true
-		}
+	var names []string
+
+	for _, i := range profiles {
+		names = append(names, i.Name)
 	}
 
-	if check {
-		settings.SelectedProfile = name
-	} else {
-		fmt.Println("profile name not allowed")
-		return
-	}
+	sort.Strings(names)
+
+	pterm.DefaultInteractiveSelect.DefaultText = "Select Profile"
+
+	result, _ := pterm.DefaultInteractiveSelect.
+	WithOptions(names).
+	Show()
+
+
+	settings.SelectedProfile = result
 
 	file, _ := json.Marshal(settings)
 
-	_ = ioutil.WriteFile("settings.json", file, 0644)
+	_ = os.WriteFile("settings.json", file, 0644)
 
-	fmt.Printf("Profile set to: %v\n", name)
+	fmt.Printf("Profile set to: %v\n", result)
 
 }

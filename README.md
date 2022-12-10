@@ -1,10 +1,8 @@
 # veeamcli
 
-Early stages of a Veeam CLI project.
+Early stages of a Veeam Report CLI project.
 
 NOTE: This is not an official Veeam tool and is provided under the MIT license.
-
-This is project is also in the early stages of development, there maybe future breaking changes.
 
 ## What is it?
 
@@ -12,15 +10,12 @@ The veeamcli provides a single interface to work with all Veeam products, these 
 
 - VBR
 - VB365
-- VONE - Partial
-- VB for Azure - TBA
-- VB for AWS -TBA
-- VB for GCP -TBA
-- VSPC - TBA
+- VONE
+- VB for Azure
+- VB for AWS
+- VB for GCP
 
-It uses each of the products' API to provide a simple-to-use interface for basic day-to-day operations.
-
-Additional functionality includes certain reports that usually require separate scripts.
+It uses each of the products' API to provide a simple-to-use interface to get key information from Veeam systems.
 
 ## Why?
 

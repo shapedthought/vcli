@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/shapedthought/veeamcli/models"
@@ -44,7 +44,7 @@ func ReadProfiles() []models.Profile {
 	j, err := os.Open("profiles.json")
 	IsErr(err)
 
-	b, err := ioutil.ReadAll(j)
+	b, err := io.ReadAll(j)
 	IsErr(err)
 
 	err = json.Unmarshal(b, &profiles)
@@ -59,7 +59,7 @@ func ReadSettings() models.Settings {
 	j, err := os.Open("settings.json")
 	IsErr(err)
 
-	b, err := ioutil.ReadAll(j)
+	b, err := io.ReadAll(j)
 	IsErr(err)
 
 	err = json.Unmarshal(b, &settings)
@@ -74,7 +74,7 @@ func ReadHeader() models.SendHeader {
 	j, err := os.Open("headers.json")
 	IsErr(err)
 
-	b, err := ioutil.ReadAll(j)
+	b, err := io.ReadAll(j)
 	IsErr(err)
 
 	err = json.Unmarshal(b, &headers)
@@ -88,7 +88,7 @@ func ReadCreds() models.CredSpec {
 	yml, err := os.Open("creds.yaml")
 	IsErr(err)
 
-	b, err := ioutil.ReadAll(yml)
+	b, err := io.ReadAll(yml)
 	IsErr(err)
 
 	err = yaml.Unmarshal(b, &creds)

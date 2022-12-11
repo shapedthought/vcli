@@ -121,7 +121,7 @@ Example using local git clone:
 
     WORKDIR /home/vcli
 
-    RUN apt-get update && app-get upgrade -y && apt-get install vim -y
+    RUN apt-get update && apt-get upgrade -y && apt-get install vim -y
 
     COPY --from=build /usr/local/bin/vcli ./
 

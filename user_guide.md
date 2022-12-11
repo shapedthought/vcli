@@ -4,12 +4,14 @@
 
 To start using the app enter:
 
-    ./veeamcli.exe init
+    ./vcli.exe init
 
 This will create two files:
 
 - settings.json - contains settings that can be adjusted
 - profiles.json - profiles of each of the APIs
+
+All future commands will need to be run from the directory where these files reside.
 
 ## Profiles
 
@@ -18,7 +20,7 @@ The profiles.json file contains key information for each of the APIs, these main
 The profiles currently are:
 
 - vbr
-- vbm 365
+- vb365
 - vone
 - aws
 - azure
@@ -26,15 +28,15 @@ The profiles currently are:
 
 To see a list of the profiles run
 
-    ./veeamcli profile --list / -l
+    ./vcli profile --list / -l
 
 To see the current set profiles run
 
-    ./veeamcli profiles --get / -l
+    ./vcli profiles --get / -l
 
 To set a new profile run
 
-    ./veeamcli profiles --set / -s <api name>
+    ./vcli profiles --set / -s
 
 ## Log in
 
@@ -48,19 +50,19 @@ Before logging in you will need to set the following environmental variables:
 
 After doing this and setting the required Profile, you will need to login to the API:
 
-    ./veeamcli.exe login
+    ./vcli.exe login
 
-Note: if you are using a self-signed certificate you will need to change the "apiNotSecure" field in the settings.json file to "true".
-
-If successful it will save a headers.json file which includes the API key that will be used for future calls. You will need to run the tool in the same directory as these files reside.
+If successful it will save a headers.json file which includes the API key that will be used for future calls.
 
 ## Commands overview
 
 The tools has also been designed to allow you to output the responses to json and yaml formats. These allow you to then modify these responses using tools such as jq.
 
-However, we have found that pairing veeamcli with "nu shell" provides an excellent user experience for manipulating API responses.
+However, we have found that pairing vcli with "nu shell" provides an excellent user experience for manipulating API responses.
 
 https://www.nushell.sh/
+
+See the nushell section below.
 
 ## Get
 
@@ -74,6 +76,94 @@ To get all managed servers from VBR the full endpoint is:
 
 You would pass the following
 
-    veeamcli get custom backupInfrastructure/managedServers
+    vcli get backupInfrastructure/managedServers
 
-    veeamcli get custom backupInfrastructure/managedServers --yaml
+## Using with Nushell
+
+https://www.nushell.sh/
+
+![nushell](./assets/nushell.png)
+
+Is designed to work around structured data in a better way that normal shells do so it is ideal for manipulating data from APIs.
+
+Installation: https://www.nushell.sh/book/installation.html
+
+Personally I use chocolatey.
+
+Once installed you just need to enter the command:
+
+    nu
+
+Then if you have vcli installed you can set the environmental variables like so:
+
+    let-env VCLI_USERNAME = "username"
+    let-env VCLI_PASSWORD = "password"
+    let-env VCLI_URL = "192.168.0.123"
+
+Then login
+
+    vcli login
+
+As vcli prints json to the screen you can simply pipe the output into nushell
+
+    vcli get jobs | from json
+
+As most of the APIs hold the actual data under a "data" object you will need to "get" that data
+
+    vcli get jobs | from json | get data
+
+Nushell has a huge amount of methods to explore, filter and transform you data. One of my favorite is being about to pipe out to a different format.
+
+    vcli get jobs | from json | get data | to yaml
+
+You can also save it in a different format, though you need to use the --raw flag.
+
+    vcli get jobs | from json | get data | to yaml | save jobs.yaml --raw
+
+### Nu Modules
+
+Nushell has its own module system which means you can define a series of methods which can then be brought into the shell's scope.
+
+https://www.nushell.sh/book/modules.html
+
+For example, create a file called v.nu and add the following:
+
+    # v.nu
+
+    export def vget [url: string] {
+        vcli get $url | from json | get data
+    }
+
+You can then import the module by entering:
+
+    use v.nu
+
+You can then use that module like so:
+
+    v vget jobs
+
+Which does the same as if you did the longer version shown above.
+
+Using modules means that you can easily create complex queries very easily and be able to recall them when needed.
+
+It is also possible add the environmental variables to the module making it even easier to get going.
+
+    #v.nu
+
+    export-env {
+        let-env VCLI_USERNAME = "username"
+        let-env VCLI_PASSWORD = "password"
+        let-env VCLI_URL = "192.168.0.123"
+    }
+
+    export def vlogin [] {
+        vcli login
+    }
+
+    export def vget [url: string] {
+        vcli get $url | from json | get data
+    }
+
+Nushell has it's own HTTP get and post options, which could be turned into a specific module for Veeam, however, vcli has been designed to do all that already.
+
+There is also a plugin system that Nushell provides which might be something I look at in the future.

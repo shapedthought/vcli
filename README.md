@@ -1,12 +1,12 @@
-# veeamcli
-
-Early stages of a Veeam Report CLI project.
+# vcli
 
 NOTE: This is not an official Veeam tool and is provided under the MIT license.
 
 ## What is it?
 
-The veeamcli provides a single interface to work with all Veeam products, these include:
+The vcli provides a single interface to get information from Veeam products in an easy way.
+
+These include:
 
 - VBR
 - VB365
@@ -15,12 +15,13 @@ The veeamcli provides a single interface to work with all Veeam products, these 
 - VB for AWS
 - VB for GCP
 
-It uses each of the products' API to provide a simple-to-use interface to get key information from Veeam systems.
+Note that the Enterprise Manager API is currently not supported.
+
+You can also add new endpoints by updating the profiles.json file, but it has been set up for OAuth only (currently).
 
 ## Why?
 
-The main aim here is to make using Veeam APIs more accessible by handling many of the
-barriers to entry such as authentication.
+The main aim here is to make using Veeam APIs more accessible by handling many of the barriers to entry such as authentication.
 
 If you are already a power API user with your own tools, then fantastic, please carry on with what you are doing!
 
@@ -31,15 +32,21 @@ The benefits include:
 - run anywhere
 - run on anything
 
-VBR and VB365 have powerful PowerShell cmdlets which I encourage you to use if that is your preference. Veeamcli is not designed as a replacement, just a compliment.
+VBR and VB365 have powerful PowerShell cmdlets which I encourage you to use if that is your preference. vcli is not designed as a replacement, just a compliment.
 
-However, products such as VB for AWS/Azure/GCP do not have a command line interface, this is where the veeamcli can really help.
+However, products such as VB for AWS/Azure/GCP do not have a command line interface, this is where the vcli can really help.
+
+## Why reporting only?
+
+The aim of the project was to keep it light-weight and free of potential harm which POST and PUTS could cause.
+
+However, the tool does provide a convenient way to login and get the API key, so it could be used with other tools to do modifications.
 
 ## How to use
 
 Please see the user guide for more information
 
-https://github.com/shapedthought/veeamcli/user_guide.md
+https://github.com/shapedthought/vcli/blob/master/user_guide.md
 
 ## Installing
 
@@ -47,7 +54,7 @@ https://github.com/shapedthought/veeamcli/user_guide.md
 
 <b>Please also check the checksum of the downloaded file before running.</b>
 
-Veeamcli runs in place without needing to be installed on a computer.
+vcli runs in place without needing to be installed on a computer.
 
 It can be added to your system's path to allow system wide access.
 
@@ -71,27 +78,27 @@ If you wish to compile the tool from source, please clone this repo, install Gol
 
 Windows:
 
-    go build -o veeamcli.exe
+    go build -o vcli.exe
 
 Mac/ Linux
 
-    go build -o veeamcli
+    go build -o vcli
 
 ## Docker 🐋
 
 NOTE: at time of writing there will be <b>no official docker image.</b>
 
-To run veeamcli in an isolated environment you can use a Docker container.
+To run vcli in an isolated environment you can use a Docker container.
 
     docker run --rm -it ubuntu bash
 
     wget <URL of download>
 
-    ./veeamcli init
+    ./vcli init
 
 Persisting the init fils can be done with a bindmount, but note that this does open a potential security hole.
 
-You can of course create your own docker image with veeamcli installed which can be built from source.
+You can of course create your own docker image with vcli installed which can be built from source.
 
 Example using local git clone:
 
@@ -105,41 +112,41 @@ Example using local git clone:
 
     COPY . .
 
-    RUN go build -v -o /usr/local/bin/veeamcli
+    RUN go build -v -o /usr/local/bin/vcli
 
     FROM ubuntu:latest
 
-    WORKDIR /home/veeamcli
+    WORKDIR /home/vcli
 
     RUN apt-get update && app-get upgrade -y && apt-get install vim -y
 
-    COPY --from=build /usr/local/bin/veeamcli ./
+    COPY --from=build /usr/local/bin/vcli ./
 
 Then exec into the container
 
-    docker run --rm -it txtxx56/veeamcli:0.2 bash
+    docker run --rm -it YOUR_ACCOUNT/vcli:0.2 bash
 
-    cd /home/veeamcli
+    cd /home/vcli
 
-    ./veeamcli init
+    ./vcli init
 
 With the --rm flag the container will deleted immediately after use.
 
-Even when downloading the veeamcli into a Docker container, ensure you check the checksum!
+Even when downloading the vcli into a Docker container, ensure you check the checksum!
 
 ## Why Golang?
 
-The main reason for using Golang, after careful consideration, was that it compiles to a single binary with all depencies included.
+The main reason for using Golang, after careful consideration, was that it compiles to a single binary with all decencies included.
 
 Python was a close second, and is a great language, but some of the complexities of dependency management can make it more difficult to get started.
 
-Why not .NET, RUST, etc?
+If anyone knows me I love RUST, but for this decided that Go was a better choice.
 
-Mainly due to experiance with the language. If you prefer these languages, feel free to take this implementation as an example and build your own.
+If you prefer other languages, feel free to take this implementation as an example and build your own.
 
 ## Contribution
 
-If you think something is missing, or you think you can make it better, feel free to send us a pull request.
+If you think something is missing, or you think you can make it better, feel free to send me a pull request.
 
 ## Issues and comments
 

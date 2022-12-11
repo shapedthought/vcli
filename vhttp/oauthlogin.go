@@ -40,7 +40,7 @@ func ApiLogout() {
 		url = "oauth2/logout"
 	case "vone":
 		url = "revoke"
-	case "vmb365":
+	case "vb365":
 		fmt.Println("logout is automatic")
 		return
 	default:

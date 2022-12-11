@@ -27,7 +27,7 @@ func GetData[T any](url string, profile models.Profile) T {
 
 	apibit := "/api/"
 
-	if profile.Name == "vbm365" {
+	if profile.Name == "vb365" {
 		apibit = "/"
 	}
 

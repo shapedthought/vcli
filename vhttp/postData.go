@@ -47,7 +47,8 @@ func PostData[T any](url string, profile models.Profile, data T) bool {
 
 	var js map[string]interface{}
 
-	json.NewDecoder(res.Body).Decode(&js)
+	err = json.NewDecoder(res.Body).Decode(&js)
+	utils.IsErr(err)
 
 	if res.StatusCode != 201 && res.StatusCode != 200 {
 		fmt.Println(js)

@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	yamlF  bool
-	jsonF  bool
+	yamlF bool
+	jsonF bool
 )
 
 // getCmd represents the get command
@@ -29,7 +29,7 @@ It will print to stdout in json by default, --yaml will print out to yaml.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		profile := utils.GetProfile()
-		
+
 		customGet(profile, args[0])
 	},
 }

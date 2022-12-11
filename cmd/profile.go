@@ -100,9 +100,8 @@ func setProfile() {
 	pterm.DefaultInteractiveSelect.DefaultText = "Select Profile"
 
 	result, _ := pterm.DefaultInteractiveSelect.
-	WithOptions(names).
-	Show()
-
+		WithOptions(names).
+		Show()
 
 	settings.SelectedProfile = result
 

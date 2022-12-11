@@ -1,5 +1,8 @@
 # vcli
 
+![nu_demo](./assets/main.png)
+**Formatting provided by [Nushell.](https://www.nushell.sh/)** vcli only gets the data! See [User guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information.
+
 NOTE: This is not an official Veeam tool and is provided under the MIT license.
 
 ## What is it?
@@ -38,7 +41,7 @@ However, products such as VB for AWS/Azure/GCP do not have a command line interf
 
 ## Why reporting only?
 
-The aim of the project was to keep it light-weight and free of potential harm which POST and PUTS could cause.
+The aim of the project was to keep it light-weight and free of the potential harm which POST and PUTS could cause.
 
 However, the tool does provide a convenient way to login and get the API key, so it could be used with other tools to do modifications.
 

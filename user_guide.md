@@ -32,7 +32,7 @@ To see a list of the profiles run
 
 To see the current set profiles run
 
-    ./vcli profiles --get / -l
+    ./vcli profiles --get / -g
 
 To set a new profile run
 

@@ -42,11 +42,11 @@ To set a new profile run
 
 Before logging in you will need to set the following environmental variables:
 
-| Name          | Description                                  |
-| ------------- | -------------------------------------------- |
-| VCLI_USERNAME | The username of the API you are logging into |
-| VCLI_PASSWORD | The password of the API you are logging into |
-| VCLI_URL      | The address of the API                       |
+| Name          | Description                                                                        |
+| ------------- | ---------------------------------------------------------------------------------- |
+| VCLI_USERNAME | The username of the API you are logging into                                       |
+| VCLI_PASSWORD | The password of the API you are logging into                                       |
+| VCLI_URL      | The address of the API (without the https:// at the start or the :port at the end) |
 
 After doing this and setting the required Profile, you will need to login to the API:
 

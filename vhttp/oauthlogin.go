@@ -1,6 +1,7 @@
 package vhttp
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -113,15 +114,22 @@ func ApiLogin() {
 	data.Add("password", password)
 
 	connstring := fmt.Sprintf("https://%s%s", vcliUrl, profile.URL)
+	fmt.Println(connstring)
+	var r *http.Request
+	var err error
 
-	// fmt.Println(connstring)
-	// fmt.Println(profile)
-
-	r, err := http.NewRequest("POST", connstring, strings.NewReader(data.Encode()))
-	r.Header.Add("accept", profile.Headers.Accept)
-	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-	r.Header.Add("Content-Type", profile.Headers.ContentType)
-	utils.IsErr(err)
+	if profile.Name == "ent_man" {
+		r, err = http.NewRequest("POST", connstring, nil)
+		utils.IsErr(err)
+		r.Header.Add("accept", profile.Headers.Accept)
+		r.SetBasicAuth(username, password)
+	} else {
+		r, err = http.NewRequest("POST", connstring, strings.NewReader(data.Encode()))
+		utils.IsErr(err)
+		r.Header.Add("accept", profile.Headers.Accept)
+		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
+		r.Header.Add("Content-Type", profile.Headers.ContentType)
+	}
 
 	res, err := client.Do(r)
 	if res.StatusCode == 401 {
@@ -129,22 +137,31 @@ func ApiLogin() {
 	}
 	utils.IsErr(err)
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != 200 && res.StatusCode != 201 {
 		log.Fatalf("Error %v", res.StatusCode)
 	}
 
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	utils.IsErr(err)
+	var writeData []byte
 
-	var token models.TokenModel
+	if profile.Name == "ent_man" {
+		token := res.Header.Get("X-RestSvcSessionId")
 
-	if err := json.Unmarshal(body, &token); err != nil {
-		log.Fatalf("Could not unmarshal - %v", err)
+		aum := models.BasicAuthModel {
+			Token: token,
+			ContentType: "application/json",
+		}
+		tokenBytes := new(bytes.Buffer)
+		json.NewEncoder(tokenBytes).Encode(aum)
+		writeData = tokenBytes.Bytes()
+	} else {
+		writeData, err = io.ReadAll(res.Body)
+		utils.IsErr(err)
 	}
 
-	if err := os.WriteFile("headers.json", body, 0644); err != nil {
+
+	if err := os.WriteFile("headers.json", writeData, 0644); err != nil {
 		log.Fatalf("Could not save headers file - %v", err)
 	}
 

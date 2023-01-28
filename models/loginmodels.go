@@ -18,6 +18,11 @@ type TokenModel struct {
 	MFA          bool   `json:"mfa_enabled"`
 }
 
+type BasicAuthModel struct {
+	Token string `json:"X-RestSvcSessionId"`
+	ContentType string `json:"Content-type"`
+}
+
 type CredSpec struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`

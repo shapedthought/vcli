@@ -116,7 +116,19 @@ func initApp() {
 		APIVersion: "v2",
 	}
 
-	ps := [6]models.Profile{vbm365, aws, vbr, azure, gcp, vone}
+	ent_man := models.Profile{
+		Name: "ent_man",
+		Headers: models.Headers {
+			Accept: "application/json",
+			ContentType: "application/json",
+			XAPIVersion: "",
+		},
+		URL: ":9398/api/sessionMngr/?v=latest",
+		Port: ":9398",
+		APIVersion: "",
+	}
+
+	ps := [7]models.Profile{vbm365, aws, vbr, azure, gcp, vone, ent_man}
 
 	utils.SaveJson(&ps, "profiles")
 

@@ -144,7 +144,11 @@ func ApiLogin() {
 		log.Fatalf("Could not unmarshal - %v", err)
 	}
 
-	if err := os.WriteFile("headers.json", body, 0644); err != nil {
+	settingsPath := utils.SettingPath()
+
+	headersFile := settingsPath + "headers.json"
+
+	if err := os.WriteFile(headersFile, body, 0644); err != nil {
 		log.Fatalf("Could not save headers file - %v", err)
 	}
 

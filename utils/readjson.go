@@ -95,8 +95,8 @@ func ReadSettings() models.Settings {
 	return settings
 }
 
-func ReadHeader() models.SendHeader {
-	var headers models.SendHeader
+func ReadHeader[T models.SendHeader | models.BasicAuthModel]() T {
+	var headers T
 
 	settingsPath := SettingPath()
 

@@ -112,7 +112,7 @@ func initApp() {
 			XAPIVersion: "1.0-rev2",
 		},
 		URL:        ":1239/api/token",
-		Port:       ":1239",
+		Port:       "1239",
 		APIVersion: "v2",
 	}
 
@@ -124,7 +124,7 @@ func initApp() {
 			XAPIVersion: "",
 		},
 		URL: ":9398/api/sessionMngr/?v=latest",
-		Port: ":9398",
+		Port: "9398",
 		APIVersion: "",
 	}
 

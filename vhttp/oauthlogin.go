@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 )
 
 func ApiLogout() {

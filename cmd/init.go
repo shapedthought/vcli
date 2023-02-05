@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/pterm/pterm"
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 	"github.com/spf13/cobra"
 )
 

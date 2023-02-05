@@ -1,4 +1,4 @@
-module github.com/shapedthought/veeamcli
+module github.com/shapedthought/vcli
 
 go 1.19
 

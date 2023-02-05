@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 )
 
 type ReadHeaders interface {

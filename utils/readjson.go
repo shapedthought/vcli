@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/shapedthought/veeamcli/models"
+	"github.com/shapedthought/vcli/models"
 	"gopkg.in/yaml.v2"
 )
 

@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"github.com/pterm/pterm"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/utils"
 	"github.com/spf13/cobra"
 )
 

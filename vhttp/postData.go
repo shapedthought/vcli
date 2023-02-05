@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 )
 
 func PostData[T any](url string, profile models.Profile, data T) bool {

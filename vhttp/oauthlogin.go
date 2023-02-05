@@ -160,8 +160,11 @@ func ApiLogin() {
 		utils.IsErr(err)
 	}
 
+	settingsPath := utils.SettingPath()
 
-	if err := os.WriteFile("headers.json", writeData, 0644); err != nil {
+	headersFile := settingsPath + "headers.json"
+
+	if err := os.WriteFile(headersFile, body, 0644); err != nil {
 		log.Fatalf("Could not save headers file - %v", err)
 	}
 

@@ -11,7 +11,19 @@ This will create two files:
 - settings.json - contains settings that can be adjusted
 - profiles.json - profiles of each of the APIs
 
-All future commands will need to be run from the directory where these files reside.
+If you have set the VCLI_SETTINGS_PATH in the environmental variables before running this command, the files will be located in that directory. Otherwise they will be created in the directory you ran the command.
+
+Note that the directory will not be automatically created for you, it will need to be in place before running the command.
+
+Examples:
+
+Windows
+
+    "C:\User\UserName\.vcli\"
+
+Linux
+
+    "home/veeam/.vcli/"
 
 ## Profiles
 
@@ -42,11 +54,14 @@ To set a new profile run
 
 Before logging in you will need to set the following environmental variables:
 
-| Name          | Description                                                                        |
-| ------------- | ---------------------------------------------------------------------------------- |
-| VCLI_USERNAME | The username of the API you are logging into                                       |
-| VCLI_PASSWORD | The password of the API you are logging into                                       |
-| VCLI_URL      | The address of the API (without the https:// at the start or the :port at the end) |
+| Name               | Description                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| VCLI_USERNAME      | The username of the API you are logging into                                       |
+| VCLI_PASSWORD      | The password of the API you are logging into                                       |
+| VCLI_URL           | The address of the API (without the https:// at the start or the :port at the end) |
+| VCLI_SETTINGS_PATH | Optional, sets the location for the settings and configuration files               |
+
+As stated before if you have set the VCLI_SETTINGS_PATH before running "init" the files will be located there. If you set it after then you will need to manually move the files to that location before running further commands.
 
 After doing this and setting the required Profile, you will need to login to the API:
 
@@ -167,3 +182,10 @@ It is also possible add the environmental variables to the module making it even
 Nushell has it's own HTTP get and post options, which could be turned into a specific module for Veeam, however, vcli has been designed to do all that already.
 
 There is also a plugin system that Nushell provides which might be something I look at in the future.
+
+### Change Log
+
+| Version     | Changes                                      | Stage    |
+| ----------- | -------------------------------------------- | -------- |
+| 0.1.0-beta1 | First beta                                   | released |
+| 0.2.0-beta1 | Added ability change settings files location | testing  |

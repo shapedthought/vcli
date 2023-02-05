@@ -130,7 +130,11 @@ func initApp() {
 
 	ps := [7]models.Profile{vbm365, aws, vbr, azure, gcp, vone, ent_man}
 
-	utils.SaveJson(&ps, "profiles")
+	settingsPath := utils.SettingPath()
+
+	profilePath := settingsPath + "profiles"
+
+	utils.SaveJson(&ps, profilePath)
 
 	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"
 
@@ -141,6 +145,8 @@ func initApp() {
 		ApiNotSecure:    result,
 	}
 
-	utils.SaveJson(&settings, "settings")
+	settingsFilePath := settingsPath + "settings"
+
+	utils.SaveJson(&settings, settingsFilePath)
 
 }

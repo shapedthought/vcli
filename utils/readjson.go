@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"strings"
 
 	"github.com/shapedthought/veeamcli/models"
 	"gopkg.in/yaml.v2"
@@ -38,10 +40,30 @@ func GetProfile() models.Profile {
 	return profile
 }
 
+func SettingPath() string {
+	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	if settingsPath != "" {
+		if runtime.GOOS == "windows" {
+			if !strings.HasSuffix(settingsPath, "\\") {
+				settingsPath = settingsPath + "\\"
+			}
+		} else {
+			if !strings.HasSuffix(settingsPath, "/") {
+				settingsPath = settingsPath + "/"
+			}
+		}
+	}
+	return settingsPath
+}
+
 func ReadProfiles() []models.Profile {
 	var profiles []models.Profile
 
-	j, err := os.Open("profiles.json")
+	settingsPath := SettingPath()
+
+	profileFile := settingsPath + "profiles.json"
+
+	j, err := os.Open(profileFile)
 	IsErr(err)
 
 	b, err := io.ReadAll(j)
@@ -56,7 +78,12 @@ func ReadProfiles() []models.Profile {
 func ReadSettings() models.Settings {
 	var settings models.Settings
 
-	j, err := os.Open("settings.json")
+	// get the settings path if there
+	settingsPath := SettingPath()
+
+	settingsFile := settingsPath + "settings.json"
+
+	j, err := os.Open(settingsFile)
 	IsErr(err)
 
 	b, err := io.ReadAll(j)
@@ -71,7 +98,11 @@ func ReadSettings() models.Settings {
 func ReadHeader() models.SendHeader {
 	var headers models.SendHeader
 
-	j, err := os.Open("headers.json")
+	settingsPath := SettingPath()
+
+	headersFile := settingsPath + "headers.json"
+
+	j, err := os.Open(headersFile)
 	IsErr(err)
 
 	b, err := io.ReadAll(j)

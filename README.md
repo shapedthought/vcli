@@ -12,13 +12,12 @@ The vcli provides a single interface to get information from Veeam products in a
 These include:
 
 - VBR
+- Enterprise Manager
 - VB365
 - VONE
 - VB for Azure
 - VB for AWS
 - VB for GCP
-
-Note that the Enterprise Manager API is currently not supported.
 
 You can also add new endpoints by updating the profiles.json file, but it has been set up for OAuth only (currently).
 
@@ -154,3 +153,11 @@ If you think something is missing, or you think you can make it better, feel fre
 ## Issues and comments
 
 If you have any issues or would like to see a feature added please raise an issue.
+
+### Change Log
+
+| Version     | Changes                                      | Stage    |
+| ----------- | -------------------------------------------- | -------- |
+| 0.1.0-beta1 | First beta                                   | released |
+| 0.2.0-beta1 | Added ability change settings files location | released |
+| 0.3.0-beta1 | Added Enterprise Manager support             | released |

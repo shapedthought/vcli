@@ -85,6 +85,8 @@ func listProfiles() {
 }
 
 func setProfile() {
+	settingsPath := utils.SettingPath()
+
 	settings := utils.ReadSettings()
 
 	profiles := utils.ReadProfiles()
@@ -107,7 +109,9 @@ func setProfile() {
 
 	file, _ := json.Marshal(settings)
 
-	_ = os.WriteFile("settings.json", file, 0644)
+	settingsFile := settingsPath + "settings.json"
+
+	_ = os.WriteFile(settingsFile, file, 0644)
 
 	fmt.Printf("Profile set to: %v\n", result)
 

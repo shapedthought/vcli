@@ -19,7 +19,7 @@ These include:
 - VB for AWS
 - VB for GCP
 
-You can also add new endpoints by updating the profiles.json file, but it has been set up for OAuth only (currently).
+You can also add new endpoints by updating the profiles.json file.
 
 ## Why?
 

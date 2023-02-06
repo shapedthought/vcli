@@ -7,12 +7,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 )
 
 func PostData[T any](url string, profile models.Profile, data T) bool {
-	headers := utils.ReadHeader()
+	// TODO: change this so it can deal with both OAuth and Basic Auth
+	headers := utils.ReadHeader[models.SendHeader]()
 	creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 

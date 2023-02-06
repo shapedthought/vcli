@@ -8,12 +8,16 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
 )
 
+type ReadHeaders interface {
+	models.BasicAuthModel |  models.SendHeader
+}
+
 func GetData[T any](url string, profile models.Profile) T {
-	headers := utils.ReadHeader()
+	
 	// creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
@@ -27,8 +31,10 @@ func GetData[T any](url string, profile models.Profile) T {
 
 	apibit := "/api/"
 
-	if profile.Name == "vb365" {
+	if profile.Name == "vb365" && profile.Name != "ent_man" {
 		apibit = "/"
+	} else if profile.Name == "ent_man" {
+		apibit = "/api"
 	}
 
 	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", env_url, profile.Port, apibit, profile.APIVersion, url)
@@ -36,8 +42,15 @@ func GetData[T any](url string, profile models.Profile) T {
 	r, err := http.NewRequest("GET", connstring, nil)
 	utils.IsErr(err)
 	r.Header.Add("accept", profile.Headers.Accept)
-	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-	r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+	if profile.Name == "ent_man" {
+		headers := utils.ReadHeader[models.BasicAuthModel]()
+		r.Header.Add("x-RestSvcSessionId", headers.Token)
+	} else {
+		headers := utils.ReadHeader[models.SendHeader]()
+		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
+		r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+	}
+	
 
 	res, err := client.Do(r)
 	utils.IsErr(err)

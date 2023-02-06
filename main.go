@@ -3,7 +3,7 @@ Copyright © 2022 Ed Howard exfhoward@protonmail.com
 */
 package main
 
-import "github.com/shapedthought/veeamcli/cmd"
+import "github.com/shapedthought/vcli/cmd"
 
 func main() {
 	cmd.Execute()

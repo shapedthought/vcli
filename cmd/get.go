@@ -4,9 +4,9 @@ Copyright © 2022 Ed Howard exfhoward@protonmail.com
 package cmd
 
 import (
-	"github.com/shapedthought/veeamcli/models"
-	"github.com/shapedthought/veeamcli/utils"
-	"github.com/shapedthought/veeamcli/vhttp"
+	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/vcli/vhttp"
 	"github.com/spf13/cobra"
 )
 

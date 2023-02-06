@@ -32,6 +32,7 @@ The profiles.json file contains key information for each of the APIs, these main
 The profiles currently are:
 
 - vbr
+- ent_man (Enterprise Manager)
 - vb365
 - vone
 - aws
@@ -182,10 +183,3 @@ It is also possible add the environmental variables to the module making it even
 Nushell has it's own HTTP get and post options, which could be turned into a specific module for Veeam, however, vcli has been designed to do all that already.
 
 There is also a plugin system that Nushell provides which might be something I look at in the future.
-
-### Change Log
-
-| Version     | Changes                                      | Stage    |
-| ----------- | -------------------------------------------- | -------- |
-| 0.1.0-beta1 | First beta                                   | released |
-| 0.2.0-beta1 | Added ability change settings files location | testing  |

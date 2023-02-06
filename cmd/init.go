@@ -15,8 +15,8 @@ import (
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initalise veeamcli",
-	Long: `Initalising the veeamcli creates several files
+	Short: "Initialize vcli",
+	Long: `Initializing the vcli creates several files
 	
 	settings.json - a file with base settings
 	profiles.json - a file with api profiles

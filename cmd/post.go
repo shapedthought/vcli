@@ -29,7 +29,7 @@ var postCmd = &cobra.Command{
 	Short: "Sends a POST command to API",
 	Long: `Sends a POST commands to the selected profile.
 
-Payload can to be a file in either JSON or YAML formats using the -f flag.
+Payload needs to be in the JSON format.
 
 Note that vcli does not type check the payload.
 
@@ -59,27 +59,35 @@ vcli post jobs -f job.json
 	
 		connstring := fmt.Sprintf("https://%v:%v%v%v/%v", env_url, profile.Port, apibit, profile.APIVersion, args[0])
 
+		// var sendData []byte
+
 		if strings.Contains(filename, ".") {
 			j, err := os.ReadFile(filename)
 			utils.IsErr(err)
 			if strings.Contains(filename, "yaml") || strings.Contains(filename, "yml") {
 				err = yaml.Unmarshal(j, &data)
 				utils.IsErr(err)
+				// sendData, err = json.Marshal(data)
+				// utils.IsErr(err)
 			} else {
+				fmt.Println("JSON ran")
 				err = json.Unmarshal(j, &data)
 				utils.IsErr(err)
 			}
 		}
 
-		jsonData, err := json.Marshal(data)
+		sendData, err := json.Marshal(data)
 		utils.IsErr(err)
 
 		var r *http.Request
+		// var err error
 
 		if strings.Contains(filename, ".") {
-			r, err = http.NewRequest("POST", connstring, bytes.NewReader(jsonData))
+			r, err = http.NewRequest("POST", connstring, bytes.NewReader(sendData))
+			utils.IsErr(err)
 		} else {
 			r, err = http.NewRequest("POST", connstring, nil)
+			utils.IsErr(err)
 		}
 		
 		utils.IsErr(err)
@@ -88,9 +96,11 @@ vcli post jobs -f job.json
 		if profile.Name == "ent_man" {
 			headers := utils.ReadHeader[models.BasicAuthModel]()
 			r.Header.Add("x-RestSvcSessionId", headers.Token)
+			r.Header.Add("Content-Type", "application/json")
 		} else {
 			headers := utils.ReadHeader[models.SendHeader]()
 			r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
+			r.Header.Add("Content-Type", "application/json")
 			r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
 		}
 

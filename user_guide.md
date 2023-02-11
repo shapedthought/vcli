@@ -125,6 +125,16 @@ With "get" pass the endpoint that you want to get data from after the API versio
 
     vcli get jobs
 
+### Example
+
+To get all managed servers from VBR the full endpoint is:
+
+    /api/v1/backupInfrastructure/managedServers
+
+You would pass the following
+
+    vcli get backupInfrastructure/managedServers
+
 ## Post
 
 With "post" if the endpoint does not need data sent, then simply enter the end of the URL
@@ -136,16 +146,6 @@ If the endpoint requires data then use the -f flag with the path to a JSON file.
     vcli post jobs -f job_data.json
 
 The result body will be printed to stdout.
-
-### Example
-
-To get all managed servers from VBR the full endpoint is:
-
-    /api/v1/backupInfrastructure/managedServers
-
-You would pass the following
-
-    vcli get backupInfrastructure/managedServers
 
 ## Using with jq
 

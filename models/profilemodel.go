@@ -6,6 +6,8 @@ type Profile struct {
 	URL        string  `json:"url"`
 	Port       string  `json:"port"`
 	APIVersion string  `json:"api_version"`
+	Username   string  `json:"username"`
+	Address    string  `json:"address"`
 }
 
 type Headers struct {

@@ -21,9 +21,19 @@ func GetData[T any](url string, profile models.Profile) T {
 	// creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
-	env_url := os.Getenv("VCLI_URL")
-	if env_url == "" {
-		log.Fatal("VCLI_URL environment variable not set")
+	var api_url string
+
+	if settings.CredsFileMode {
+		if len(profile.Address) > 0 {
+			api_url = profile.Address
+		} else {
+			log.Fatal("Profile Address is not set")
+		}
+	} else {
+		api_url = os.Getenv("VCLI_URL")
+		if api_url == "" {
+			log.Fatal("VCLI_URL environment variable not set")
+		}
 	}
 
 	// creates a new client instance
@@ -37,7 +47,7 @@ func GetData[T any](url string, profile models.Profile) T {
 		apibit = "/api"
 	}
 
-	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", env_url, profile.Port, apibit, profile.APIVersion, url)
+	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, url)
 
 	r, err := http.NewRequest("GET", connstring, nil)
 	utils.IsErr(err)

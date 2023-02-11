@@ -42,10 +42,21 @@ vcli post jobs -f job.json
 		profile := utils.GetProfile()
 		settings := utils.ReadSettings()
 
-		env_url := os.Getenv("VCLI_URL")
-		if env_url == "" {
-			log.Fatal("VCLI_URL environment variable not set")
+		var api_url string
+
+		if settings.CredsFileMode {
+			if len(profile.Address) > 0 {
+				api_url = profile.Address
+			} else {
+				log.Fatal("Profile Address not set")
+			}
+		} else {
+			api_url = os.Getenv("VCLI_URL")
+			if api_url == "" {
+				log.Fatal("VCLI_URL environment variable not set")
+			}
 		}
+
 		var data interface{}
 
 		client := vhttp.Client(settings.ApiNotSecure)
@@ -57,7 +68,7 @@ vcli post jobs -f job.json
 			apibit = "/api"
 		}
 	
-		connstring := fmt.Sprintf("https://%v:%v%v%v/%v", env_url, profile.Port, apibit, profile.APIVersion, args[0])
+		connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, args[0])
 
 		// var sendData []byte
 
@@ -70,7 +81,6 @@ vcli post jobs -f job.json
 				// sendData, err = json.Marshal(data)
 				// utils.IsErr(err)
 			} else {
-				fmt.Println("JSON ran")
 				err = json.Unmarshal(j, &data)
 				utils.IsErr(err)
 			}
@@ -112,11 +122,14 @@ vcli post jobs -f job.json
 
 		defer res.Body.Close()
 
-		fmt.Println("Status Code:", res.StatusCode)
-		fmt.Println("Status:", res.Status)
+		if res.StatusCode != http.StatusOK {
+			fmt.Println("Status Code:", res.StatusCode)
+			fmt.Println("Status:", res.Status)
+		}
+
 		body, err := io.ReadAll(res.Body)
 		utils.IsErr(err)
-		fmt.Printf("Response: %s\n", body)
+		fmt.Println(body)
 
 	},
 }

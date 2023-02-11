@@ -100,10 +100,23 @@ func ApiLogin() {
 
 	client := &http.Client{Transport: tr}
 
-	// fmt.Printf("username %s, password %s\n", creds.Username, creds.Password)
-	username := os.Getenv("VCLI_USERNAME")
+	var username string
+	var vcliUrl string
+
+	if settings.CredsFileMode {
+		if len(profile.Username) > 0 && len(profile.Address) > 0 {
+			username = profile.Username
+			vcliUrl = profile.Address
+		} else {
+			log.Fatal("Username or API address not set in the profile")
+		}
+	} else {
+		username = os.Getenv("VCLI_USERNAME")
+		vcliUrl = os.Getenv("VCLI_URL")
+	}
+
 	password := os.Getenv("VCLI_PASSWORD")
-	vcliUrl := os.Getenv("VCLI_URL")
+	
 	CheckEnv("VCLI_USERNAME", username)
 	CheckEnv("VCLI_PASSWORD", password)
 	CheckEnv("VCLI_URL", vcliUrl)

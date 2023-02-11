@@ -1,5 +1,15 @@
 # User Guide
 
+## Important note about API versions
+
+VCLI has not been updated with the new API versions coming with the upcoming Veeam releases such as VBR V12.
+
+If you are planning to use VCLI with V12 pre-release, you will need to update the profiles.json file with the following:
+
+    "x-api-version": "1.1-rev0"
+
+The tool will be updated with the new versions upon official release.
+
 ## Init
 
 To start using the app enter:
@@ -53,6 +63,14 @@ To set a new profile run
 
 ## Log in
 
+_UPDATED_
+
+There are now two modes to log in, the first is the "environmental" mode, and the second takes some of the credentials data from the profile.json file aka "creds file" mode.
+
+### Environmental mode
+
+When running the "init" command select N/No to use this mode.
+
 Before logging in you will need to set the following environmental variables:
 
 | Name               | Description                                                                        |
@@ -64,13 +82,34 @@ Before logging in you will need to set the following environmental variables:
 
 As stated before if you have set the VCLI_SETTINGS_PATH before running "init" the files will be located there. If you set it after then you will need to manually move the files to that location before running further commands.
 
-After doing this and setting the required Profile, you will need to login to the API:
+### Creds file mode
+
+When running the "init" command it will ask if you wish to use the Creds file mode, if yes then the tool will read the username and address of the API from the profiles.json file.
+
+You will need to locate and update the profiles with details before calling any of the APIs.
+
+The password will still need to be set as an environmental variable VCLI_PASSWORD.
+
+Doing this provides faster switching between APIs, but does expose the API username and address in the **clear** in the profiles.json file.
+
+### Logging in
+
+After setting up the credentials using either of the methods above and setting the required Profile, next you can simply run the following:
 
     ./vcli.exe login
 
 If successful it will save a headers.json file which includes the API key that will be used for future calls.
 
-## Commands overview
+NOTE: The API key is overwritten on each login so switching between profiles will require you to re-login. This may change in the future.
+
+### Change Modes
+
+Simply locate the settings.json file and update the "credsFileMode" to:
+
+- true = creds mode enabled
+- false = creds mode disabled
+
+## API Commands overview
 
 The tools has also been designed to allow you to output the responses to json and yaml formats. These allow you to then modify these responses using tools such as jq.
 
@@ -82,7 +121,21 @@ See the nushell section below.
 
 ## Get
 
-With get pass the endpoint that you want to get data from after the API version number. The response is always json unless you pass the --yaml flag.
+With "get" pass the endpoint that you want to get data from after the API version number. The response is always json unless you pass the --yaml flag.
+
+    vcli get jobs
+
+## Post
+
+With "post" if the endpoint does not need data sent, then simply enter the end of the URL
+
+    vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/start
+
+If the endpoint requires data then use the -f flag with the path to a JSON file.
+
+    vcli post jobs -f job_data.json
+
+The result body will be printed to stdout.
 
 ### Example
 
@@ -93,6 +146,14 @@ To get all managed servers from VBR the full endpoint is:
 You would pass the following
 
     vcli get backupInfrastructure/managedServers
+
+## Using with jq
+
+[jq](https://stedolan.github.io/jq/) offers a lightweight way to navigate JSON date, simply pipe out the responses from the API and use JQ to manipulate the data.
+
+Enterprise Manager Example:
+
+     vcli get jobs?format=entity | jq '.Jobs[].JobInfo.BackupJobInfo.Includes.ObjectInJobs[] | .Name, .ObjectInJobId'
 
 ## Using with Nushell
 

@@ -12,14 +12,10 @@ import (
 )
 
 func PostData[T any](url string, profile models.Profile, data T) bool {
-	// TODO: change this so it can deal with both OAuth and Basic Auth
+
 	headers := utils.ReadHeader[models.SendHeader]()
 	creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
-
-	// if utils.CheckTime(headers.Expires, profile.Name) {
-	// 	log.Fatal("API key has expired, please login again")
-	// }
 
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)

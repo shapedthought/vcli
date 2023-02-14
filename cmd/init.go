@@ -15,16 +15,14 @@ import (
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initalise veeamcli",
-	Long: `Initalising the veeamcli creates several files
+	Short: "Initialize vcli",
+	Long: `Initializing the vcli creates several files
 	
 	settings.json - a file with base settings
 	profiles.json - a file with api profiles
-	creds.yaml - a file with the credentials of the api
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		initApp()
-		fmt.Println("Initialized, ensure all environment variables are set.")
 	},
 }
 
@@ -54,6 +52,8 @@ func initApp() {
 		URL:        ":4443/v6/Token",
 		Port:       "4443",
 		APIVersion: "v6",
+		Username: "",
+		Address: "",
 	}
 
 	aws := models.Profile{
@@ -66,6 +66,8 @@ func initApp() {
 		URL:        ":11005/api/v1/token",
 		Port:       "11005",
 		APIVersion: "v1",
+		Username: "",
+		Address: "",
 	}
 
 	vbr := models.Profile{
@@ -78,6 +80,8 @@ func initApp() {
 		URL:        ":9419/api/oauth2/token",
 		Port:       "9419",
 		APIVersion: "v1",
+		Username: "",
+		Address: "",
 	}
 
 	azure := models.Profile{
@@ -90,6 +94,8 @@ func initApp() {
 		URL:        "/api/oauth2/token",
 		Port:       "",
 		APIVersion: "v3",
+		Username: "",
+		Address: "",
 	}
 
 	gcp := models.Profile{
@@ -102,6 +108,8 @@ func initApp() {
 		URL:        ":13140/api/v1/token",
 		Port:       "13140",
 		APIVersion: "v1",
+		Username: "",
+		Address: "",
 	}
 
 	vone := models.Profile{
@@ -114,6 +122,8 @@ func initApp() {
 		URL:        ":1239/api/token",
 		Port:       "1239",
 		APIVersion: "v2",
+		Username: "",
+		Address: "",
 	}
 
 	ent_man := models.Profile{
@@ -126,6 +136,8 @@ func initApp() {
 		URL: ":9398/api/sessionMngr/?v=latest",
 		Port: "9398",
 		APIVersion: "",
+		Username: "",
+		Address: "",
 	}
 
 	ps := [7]models.Profile{vbm365, aws, vbr, azure, gcp, vone, ent_man}
@@ -138,11 +150,24 @@ func initApp() {
 
 	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"
 
-	result, _ := pterm.DefaultInteractiveConfirm.Show()
+	insecure, _ := pterm.DefaultInteractiveConfirm.Show()
+
+	pterm.DefaultInteractiveConfirm.DefaultText = "Use Creds file mode?"
+
+	credsMode, _ := pterm.DefaultInteractiveConfirm.Show()
 
 	settings := models.Settings{
 		SelectedProfile: "vbr",
-		ApiNotSecure:    result,
+		ApiNotSecure:    insecure,
+		CredsFileMode: credsMode,
+	}
+
+	if credsMode {
+		fmt.Println("Remember to update the profile.json file with the usernames and API addresses.")
+		fmt.Printf("Settings file location: %v", settingsPath)
+		fmt.Println("VCLI_PASSWORD will still need to be set as an environmental variable")
+	} else {
+		fmt.Println("Initialized, ensure all environment variables are set.")
 	}
 
 	settingsFilePath := settingsPath + "settings"

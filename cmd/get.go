@@ -23,7 +23,7 @@ var getCmd = &cobra.Command{
 
 Returns an the data in json format.
 
-veeamcli get <command> - use the end of the API request after the version e.g. /v4/ 
+vcli get <command> - use the end of the API request after the version e.g. /v4/ 
 It will print to stdout in json by default, --yaml will print out to yaml.
 
 `,

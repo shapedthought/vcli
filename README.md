@@ -1,9 +1,14 @@
 # vcli
 
 ![nu_demo](./assets/main.png)
-**Formatting provided by [Nushell.](https://www.nushell.sh/)** vcli only gets the data! See [User guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information.
+**Formatting provided by [Nushell.](https://www.nushell.sh/)** vcli only gets the data!
 
-NOTE: This is not an official Veeam tool and is provided under the MIT license.
+See the [User guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information.
+
+NOTE:
+
+- This is not an official Veeam tool and is provided under the MIT license.
+- This tool is still in development so there maybe breaking changes in the future.
 
 ## What is it?
 
@@ -38,17 +43,20 @@ VBR and VB365 have powerful PowerShell cmdlets which I encourage you to use if t
 
 However, products such as VB for AWS/Azure/GCP do not have a command line interface, this is where the vcli can really help.
 
-## Why reporting only?
+## Commands
 
-The aim of the project was to keep it light-weight and free of the potential harm which POST and PUTS could cause.
+The current commands are:
 
-However, the tool does provide a convenient way to login and get the API key, so it could be used with other tools to do modifications.
+- login - logs into the API
+- get - gets information from the API
+- post - sends a post request to the API with optional data payload
+- profile - get, list and set the current API profile
+
+"put" will be added in the near future. "Delete" will not be added as I don't see any good coming from it!
 
 ## How to use
 
-Please see the user guide for more information
-
-https://github.com/shapedthought/vcli/blob/master/user_guide.md
+Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information
 
 ## Installing
 
@@ -156,8 +164,9 @@ If you have any issues or would like to see a feature added please raise an issu
 
 ### Change Log
 
-| Version     | Changes                                      | Stage    |
-| ----------- | -------------------------------------------- | -------- |
-| 0.1.0-beta1 | First beta                                   | released |
-| 0.2.0-beta1 | Added ability change settings files location | released |
-| 0.3.0-beta1 | Added Enterprise Manager support             | released |
+| Version     | Changes                                                        |
+| ----------- | -------------------------------------------------------------- |
+| 0.1.0-beta1 | First beta                                                     |
+| 0.2.0-beta1 | Added ability change settings files location                   |
+| 0.3.0-beta1 | Added Enterprise Manager support                               |
+| 0.4.0-beta1 | Added POST command and added new credentials management option |

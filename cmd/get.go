@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 Ed Howard exfhoward@protonmail.com
-*/
 package cmd
 
 import (

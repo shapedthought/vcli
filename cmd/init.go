@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -75,7 +72,7 @@ func initApp() {
 		Headers: models.Headers{
 			Accept:      "application/json",
 			ContentType: "application/x-www-form-urlencoded",
-			XAPIVersion: "1.0-rev2",
+			XAPIVersion: "1.1-rev0",
 		},
 		URL:        ":9419/api/oauth2/token",
 		Port:       "9419",

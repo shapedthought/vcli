@@ -12,7 +12,7 @@ NOTE:
 
 ## What is it?
 
-The vcli provides a single interface to get information from Veeam products in an easy way.
+The vcli is a simple tool to interact with (most) Veeam APIs.
 
 These include:
 
@@ -51,6 +51,7 @@ The current commands are:
 - get - gets information from the API
 - post - sends a post request to the API with optional data payload
 - profile - get, list and set the current API profile
+- utils - additional tools for working with Veeam APIs
 
 "put" will be added in the near future. "Delete" will not be added as I don't see any good coming from it!
 
@@ -58,7 +59,7 @@ The current commands are:
 
 Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information
 
-## Installing
+## Installing 🛠️
 
 <b>IMPORTANT The only trusted source of this tool is directly from the release page, or building from source.</b>
 
@@ -144,9 +145,9 @@ With the --rm flag the container will deleted immediately after use.
 
 Even when downloading the vcli into a Docker container, ensure you check the checksum!
 
-## Why Golang?
+## Why Go?
 
-The main reason for using Golang, after careful consideration, was that it compiles to a single binary with all decencies included.
+The main reason for using Go, after careful consideration, was that it compiles to a single binary with all decencies included.
 
 Python was a close second, and is a great language, but some of the complexities of dependency management can make it more difficult to get started.
 
@@ -154,15 +155,15 @@ If anyone knows me I love RUST, but for this decided that Go was a better choice
 
 If you prefer other languages, feel free to take this implementation as an example and build your own.
 
-## Contribution
+## Contribution 🤝
 
 If you think something is missing, or you think you can make it better, feel free to send me a pull request.
 
-## Issues and comments
+## Issues and comments ☝️
 
 If you have any issues or would like to see a feature added please raise an issue.
 
-### Change Log
+### Change Log 🪵
 
 | Version     | Changes                                                        |
 | ----------- | -------------------------------------------------------------- |
@@ -170,3 +171,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.2.0-beta1 | Added ability change settings files location                   |
 | 0.3.0-beta1 | Added Enterprise Manager support                               |
 | 0.4.0-beta1 | Added POST command and added new credentials management option |
+| 0.5.0-beta1 | Added Utils and PUT commands                                   |

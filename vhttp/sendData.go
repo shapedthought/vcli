@@ -116,9 +116,7 @@ func SendData(api_url string, filename string, endPoint string, method string, p
 
 		defer res.Body.Close()
 
-		if res.StatusCode != http.StatusOK {
-			fmt.Println("Status Code:", res.StatusCode)
-			fmt.Println("Status:", res.Status)
-		}
+		fmt.Println("Status Code:", res.StatusCode)
+		fmt.Println("Status:", res.Status)
 
 }

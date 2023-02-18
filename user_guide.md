@@ -310,7 +310,7 @@ There is also a plugin system that Nushell provides which might be something I l
 
 ### 11.1. <a name='ReplacingaparameterinaJSONfile'></a>Replacing a parameter in a JSON file
 
-There is great tool (written in Rust 🦀) called sd which version of sed that allows you to replace a parameter in a file.
+There is great tool (written in Rust 🦀) called sd which works like sed and allows you to replace strings in a file using string expressions and regex.
 
 For example, if you wanted to replace the name of a job in a JSON file you could do the following:
 
@@ -326,7 +326,7 @@ You can also pipe the vcli output directly into sd to update a parameter.
 
     vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c | sd '"name": "Backup Job 2"' '"name": "Backup Job 12"' > job.json
 
-Of course if you are using Linux or Mac you can just use sed.
+I find this useful to make quick changes to a file without having to open it in a text editor.
 
 sd tool: https://crates.io/crates/sd
 

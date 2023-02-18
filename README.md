@@ -50,10 +50,9 @@ The current commands are:
 - login - logs into the API
 - get - gets information from the API
 - post - sends a post request to the API with optional data payload
+- put - sends a put request to the API with payload
 - profile - get, list and set the current API profile
 - utils - additional tools for working with Veeam APIs
-
-"put" will be added in the near future. "Delete" will not be added as I don't see any good coming from it!
 
 ## How to use
 

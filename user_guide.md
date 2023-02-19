@@ -196,7 +196,7 @@ Run the utils command
 - Enter the path to the job json file
 - Enter the path to the output file e.g. job_updated.json
 - Modify the job json file as required
-- POST/ PUT the job
+- POST the job
 
 ```
 vcli post/jobs -f job_updated.json

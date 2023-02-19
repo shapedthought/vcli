@@ -1,16 +1,34 @@
 # User Guide
 
-## Important note about API versions
+<details>
+<summary>TOC</summary>
+<!-- vscode-markdown-toc -->
 
-VCLI has not been updated with the new API versions coming with the upcoming Veeam releases such as VBR V12.
+1. [Important note about V12](#ImportantnoteaboutAPIversions)
+2. [Init](#Init)
+3. [Profiles](#Profiles)
+4. [Log in](#Login)
+5. [API Commands overview](#APICommandsoverview)
+6. [Get](#Get)
+7. [Post / Put](#PostPut)
+8. [Utils](#Utils)
+9. [Using with jq](#Usingwithjq)
+10. [Using with Nushell](#UsingwithNushell)
+11. [Tips and Tricks](#TipsandTricks)
 
-If you are planning to use VCLI with V12 pre-release, you will need to update the profiles.json file with the following:
+</details>
 
-    "x-api-version": "1.1-rev0"
+## 1. <a name='ImportantnoteaboutAPIversions'></a>Important note about V12
 
-The tool will be updated with the new versions upon official release.
+VCLI been updated to use VBR V12's API version. If you wish to downgrade to V11's API version, please update the VBR profile in the profiles.json file to the following:
 
-## Init
+    "x-api-version": "1.0-rev2"
+
+If in doubt check the Veeam API documentation for the version you are using.
+
+https://www.veeam.com/documentation-guides-datasheets.html
+
+## 2. <a name='Init'></a>Init
 
 To start using the app enter:
 
@@ -35,7 +53,7 @@ Linux
 
     "home/veeam/.vcli/"
 
-## Profiles
+## 3. <a name='Profiles'></a>Profiles
 
 The profiles.json file contains key information for each of the APIs, these mainly differ in terms of Port, and login URL.
 
@@ -61,13 +79,13 @@ To set a new profile run
 
     ./vcli profiles --set / -s
 
-## Log in
+## 4. <a name='Login'></a>Log in
 
 _UPDATED_
 
 There are now two modes to log in, the first is the "environmental" mode, and the second takes some of the credentials data from the profile.json file aka "creds file" mode.
 
-### Environmental mode
+### 4.1. <a name='Environmentalmode'></a>Environmental mode
 
 When running the "init" command select N/No to use this mode.
 
@@ -82,7 +100,7 @@ Before logging in you will need to set the following environmental variables:
 
 As stated before if you have set the VCLI_SETTINGS_PATH before running "init" the files will be located there. If you set it after then you will need to manually move the files to that location before running further commands.
 
-### Creds file mode
+### 4.2. <a name='Credsfilemode'></a>Creds file mode
 
 When running the "init" command it will ask if you wish to use the Creds file mode, if yes then the tool will read the username and address of the API from the profiles.json file.
 
@@ -92,7 +110,7 @@ The password will still need to be set as an environmental variable VCLI_PASSWOR
 
 Doing this provides faster switching between APIs, but does expose the API username and address in the **clear** in the profiles.json file.
 
-### Logging in
+### 4.3. <a name='Loggingin'></a>Logging in
 
 After setting up the credentials using either of the methods above and setting the required Profile, next you can simply run the following:
 
@@ -102,14 +120,13 @@ If successful it will save a headers.json file which includes the API key that w
 
 NOTE: The API key is overwritten on each login so switching between profiles will require you to re-login. This may change in the future.
 
-### Change Modes
+### 4.4. <a name='ChangeModes'></a>Change Modes
 
-Simply locate the settings.json file and update the "credsFileMode" to:
+Simply locate the settings.json file and update the "credsFileMode" to true or false:
 
-- true = creds mode enabled
-- false = creds mode disabled
+    "credsFileMode":true
 
-## API Commands overview
+## 5. <a name='APICommandsoverview'></a>API Commands overview
 
 The tools has also been designed to allow you to output the responses to json and yaml formats. These allow you to then modify these responses using tools such as jq.
 
@@ -119,13 +136,13 @@ https://www.nushell.sh/
 
 See the nushell section below.
 
-## Get
+## 6. <a name='Get'></a>Get
 
 With "get" pass the endpoint that you want to get data from after the API version number. The response is always json unless you pass the --yaml flag.
 
     vcli get jobs
 
-### Example
+### 6.1. <a name='Example'></a>Example
 
 To get all managed servers from VBR the full endpoint is:
 
@@ -135,7 +152,7 @@ You would pass the following
 
     vcli get backupInfrastructure/managedServers
 
-## Post
+## 7. <a name='PostPut'></a>Post / Put
 
 With "post" if the endpoint does not need data sent, then simply enter the end of the URL
 
@@ -145,9 +162,49 @@ If the endpoint requires data then use the -f flag with the path to a JSON file.
 
     vcli post jobs -f job_data.json
 
-The result body will be printed to stdout.
+With "put" the endpoint must have a payload.
 
-## Using with jq
+    vcli put jobs -f job_data.json
+
+## 8. <a name='Utils'></a>Utils
+
+_new in 0.5.0_
+
+The utils command allows you to run a number of utility commands.
+
+The current options are:
+
+- VBR Job JSON Converter
+
+### 8.1. <a name='VBRJobJSONConverter'></a>VBR Job JSON Converter
+
+As the VBR API's GET job object is different from the POST job object, this utility allows you to convert a GET job object to a POST job object.
+
+You will need to get a single job from the VBR API for this to work, it will not work on the "Get All Jobs" endpoint response object (something I might look at later).
+
+### 8.2. <a name='Example-1'></a>Example
+
+Get a single job from the VBR API
+
+    vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c > job.json
+
+Run the utils command
+
+    vcli utils
+
+- Select "VBR Job JSON Converter"
+- Enter the path to the job json file
+- Enter the path to the output file e.g. job_updated.json
+- Modify the job json file as required
+- POST/ PUT the job
+
+```
+vcli post/jobs -f job_updated.json
+```
+
+Note that VBR PUT job json/objects match the GET json/objects, so you can use the same file for PUT.
+
+## 9. <a name='Usingwithjq'></a>Using with jq
 
 [jq](https://stedolan.github.io/jq/) offers a lightweight way to navigate JSON date, simply pipe out the responses from the API and use JQ to manipulate the data.
 
@@ -155,7 +212,11 @@ Enterprise Manager Example:
 
      vcli get jobs?format=entity | jq '.Jobs[].JobInfo.BackupJobInfo.Includes.ObjectInJobs[] | .Name, .ObjectInJobId'
 
-## Using with Nushell
+Useful tip: use jq "keys" to see the keys in a json object
+
+    vcli get jobs | jq 'keys'
+
+## 10. <a name='UsingwithNushell'></a>Using with Nushell
 
 https://www.nushell.sh/
 
@@ -197,7 +258,7 @@ You can also save it in a different format, though you need to use the --raw fla
 
     vcli get jobs | from json | get data | to yaml | save jobs.yaml --raw
 
-### Nu Modules
+### 10.1. <a name='NuModules'></a>Nu Modules
 
 Nushell has its own module system which means you can define a series of methods which can then be brought into the shell's scope.
 
@@ -244,3 +305,35 @@ It is also possible add the environmental variables to the module making it even
 Nushell has it's own HTTP get and post options, which could be turned into a specific module for Veeam, however, vcli has been designed to do all that already.
 
 There is also a plugin system that Nushell provides which might be something I look at in the future.
+
+## 11. <a name='TipsandTricks'></a>Tips and Tricks
+
+### 11.1. <a name='ReplacingaparameterinaJSONfile'></a>Replacing a parameter in a JSON file
+
+There is great tool (written in Rust 🦀) called sd which works like sed and allows you to replace strings in a file using string expressions and regex.
+
+For example, if you wanted to replace the name of a job in a JSON file you could do the following:
+
+Check the name using jq
+
+    cat job.json | jq '.name'
+
+The replace the name using sd
+
+     sd '"name": "Backup Job 2"' '"name": "Backup Job 12"' .\job.json
+
+You can also pipe the vcli output directly into sd to update a parameter.
+
+    vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c | sd '"name": "Backup Job 2"' '"name": "Backup Job 12"' > job.json
+
+I find this useful to make quick changes to a file without having to open it in a text editor.
+
+sd tool: https://crates.io/crates/sd
+
+Install using chocolatey
+
+    choco install sd-cli
+
+Install via Cargo (Rust package manager)
+
+    cargo install sd

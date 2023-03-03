@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		result, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"VBR Job JSON Converter"}).Show()
+		WithOptions([]string{"VBR Job JSON Converter", "Check Version"}).Show()
 
 		if result == "VBR Job JSON Converter" {
 			js, _ := pterm.DefaultInteractiveTextInput.Show("Enter source file path, e.g. C:\\temp\\job.json")
@@ -86,6 +87,25 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 			utils.SaveJson(&varJobsPost, jt)
 
 			fmt.Println("Job JSON POST file created.")
+		} else if (result == "Check Version") {
+			res, err := http.Get("https://api.github.com/repos/shapedthought/vcli/releases/latest");
+			utils.IsErr(err)
+
+			body, err := io.ReadAll(res.Body)
+			defer res.Body.Close()
+			utils.IsErr(err)
+
+			var result map[string]interface{}
+
+			json.Unmarshal(body, &result)
+
+			latestVersion := result["tag_name"].(string)
+
+			if (latestVersion != "v0.6.0-beta1") {
+				fmt.Printf("You are running v0.6.0-beta1, the latest version is %s", latestVersion) 
+			} else {
+				fmt.Println("You are running the latest version.")
+			}
 		}
 	},
 }

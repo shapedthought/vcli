@@ -48,7 +48,7 @@ func initApp() {
 		},
 		URL:        ":4443/v6/Token",
 		Port:       "4443",
-		APIVersion: "v6",
+		APIVersion: "v7",
 		Username: "",
 		Address: "",
 	}

@@ -164,10 +164,11 @@ If you have any issues or would like to see a feature added please raise an issu
 
 ### Change Log 🪵
 
-| Version     | Changes                                                        |
-| ----------- | -------------------------------------------------------------- |
-| 0.1.0-beta1 | First beta                                                     |
-| 0.2.0-beta1 | Added ability change settings files location                   |
-| 0.3.0-beta1 | Added Enterprise Manager support                               |
-| 0.4.0-beta1 | Added POST command and added new credentials management option |
-| 0.5.0-beta1 | Added Utils and PUT commands                                   |
+| Version     | Changes                                                             |
+| ----------- | ------------------------------------------------------------------- |
+| 0.1.0-beta1 | First beta                                                          |
+| 0.2.0-beta1 | Added ability change settings files location                        |
+| 0.3.0-beta1 | Added Enterprise Manager support                                    |
+| 0.4.0-beta1 | Added POST command and added new credentials management option      |
+| 0.5.0-beta1 | Added Utils and PUT commands                                        |
+| 0.6.0-beta1 | Added version check and updated VBR and VB365 to latest the version |

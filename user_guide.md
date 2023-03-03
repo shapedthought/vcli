@@ -1,34 +1,24 @@
 # User Guide
 
-<details>
-<summary>TOC</summary>
-<!-- vscode-markdown-toc -->
+## API Versions
 
-1. [Important note about V12](#ImportantnoteaboutAPIversions)
-2. [Init](#Init)
-3. [Profiles](#Profiles)
-4. [Log in](#Login)
-5. [API Commands overview](#APICommandsoverview)
-6. [Get](#Get)
-7. [Post / Put](#PostPut)
-8. [Utils](#Utils)
-9. [Using with jq](#Usingwithjq)
-10. [Using with Nushell](#UsingwithNushell)
-11. [Tips and Tricks](#TipsandTricks)
+The default API versions are as follows:
 
-</details>
+| Product            | Version | API Version | Notes     |
+| ------------------ | ------- | ----------- | --------- |
+| VBR                | 12.0    | 1.1-rev0    |           |
+| Enterprise Manager | 12.0    | -           | No Change |
+| VONE               | 12.0    | 1.0-rev2    |           |
+| V365               | 7.0     | -           |           |
+| VBAWS              | 5.0     | 1.2-rev0    |           |
+| VBAZURE            | 4.0     | -           |           |
+| VBGCP              | 4.0     | 1.0-rev0    |           |
 
-## 1. <a name='ImportantnoteaboutAPIversions'></a>Important note about V12
-
-VCLI been updated to use VBR V12's API version. If you wish to downgrade to V11's API version, please update the VBR profile in the profiles.json file to the following:
-
-    "x-api-version": "1.0-rev2"
-
-If in doubt check the Veeam API documentation for the version you are using.
+If you wish to change API version, please update the profile in the profiles.json file.
 
 https://www.veeam.com/documentation-guides-datasheets.html
 
-## 2. <a name='Init'></a>Init
+## Init
 
 To start using the app enter:
 
@@ -53,7 +43,7 @@ Linux
 
     "home/veeam/.vcli/"
 
-## 3. <a name='Profiles'></a>Profiles
+## Profiles
 
 The profiles.json file contains key information for each of the APIs, these mainly differ in terms of Port, and login URL.
 
@@ -79,13 +69,31 @@ To set a new profile run
 
     ./vcli profiles --set / -s
 
-## 4. <a name='Login'></a>Log in
+To see the details of a profile run
+
+    ./vcli profiles --profile / -p
+
+    {
+    "name": "ent_man",
+    "headers": {
+        "accept": "application/json",
+        "Content-type": "application/json",
+        "x-api-version": ""
+    },
+    "url": ":9398/api/sessionMngr/?v=latest",
+    "port": "9398",
+    "api_version": "",
+    "username": "administrator@",
+    "address": "192.168.0.123"
+    }
+
+## Log in
 
 _UPDATED_
 
 There are now two modes to log in, the first is the "environmental" mode, and the second takes some of the credentials data from the profile.json file aka "creds file" mode.
 
-### 4.1. <a name='Environmentalmode'></a>Environmental mode
+### Environmental mode
 
 When running the "init" command select N/No to use this mode.
 
@@ -100,7 +108,7 @@ Before logging in you will need to set the following environmental variables:
 
 As stated before if you have set the VCLI_SETTINGS_PATH before running "init" the files will be located there. If you set it after then you will need to manually move the files to that location before running further commands.
 
-### 4.2. <a name='Credsfilemode'></a>Creds file mode
+### Creds file mode
 
 When running the "init" command it will ask if you wish to use the Creds file mode, if yes then the tool will read the username and address of the API from the profiles.json file.
 
@@ -110,7 +118,7 @@ The password will still need to be set as an environmental variable VCLI_PASSWOR
 
 Doing this provides faster switching between APIs, but does expose the API username and address in the **clear** in the profiles.json file.
 
-### 4.3. <a name='Loggingin'></a>Logging in
+### Logging in
 
 After setting up the credentials using either of the methods above and setting the required Profile, next you can simply run the following:
 
@@ -120,13 +128,13 @@ If successful it will save a headers.json file which includes the API key that w
 
 NOTE: The API key is overwritten on each login so switching between profiles will require you to re-login. This may change in the future.
 
-### 4.4. <a name='ChangeModes'></a>Change Modes
+### Change Modes
 
 Simply locate the settings.json file and update the "credsFileMode" to true or false:
 
     "credsFileMode":true
 
-## 5. <a name='APICommandsoverview'></a>API Commands overview
+## API Commands overview
 
 The tools has also been designed to allow you to output the responses to json and yaml formats. These allow you to then modify these responses using tools such as jq.
 
@@ -136,13 +144,13 @@ https://www.nushell.sh/
 
 See the nushell section below.
 
-## 6. <a name='Get'></a>Get
+## Get
 
 With "get" pass the endpoint that you want to get data from after the API version number. The response is always json unless you pass the --yaml flag.
 
     vcli get jobs
 
-### 6.1. <a name='Example'></a>Example
+### Example
 
 To get all managed servers from VBR the full endpoint is:
 
@@ -152,7 +160,7 @@ You would pass the following
 
     vcli get backupInfrastructure/managedServers
 
-## 7. <a name='PostPut'></a>Post / Put
+## Post / Put
 
 With "post" if the endpoint does not need data sent, then simply enter the end of the URL
 
@@ -166,7 +174,7 @@ With "put" the endpoint must have a payload.
 
     vcli put jobs -f job_data.json
 
-## 8. <a name='Utils'></a>Utils
+## Utils
 
 _new in 0.5.0_
 
@@ -175,14 +183,15 @@ The utils command allows you to run a number of utility commands.
 The current options are:
 
 - VBR Job JSON Converter
+- Check Version
 
-### 8.1. <a name='VBRJobJSONConverter'></a>VBR Job JSON Converter
+### VBR Job JSON Converter
 
 As the VBR API's GET job object is different from the POST job object, this utility allows you to convert a GET job object to a POST job object.
 
 You will need to get a single job from the VBR API for this to work, it will not work on the "Get All Jobs" endpoint response object (something I might look at later).
 
-### 8.2. <a name='Example-1'></a>Example
+### Example
 
 Get a single job from the VBR API
 
@@ -204,7 +213,11 @@ vcli post/jobs -f job_updated.json
 
 Note that VBR PUT job json/objects match the GET json/objects, so you can use the same file for PUT.
 
-## 9. <a name='Usingwithjq'></a>Using with jq
+### Check Version
+
+This command will check the version of the tool against the latest release on GitHub.
+
+## Using with jq
 
 [jq](https://stedolan.github.io/jq/) offers a lightweight way to navigate JSON date, simply pipe out the responses from the API and use JQ to manipulate the data.
 
@@ -216,7 +229,7 @@ Useful tip: use jq "keys" to see the keys in a json object
 
     vcli get jobs | jq 'keys'
 
-## 10. <a name='UsingwithNushell'></a>Using with Nushell
+## Using with Nushell
 
 https://www.nushell.sh/
 
@@ -258,7 +271,7 @@ You can also save it in a different format, though you need to use the --raw fla
 
     vcli get jobs | from json | get data | to yaml | save jobs.yaml --raw
 
-### 10.1. <a name='NuModules'></a>Nu Modules
+### Nu Modules
 
 Nushell has its own module system which means you can define a series of methods which can then be brought into the shell's scope.
 
@@ -306,9 +319,9 @@ Nushell has it's own HTTP get and post options, which could be turned into a spe
 
 There is also a plugin system that Nushell provides which might be something I look at in the future.
 
-## 11. <a name='TipsandTricks'></a>Tips and Tricks
+## Tips and Tricks
 
-### 11.1. <a name='ReplacingaparameterinaJSONfile'></a>Replacing a parameter in a JSON file
+### Replacing a parameter in a JSON file
 
 There is great tool (written in Rust 🦀) called sd which works like sed and allows you to replace strings in a file using string expressions and regex.
 

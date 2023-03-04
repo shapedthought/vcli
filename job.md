@@ -1,4 +1,4 @@
-# vCLI jobs
+# vCLI jobs 📝
 
 Note that this is feature is still in beta and may change in the future.
 
@@ -60,6 +60,20 @@ vcli job create -f \path\to\job\folder
 
 See Job Folder Structure below for more information.
 
+You can also modify the base job template by using the -t/--template flag and specifying a template file which needs to reside in the settings folder.
+
+File
+
+```windows
+vcli job create jobs-abc.yaml -t job-template-alt.yaml
+```
+
+Folder
+
+```windows
+vcli job create -f \path\to\job\folder -t job-template-alt.yaml
+```
+
 ## Side note - YAML
 
 YAML was selected as the file format as it is a human readable format and is easy to create and modify.
@@ -88,7 +102,7 @@ This also requires that you are using the VCLI_SETTINGS_PATH environment variabl
 cp job-template-abc.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
 ```
 
-You can then use the other template files as the bases for your jobs.
+You can also create different base templates which you can select when creating a job with the -t flag (see below).
 
 ## The Job File Structure
 
@@ -134,11 +148,11 @@ The each file must to include the key word for each of the elements.
 1. vCLI will first load the base job template.
 2. It will then load the job related file(s)
    - For the job only option it will only load the job file.
-   - For the job folder option (-f) it will then load all the files in the job folder.
+   - For the job folder option (-f/--folder) it will then load all the files in the job folder.
 3. It will then merge the file or files together with the base job template.
 4. Finally it will post the job to the specified endpoint.
 
-## Example workflow
+## Example workflow 1
 
 ### Create a base job templates
 
@@ -183,4 +197,38 @@ sql-job
 
 ```
 vcli job create -f .\sql-job
+```
+
+## Example workflow 2
+
+### Create a base job templates
+
+Create the base templates.
+
+```
+vcli job template 57b3baab-6237-41bf-add7-db63d41d984c
+```
+
+Move the default job-template-abc.yaml file to the settings folder.
+
+```
+cp job-template-abc.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
+```
+
+Create a secondary template with changes as required, and copy it to the settings folder.
+
+```
+cp job-template-alt.yaml "$env:VCLI_SETTINGS_PATH\job-template-alt.yaml"
+```
+
+Create a job using the "file" method using the default template.
+
+```
+vcli job create .\job-sql.yaml
+```
+
+Create a job using the "file" method using the alternative template.
+
+```
+vcli job create .\job-sql.yaml -t job-template-alt.yaml
 ```

@@ -18,7 +18,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var folder string
+var (folder string
+	 customTemplate string
+)
 
 var jobsCmd = &cobra.Command{
 	Use:   "job",
@@ -45,7 +47,7 @@ vcli create job -f .\path\to\jobs-folder
 		if args[0] == "template" {
 			getTemplates(args, folder)
 		} else if args[0] == "create" {
-			createJob(args, folder)
+			createJob(args, folder, customTemplate)
 		}
 	},
 }
@@ -108,20 +110,29 @@ func getTemplates(args []string, folder string) {
 
 }
 
-func getSettingsPath() string {
+func getSettingsPath(cp string) string {
 	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+
+	var sf string
+	
+	if len(cp) > 0 {
+		sf = cp
+	} else {
+		sf = "job-template.yaml"
+	}
+
 	if len(settingsPath) != 0 {
 		if runtime.GOOS == "windows" {
 			if !strings.HasSuffix(settingsPath, "\\") {
-				settingsPath = settingsPath + "\\" + "job-template.yaml"
+				settingsPath = settingsPath + "\\" + sf
 			} else {
-				settingsPath = settingsPath + "job-template.yaml"
+				settingsPath = settingsPath + sf
 			}
 		} else {
 			if !strings.HasSuffix(settingsPath, "/") {
-				settingsPath = settingsPath + "/" + "job-template.yaml"
+				settingsPath = settingsPath + "/" + sf
 			} else {
-				settingsPath = settingsPath + "job-template.yaml"
+				settingsPath = settingsPath + sf
 			}
 		}
 	} else {
@@ -132,7 +143,7 @@ func getSettingsPath() string {
 }
 
 
-func createJob(args []string, folder string) {
+func createJob(args []string, folder string, customTemplate string) {
 	profile := utils.GetProfile()
 	settings := utils.ReadSettings()
 
@@ -142,7 +153,7 @@ func createJob(args []string, folder string) {
 
 	var templateFile models.VbrJobPost
 
-	settingsPath := getSettingsPath()
+	settingsPath := getSettingsPath(customTemplate)
 
 	getYaml, err := os.Open(settingsPath)
 	if err != nil {
@@ -301,5 +312,6 @@ func createJob(args []string, folder string) {
 
 func init() {
 	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input")
+	jobsCmd.Flags().StringVarP(&customTemplate, "template", "t", "", "custom template")
 	rootCmd.AddCommand(jobsCmd)
 }

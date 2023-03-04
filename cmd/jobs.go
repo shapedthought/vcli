@@ -64,16 +64,16 @@ func getTemplates(args []string, folder string) {
 	varJobs := vhttp.GetData[models.VbrJobGet](ju, profile)
 
 	// save base job file
-	utils.SaveData(&varJobs, "job-template")
+	utils.SaveData(&varJobs, fmt.Sprintf("%s-job-template", varJobs.Name))
 
-	// save storage data
-	utils.SaveData(&varJobs.Storage, "storage")
+	// save storage data 
+	utils.SaveData(&varJobs.Storage, fmt.Sprintf("%s-storage", varJobs.Name))
 
 	// save guest processing data
-	utils.SaveData(&varJobs.GuestProcessing, "guest-processing")
+	utils.SaveData(&varJobs.GuestProcessing, fmt.Sprintf("%s-guest-processing", varJobs.Name))
 
 	// save schedule data
-	utils.SaveData(&varJobs.Schedule, "schedule")
+	utils.SaveData(&varJobs.Schedule, fmt.Sprintf("%s-schedule", varJobs.Name))
 
 	var inc []models.Includes
 

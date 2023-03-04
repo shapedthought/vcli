@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"log"
-	"os"
-
 	"github.com/shapedthought/vcli/utils"
 	"github.com/shapedthought/vcli/vhttp"
 	"github.com/spf13/cobra"
@@ -31,20 +28,7 @@ vcli post jobs -f job.json
 		profile := utils.GetProfile()
 		settings := utils.ReadSettings()
 
-		var api_url string
-
-		if settings.CredsFileMode {
-			if len(profile.Address) > 0 {
-				api_url = profile.Address
-			} else {
-				log.Fatal("Profile Address not set")
-			}
-		} else {
-			api_url = os.Getenv("VCLI_URL")
-			if api_url == "" {
-				log.Fatal("VCLI_URL environment variable not set")
-			}
-		}
+		api_url := utils.GetAddress(profile, settings)
 
 		vhttp.SendData(api_url, filename, args[0], "POST", profile, settings)
 

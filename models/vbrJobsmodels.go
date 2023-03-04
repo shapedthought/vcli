@@ -1,583 +1,347 @@
 package models
 
 type VbrJobGet struct {
-	IsHighPriority  bool `json:"isHighPriority"`
+	IsHighPriority  bool `json:"isHighPriority" yaml:"isHighPriority"`
 	VirtualMachines struct {
 		Includes []struct {
 			InventoryObject struct {
-				Type     string `json:"type"`
-				HostName string `json:"hostName"`
-				Name     string `json:"name"`
-				ObjectID string `json:"objectId"`
-			} `json:"inventoryObject"`
-			Size string `json:"size"`
-		} `json:"includes"`
+				Type     string `json:"type" yaml:"type"`
+				HostName string `json:"hostName" yaml:"hostName"`
+				Name     string `json:"name" yaml:"name"`
+				ObjectID string `json:"objectId" yaml:"objectId"`
+			} `json:"inventoryObject" yaml:"inventoryObject"`
+			Size string `json:"size" yaml:"size"`
+		} `json:"includes" yaml:"includes"`
 		Excludes struct {
-			Vms   []interface{} `json:"vms"`
+			Vms   []interface{} `json:"vms" yaml:"vms"`
 			Disks []struct {
-				DisksToProcess string `json:"disksToProcess"`
+				DisksToProcess string `json:"disksToProcess" yaml:"disksToProcess"`
 				VMObject       struct {
-					Type     string `json:"type"`
-					HostName string `json:"hostName"`
-					Name     string `json:"name"`
-					ObjectID string `json:"objectId"`
-				} `json:"vmObject"`
-				Disks                     []interface{} `json:"disks"`
-				RemoveFromVMConfiguration bool          `json:"removeFromVMConfiguration"`
-			} `json:"disks"`
+					Type     string `json:"type" yaml:"type"`
+					HostName string `json:"hostName" yaml:"hostName"`
+					Name     string `json:"name" yaml:"name"`
+					ObjectID string `json:"objectId" yaml:"objectId"`
+				} `json:"vmObject" yaml:"vmObject"`
+				Disks                     []interface{} `json:"disks" yaml:"disks"`
+				RemoveFromVMConfiguration bool          `json:"removeFromVMConfiguration" yaml:"removeFromVMConfiguration"`
+			} `json:"disks" yaml:"disks"`
 			Templates struct {
-				IsEnabled              bool `json:"isEnabled"`
-				ExcludeFromIncremental bool `json:"excludeFromIncremental"`
-			} `json:"templates"`
-		} `json:"excludes"`
-	} `json:"virtualMachines"`
-	Storage struct {
-		BackupRepositoryID string `json:"backupRepositoryId"`
-		BackupProxies      struct {
-			AutoSelection bool          `json:"autoSelection"`
-			ProxyIds      []interface{} `json:"proxyIds"`
-		} `json:"backupProxies"`
-		RetentionPolicy struct {
-			Type     string `json:"type"`
-			Quantity int    `json:"quantity"`
-		} `json:"retentionPolicy"`
-		GfsPolicy struct {
-			IsEnabled bool `json:"isEnabled"`
-			Weekly    struct {
-				DesiredTime          string `json:"desiredTime"`
-				IsEnabled            bool   `json:"isEnabled"`
-				KeepForNumberOfWeeks int    `json:"keepForNumberOfWeeks"`
-			} `json:"weekly"`
-			Monthly struct {
-				DesiredTime           string `json:"desiredTime"`
-				IsEnabled             bool   `json:"isEnabled"`
-				KeepForNumberOfMonths int    `json:"keepForNumberOfMonths"`
-			} `json:"monthly"`
-			Yearly struct {
-				DesiredTime          string `json:"desiredTime"`
-				IsEnabled            bool   `json:"isEnabled"`
-				KeepForNumberOfYears int    `json:"keepForNumberOfYears"`
-			} `json:"yearly"`
-		} `json:"gfsPolicy"`
-		AdvancedSettings struct {
-			BackupModeType  string `json:"backupModeType"`
-			SynthenticFulls struct {
-				IsEnabled bool     `json:"isEnabled"`
-				Days      []string `json:"days"`
-			} `json:"synthenticFulls"`
-			ActiveFulls struct {
-				IsEnabled bool `json:"isEnabled"`
-				Weekly    struct {
-					IsEnabled bool     `json:"isEnabled"`
-					Days      []string `json:"days"`
-				} `json:"weekly"`
-				Monthly struct {
-					DayOfWeek        string   `json:"dayOfWeek"`
-					DayNumberInMonth string   `json:"dayNumberInMonth"`
-					IsEnabled        bool     `json:"isEnabled"`
-					DayOfMonths      int      `json:"dayOfMonths"`
-					Months           []string `json:"months"`
-				} `json:"monthly"`
-			} `json:"activeFulls"`
-			BackupHealth struct {
-				IsEnabled bool `json:"isEnabled"`
-				Weekly    struct {
-					IsEnabled bool     `json:"isEnabled"`
-					Days      []string `json:"days"`
-				} `json:"weekly"`
-				Monthly struct {
-					DayOfWeek        string   `json:"dayOfWeek"`
-					DayNumberInMonth string   `json:"dayNumberInMonth"`
-					IsEnabled        bool     `json:"isEnabled"`
-					DayOfMonths      int      `json:"dayOfMonths"`
-					Months           []string `json:"months"`
-				} `json:"monthly"`
-			} `json:"backupHealth"`
-			FullBackupMaintenance struct {
-				RemoveData struct {
-					IsEnabled bool `json:"isEnabled"`
-					AfterDays int  `json:"afterDays"`
-				} `json:"RemoveData"`
-				DefragmentAndCompact struct {
-					IsEnabled bool `json:"isEnabled"`
-					Weekly    struct {
-						IsEnabled bool     `json:"isEnabled"`
-						Days      []string `json:"days"`
-					} `json:"weekly"`
-					Monthly struct {
-						DayOfWeek        string   `json:"dayOfWeek"`
-						DayNumberInMonth string   `json:"dayNumberInMonth"`
-						IsEnabled        bool     `json:"isEnabled"`
-						DayOfMonths      int      `json:"dayOfMonths"`
-						Months           []string `json:"months"`
-					} `json:"monthly"`
-				} `json:"defragmentAndCompact"`
-			} `json:"fullBackupMaintenance"`
-			StorageData struct {
-				CompressionLevel         string `json:"compressionLevel"`
-				StorageOptimization      string `json:"storageOptimization"`
-				EnableInlineDataDedup    bool   `json:"enableInlineDataDedup"`
-				ExcludeSwapFileBlocks    bool   `json:"excludeSwapFileBlocks"`
-				ExcludeDeletedFileBlocks bool   `json:"excludeDeletedFileBlocks"`
-				Encryption               struct {
-					IsEnabled                  bool        `json:"isEnabled"`
-					EncryptionPasswordIDOrNull string      `json:"encryptionPasswordIdOrNull"`
-					EncryptionPasswordTag      interface{} `json:"encryptionPasswordTag"`
-				} `json:"encryption"`
-			} `json:"storageData"`
-			Notifications struct {
-				SendSNMPNotifications bool `json:"sendSNMPNotifications"`
-				EmailNotifications    struct {
-					NotificationType           interface{}   `json:"notificationType"`
-					IsEnabled                  bool          `json:"isEnabled"`
-					Recipients                 []interface{} `json:"recipients"`
-					CustomNotificationSettings interface{}   `json:"customNotificationSettings"`
-				} `json:"emailNotifications"`
-				VMAttribute struct {
-					IsEnabled              bool   `json:"isEnabled"`
-					Notes                  string `json:"notes"`
-					AppendToExisitingValue bool   `json:"appendToExisitingValue"`
-				} `json:"vmAttribute"`
-			} `json:"notifications"`
-			VSphere struct {
-				EnableVMWareToolsQuiescence bool `json:"enableVMWareToolsQuiescence"`
-				ChangedBlockTracking        struct {
-					IsEnabled              bool `json:"isEnabled"`
-					EnableCBTautomatically bool `json:"enableCBTautomatically"`
-					ResetCBTonActiveFull   bool `json:"resetCBTonActiveFull"`
-				} `json:"changedBlockTracking"`
-			} `json:"vSphere"`
-			StorageIntegration struct {
-				IsEnabled                bool `json:"isEnabled"`
-				LimitProcessedVM         bool `json:"limitProcessedVm"`
-				LimitProcessedVMCount    int  `json:"limitProcessedVmCount"`
-				FailoverToStandardBackup bool `json:"failoverToStandardBackup"`
-			} `json:"storageIntegration"`
-			Scripts struct {
-				PeriodicityType string `json:"periodicityType"`
-				PreCommand      struct {
-					IsEnabled bool   `json:"isEnabled"`
-					Command   string `json:"command"`
-				} `json:"preCommand"`
-				PostCommand struct {
-					IsEnabled bool   `json:"isEnabled"`
-					Command   string `json:"command"`
-				} `json:"postCommand"`
-				RunScriptEvery int      `json:"runScriptEvery"`
-				DayOfWeek      []string `json:"dayOfWeek"`
-			} `json:"scripts"`
-		} `json:"advancedSettings"`
-	} `json:"storage"`
-	GuestProcessing struct {
-		AppAwareProcessing struct {
-			IsEnabled   bool `json:"isEnabled"`
-			AppSettings []struct {
-				Vss             string `json:"vss"`
-				TransactionLogs string `json:"transactionLogs"`
-				VMObject        struct {
-					Type     string `json:"type"`
-					HostName string `json:"hostName"`
-					Name     string `json:"name"`
-					ObjectID string `json:"objectId"`
-				} `json:"vmObject"`
-				UsePersistentGuestAgent bool `json:"usePersistentGuestAgent"`
-				Sql                     struct {
-					LogsProcessing     string      `json:"logsProcessing"`
-					RetainLogBackups   interface{} `json:"retainLogBackups"`
-					BackupMinsCount    interface{} `json:"backupMinsCount"`
-					KeepDaysCount      interface{} `json:"keepDaysCount"`
-					LogShippingServers interface{} `json:"logShippingServers"`
-				} `json:"sql"`
-				Oracle struct {
-					ArchiveLogs         string      `json:"archiveLogs"`
-					RetainLogBackups    string      `json:"retainLogBackups"`
-					UseGuestCredentials bool        `json:"useGuestCredentials"`
-					CredentialsID       interface{} `json:"credentialsId"`
-					DeleteHoursCount    interface{} `json:"deleteHoursCount"`
-					DeleteGBsCount      interface{} `json:"deleteGBsCount"`
-					BackupLogs          bool        `json:"backupLogs"`
-					BackupMinsCount     int         `json:"backupMinsCount"`
-					KeepDaysCount       int         `json:"keepDaysCount"`
-					LogShippingServers  struct {
-						AutoSelection     bool          `json:"autoSelection"`
-						ShippingServerIds []interface{} `json:"shippingServerIds"`
-					} `json:"logShippingServers"`
-				} `json:"oracle"`
-				Exclusions struct {
-					ExclusionPolicy string        `json:"exclusionPolicy"`
-					ItemsList       []interface{} `json:"itemsList"`
-				} `json:"exclusions"`
-				Scripts struct {
-					ScriptProcessingMode string      `json:"scriptProcessingMode"`
-					WindowsScripts       interface{} `json:"windowsScripts"`
-					LinuxScripts         interface{} `json:"linuxScripts"`
-				} `json:"scripts"`
-			} `json:"appSettings"`
-		} `json:"appAwareProcessing"`
-		GuestFSIndexing struct {
-			IsEnabled        bool          `json:"isEnabled"`
-			IndexingSettings []interface{} `json:"indexingSettings"`
-		} `json:"guestFSIndexing"`
-		GuestInteractionProxies struct {
-			AutoSelection bool          `json:"autoSelection"`
-			ProxyIds      []interface{} `json:"proxyIds"`
-		} `json:"guestInteractionProxies"`
-		GuestCredentials struct {
-			CredsType             string        `json:"credsType"`
-			CredsID               string        `json:"credsId"`
-			CredentialsPerMachine []interface{} `json:"credentialsPerMachine"`
-		} `json:"guestCredentials"`
-	} `json:"guestProcessing"`
-	Schedule struct {
-		RunAutomatically bool `json:"runAutomatically"`
-		Daily            struct {
-			DailyKind string   `json:"dailyKind"`
-			IsEnabled bool     `json:"isEnabled"`
-			LocalTime string   `json:"localTime"`
-			Days      []string `json:"days"`
-		} `json:"daily"`
-		Monthly struct {
-			DayOfWeek        string   `json:"dayOfWeek"`
-			DayNumberInMonth string   `json:"dayNumberInMonth"`
-			IsEnabled        bool     `json:"isEnabled"`
-			LocalTime        string   `json:"localTime"`
-			DayOfMonth       int      `json:"dayOfMonth"`
-			Months           []string `json:"months"`
-		} `json:"monthly"`
-		Periodically struct {
-			PeriodicallyKind string `json:"periodicallyKind"`
-			IsEnabled        bool   `json:"isEnabled"`
-			Frequency        int    `json:"frequency"`
-			BackupWindow     struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-			StartTimeWithinAnHour int `json:"startTimeWithinAnHour"`
-		} `json:"periodically"`
-		Continuously struct {
-			IsEnabled    bool `json:"isEnabled"`
-			BackupWindow struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-		} `json:"continuously"`
-		AfterThisJob struct {
-			IsEnabled bool        `json:"isEnabled"`
-			JobName   interface{} `json:"jobName"`
-		} `json:"afterThisJob"`
-		Retry struct {
-			IsEnabled    bool `json:"isEnabled"`
-			RetryCount   int  `json:"retryCount"`
-			AwaitMinutes int  `json:"awaitMinutes"`
-		} `json:"retry"`
-		BackupWindow struct {
-			IsEnabled    bool `json:"isEnabled"`
-			BackupWindow struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-		} `json:"backupWindow"`
-	} `json:"schedule"`
-	Type        string `json:"type"`
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsDisabled  bool   `json:"isDisabled"`
+				IsEnabled              bool `json:"isEnabled" yaml:"isEnabled"`
+				ExcludeFromIncremental bool `json:"excludeFromIncremental" yaml:"excludeFromIncremental"`
+			} `json:"templates" yaml:"templates"`
+		} `json:"excludes" yaml:"excludes"`
+	} `json:"virtualMachines" yaml:"virtualMachines"`
+	Storage         Storage         `json:"storage" yaml:"storage"`
+	GuestProcessing GuestProcessing `json:"guestProcessing" yaml:"guestProcessing"`
+	Schedule        Schedule        `json:"schedule" yaml:"schedule"`
+	Type            string          `json:"type" yaml:"type"`
+	ID              string          `json:"id" yaml:"id"`
+	Name            string          `json:"name" yaml:"name"`
+	Description     string          `json:"description" yaml:"description"`
+	IsDisabled      bool            `json:"isDisabled" yaml:"isDisabled"`
 }
 
 type Includes struct {
-	Type     string `json:"type"`
-	HostName string `json:"hostName"`
-	Name     string `json:"name"`
-	ObjectID string `json:"objectId"`
+	Type     string `json:"type" yaml:"type"`
+	HostName string `json:"hostName" yaml:"hostName"`
+	Name     string `json:"name" yaml:"name"`
+	ObjectID string `json:"objectId" yaml:"objectId"`
 }
 
 type VirtualMachines struct {
-	Includes []Includes `json:"includes"`
+	Includes []Includes `json:"includes" yaml:"includes"`
 	Excludes struct {
-		Vms   []interface{} `json:"vms"`
+		Vms   []interface{} `json:"vms" yaml:"vms"`
 		Disks []struct {
-			DisksToProcess string `json:"disksToProcess"`
+			DisksToProcess string `json:"disksToProcess" yaml:"disksToProcess"`
 			VMObject       struct {
-				Type     string `json:"type"`
-				HostName string `json:"hostName"`
-				Name     string `json:"name"`
-				ObjectID string `json:"objectId"`
-			} `json:"vmObject"`
-			Disks                     []interface{} `json:"disks"`
-			RemoveFromVMConfiguration bool          `json:"removeFromVMConfiguration"`
-		} `json:"disks"`
+				Type     string `json:"type" yaml:"type"`
+				HostName string `json:"hostName" yaml:"hostName"`
+				Name     string `json:"name" yaml:"name"`
+				ObjectID string `json:"objectId" yaml:"objectId"`
+			} `json:"vmObject" yaml:"vmObject"`
+			Disks                     []interface{} `json:"disks" yaml:"disks"`
+			RemoveFromVMConfiguration bool          `json:"removeFromVMConfiguration" yaml:"removeFromVMConfiguration"`
+		} `json:"disks" yaml:"disks"`
 		Templates struct {
-			IsEnabled              bool `json:"isEnabled"`
-			ExcludeFromIncremental bool `json:"excludeFromIncremental"`
-		} `json:"templates"`
-	} `json:"excludes"`
+			IsEnabled              bool `json:"isEnabled" yaml:"isEnabled"`
+			ExcludeFromIncremental bool `json:"excludeFromIncremental" yaml:"excludeFromIncremental"`
+		} `json:"templates" yaml:"templates"`
+	} `json:"excludes" yaml:"excludes"`
+}
+
+type Storage struct {
+	BackupRepositoryID string `json:"backupRepositoryId" yaml:"backupRepositoryId"`
+	BackupProxies      struct {
+		AutoSelection bool          `json:"autoSelection" yaml:"autoSelection"`
+		ProxyIds      []interface{} `json:"proxyIds" yaml:"proxyIds"`
+	} `json:"backupProxies" yaml:"backupProxies"`
+	RetentionPolicy struct {
+		Type     string `json:"type" yaml:"type"`
+		Quantity int    `json:"quantity" yaml:"quantity"`
+	} `json:"retentionPolicy" yaml:"retentionPolicy"`
+	GfsPolicy struct {
+		IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+		Weekly    struct {
+			DesiredTime          string `json:"desiredTime" yaml:"desiredTime"`
+			IsEnabled            bool   `json:"isEnabled" yaml:"isEnabled"`
+			KeepForNumberOfWeeks int    `json:"keepForNumberOfWeeks" yaml:"keepForNumberOfWeeks"`
+		} `json:"weekly" yaml:"weekly"`
+		Monthly struct {
+			DesiredTime           string `json:"desiredTime" yaml:"desiredTime"`
+			IsEnabled             bool   `json:"isEnabled" yaml:"isEnabled"`
+			KeepForNumberOfMonths int    `json:"keepForNumberOfMonths" yaml:"keepForNumberOfMonths"`
+		} `json:"monthly" yaml:"monthly"`
+		Yearly struct {
+			DesiredTime          string `json:"desiredTime" yaml:"desiredTime"`
+			IsEnabled            bool   `json:"isEnabled" yaml:"isEnabled"`
+			KeepForNumberOfYears int    `json:"keepForNumberOfYears" yaml:"keepForNumberOfYears"`
+		} `json:"yearly" yaml:"yearly"`
+	} `json:"gfsPolicy" yaml:"gfsPolicy"`
+	AdvancedSettings struct {
+		BackupModeType  string `json:"backupModeType" yaml:"backupModeType"`
+		SynthenticFulls struct {
+			IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+			Days      []string `json:"days" yaml:"days"`
+		} `json:"synthenticFulls" yaml:"synthenticFulls"`
+		ActiveFulls struct {
+			IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+			Weekly    struct {
+				IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+				Days      []string `json:"days" yaml:"days"`
+			} `json:"weekly" yaml:"weekly"`
+			Monthly struct {
+				DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+				DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+				IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+				DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonths"`
+				Months           []string `json:"months" yaml:"months"`
+			} `json:"monthly" yaml:"monthly"`
+		} `json:"activeFulls" yaml:"activeFulls"`
+		BackupHealth struct {
+			IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+			Weekly    struct {
+				IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+				Days      []string `json:"days" yaml:"days"`
+			} `json:"weekly" yaml:"weekly"`
+			Monthly struct {
+				DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+				DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+				IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+				DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonths"`
+				Months           []string `json:"months" yaml:"months"`
+			} `json:"monthly" yaml:"monthly"`
+		} `json:"backupHealth" yaml:"backupHealth"`
+		FullBackupMaintenance struct {
+			RemoveData struct {
+				IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+				AfterDays int  `json:"afterDays" yaml:"afterDays"`
+			} `json:"RemoveData" yaml:"RemoveData"`
+			DefragmentAndCompact struct {
+				IsEnabled bool `json:"isEnabled" yaml:"isEnabled"`
+				Weekly    struct {
+					IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+					Days      []string `json:"days" yaml:"days"`
+				} `json:"weekly" yaml:"weekly"`
+				Monthly struct {
+					DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+					DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+					IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+					DayOfMonths      int      `json:"dayOfMonths" yaml:"dayOfMonths"`
+					Months           []string `json:"months" yaml:"months"`
+				} `json:"monthly" yaml:"monthly"`
+			} `json:"defragmentAndCompact" yaml:"defragmentAndCompact"`
+		} `json:"fullBackupMaintenance" yaml:"fullBackupMaintenance"`
+		StorageData struct {
+			CompressionLevel         string `json:"compressionLevel" yaml:"compressionLevel"`
+			StorageOptimization      string `json:"storageOptimization" yaml:"storageOptimization"`
+			EnableInlineDataDedup    bool   `json:"enableInlineDataDedup" yaml:"enableInlineDataDedup"`
+			ExcludeSwapFileBlocks    bool   `json:"excludeSwapFileBlocks" yaml:"excludeSwapFileBlocks"`
+			ExcludeDeletedFileBlocks bool   `json:"excludeDeletedFileBlocks" yaml:"excludeDeletedFileBlocks"`
+			Encryption               struct {
+				IsEnabled                  bool        `json:"isEnabled" yaml:"isEnabled"`
+				EncryptionPasswordIDOrNull string      `json:"encryptionPasswordIdOrNull" yaml:"encryptionPasswordIdOrNull"`
+				EncryptionPasswordTag      interface{} `json:"encryptionPasswordTag" yaml:"encryptionPasswordTag"`
+			} `json:"encryption" yaml:"encryption"`
+		} `json:"storageData" yaml:"storageData"`
+		Notifications struct {
+			SendSNMPNotifications bool `json:"sendSNMPNotifications" yaml:"sendSNMPNotifications"`
+			EmailNotifications    struct {
+				NotificationType           interface{}   `json:"notificationType" yaml:"notificationType"`
+				IsEnabled                  bool          `json:"isEnabled" yaml:"isEnabled"`
+				Recipients                 []interface{} `json:"recipients" yaml:"recipients"`
+				CustomNotificationSettings interface{}   `json:"customNotificationSettings" yaml:"customNotificationSettings"`
+			} `json:"emailNotifications" yaml:"emailNotifications"`
+			VMAttribute struct {
+				IsEnabled              bool   `json:"isEnabled" yaml:"isEnabled"`
+				Notes                  string `json:"notes" yaml:"notes"`
+				AppendToExisitingValue bool   `json:"appendToExisitingValue" yaml:"appendToExisitingValue"`
+			} `json:"vmAttribute" yaml:"vmAttribute"`
+		} `json:"notifications" yaml:"notifications"`
+		VSphere struct {
+			EnableVMWareToolsQuiescence bool `json:"enableVMWareToolsQuiescence" yaml:"enableVMWareToolsQuiescence"`
+			ChangedBlockTracking        struct {
+				IsEnabled              bool `json:"isEnabled" yaml:"isEnabled"`
+				EnableCBTautomatically bool `json:"enableCBTautomatically" yaml:"enableCBTautomatically"`
+				ResetCBTonActiveFull   bool `json:"resetCBTonActiveFull" yaml:"resetCBTonActiveFull"`
+			} `json:"changedBlockTracking" yaml:"changedBlockTracking"`
+		} `json:"vSphere" yaml:"vSphere"`
+		StorageIntegration struct {
+			IsEnabled                bool `json:"isEnabled" yaml:"isEnabled"`
+			LimitProcessedVM         bool `json:"limitProcessedVm" yaml:"limitProcessedVm"`
+			LimitProcessedVMCount    int  `json:"limitProcessedVmCount" yaml:"limitProcessedVmCount"`
+			FailoverToStandardBackup bool `json:"failoverToStandardBackup" yaml:"failoverToStandardBackup"`
+		} `json:"storageIntegration" yaml:"storageIntegration"`
+		Scripts struct {
+			PeriodicityType string `json:"periodicityType" yaml:"periodicityType"`
+			PreCommand      struct {
+				IsEnabled bool   `json:"isEnabled" yaml:"isEnabled"`
+				Command   string `json:"command" yaml:"command"`
+			} `json:"preCommand" yaml:"preCommand"`
+			PostCommand struct {
+				IsEnabled bool   `json:"isEnabled" yaml:"isEnabled"`
+				Command   string `json:"command" yaml:"command"`
+			} `json:"postCommand" yaml:"postCommand"`
+			RunScriptEvery int      `json:"runScriptEvery" yaml:"runScriptEvery"`
+			DayOfWeek      []string `json:"dayOfWeek" yaml:"dayOfWeek"`
+		} `json:"scripts" yaml:"scripts"`
+	} `json:"advancedSettings" yaml:"advancedSettings"`
+}
+
+type GuestProcessing struct {
+	AppAwareProcessing struct {
+		IsEnabled   bool `json:"isEnabled" yaml:"isEnabled"`
+		AppSettings []struct {
+			Vss             string `json:"vss" yaml:"vss"`
+			TransactionLogs string `json:"transactionLogs" yaml:"transactionLogs"`
+			VMObject        struct {
+				Type     string `json:"type" yaml:"type"`
+				HostName string `json:"hostName" yaml:"hostName"`
+				Name     string `json:"name" yaml:"name"`
+				ObjectID string `json:"objectId" yaml:"objectId"`
+			} `json:"vmObject" yaml:"vmObject"`
+			UsePersistentGuestAgent bool `json:"usePersistentGuestAgent" yaml:"usePersistentGuestAgent"`
+			Sql                     struct {
+				LogsProcessing     string      `json:"logsProcessing" yaml:"logsProcessing"`
+				RetainLogBackups   interface{} `json:"retainLogBackups" yaml:"retainLogBackups"`
+				BackupMinsCount    interface{} `json:"backupMinsCount" yaml:"backupMinsCount"`
+				KeepDaysCount      interface{} `json:"keepDaysCount" yaml:"keepDaysCount"`
+				LogShippingServers interface{} `json:"logShippingServers" yaml:"logShippingServers"`
+			} `json:"sql" yaml:"sql"`
+			Oracle struct {
+				ArchiveLogs         string      `json:"archiveLogs" yaml:"archiveLogs"`
+				RetainLogBackups    string      `json:"retainLogBackups" yaml:"retainLogBackups"`
+				UseGuestCredentials bool        `json:"useGuestCredentials" yaml:"useGuestCredentials"` // true
+				CredentialsID       interface{} `json:"credentialsId" yaml:"credentialsId"`
+				DeleteHoursCount    interface{} `json:"deleteHoursCount" yaml:"deleteHoursCount"`
+				DeleteGBsCount      interface{} `json:"deleteGBsCount" yaml:"deleteGBsCount"`
+				BackupLogs          bool        `json:"backupLogs" yaml:"backupLogs"`
+				BackupMinsCount     int         `json:"backupMinsCount" yaml:"backupMinsCount"`
+				KeepDaysCount       int         `json:"keepDaysCount" yaml:"keepDaysCount"`
+				LogShippingServers  struct {
+					AutoSelection     bool          `json:"autoSelection" yaml:"autoSelection"`
+					ShippingServerIds []interface{} `json:"shippingServerIds" yaml:"shippingServerIds"`
+				} `json:"logShippingServers" yaml:"logShippingServers"`
+			} `json:"oracle" yaml:"oracle"`
+			Exclusions struct {
+				ExclusionPolicy string        `json:"exclusionPolicy" yaml:"exclusionPolicy"`
+				ItemsList       []interface{} `json:"itemsList" yaml:"itemsList"`
+			} `json:"exclusions" yaml:"exclusions"`
+			Scripts struct {
+				ScriptProcessingMode string      `json:"scriptProcessingMode" yaml:"scriptProcessingMode"`
+				WindowsScripts       interface{} `json:"windowsScripts" yaml:"windowsScripts"`
+				LinuxScripts         interface{} `json:"linuxScripts" yaml:"linuxScripts"`
+			} `json:"scripts" yaml:"scripts"`
+		} `json:"appSettings" yaml:"appSettings"`
+	} `json:"appAwareProcessing" yaml:"appAwareProcessing"`
+	GuestFSIndexing struct {
+		IsEnabled        bool          `json:"isEnabled" yaml:"isEnabled"`
+		IndexingSettings []interface{} `json:"indexingSettings" yaml:"indexingSettings"`
+	} `json:"guestFSIndexing" yaml:"guestFSIndexing"`
+	GuestInteractionProxies struct {
+		AutoSelection bool          `json:"autoSelection" yaml:"autoSelection"`
+		ProxyIds      []interface{} `json:"proxyIds" yaml:"proxyIds"`
+	} `json:"guestInteractionProxies" yaml:"guestInteractionProxies"`
+	GuestCredentials struct {
+		CredsType             string        `json:"credsType" yaml:"credsType"`
+		CredsID               string        `json:"credsId" yaml:"credsId"`
+		CredentialsPerMachine []interface{} `json:"credentialsPerMachine" yaml:"credentialsPerMachine"`
+	} `json:"guestCredentials" yaml:"guestCredentials"`
+}
+
+type Schedule struct {
+	RunAutomatically bool `json:"runAutomatically" yaml:"runAutomatically"`
+	Daily            struct {
+		DailyKind string   `json:"dailyKind" yaml:"dailyKind"`
+		IsEnabled bool     `json:"isEnabled" yaml:"isEnabled"`
+		LocalTime string   `json:"localTime" yaml:"localTime"`
+		Days      []string `json:"days" yaml:"days"`
+	} `json:"daily" yaml:"daily"`
+	Monthly struct {
+		DayOfWeek        string   `json:"dayOfWeek" yaml:"dayOfWeek"`
+		DayNumberInMonth string   `json:"dayNumberInMonth" yaml:"dayNumberInMonth"`
+		IsEnabled        bool     `json:"isEnabled" yaml:"isEnabled"`
+		LocalTime        string   `json:"localTime" yaml:"localTime"`
+		DayOfMonth       int      `json:"dayOfMonth" yaml:"dayOfMonth"`
+		Months           []string `json:"months" yaml:"months"`
+	} `json:"monthly" yaml:"monthly"`
+	Periodically struct {
+		PeriodicallyKind string `json:"periodicallyKind" yaml:"periodicallyKind"`
+		IsEnabled        bool   `json:"isEnabled" yaml:"isEnabled"`
+		Frequency        int    `json:"frequency" yaml:"frequency"`
+		BackupWindow     struct {
+			Days []struct {
+				Day   string `json:"day" yaml:"day"`
+				Hours string `json:"hours" yaml:"hours"`
+			} `json:"days" yaml:"days"`
+		} `json:"backupWindow" yaml:"backupWindow"`
+		StartTimeWithinAnHour int `json:"startTimeWithinAnHour" yaml:"startTimeWithinAnHour"`
+	} `json:"periodically" yaml:"periodically"`
+	Continuously struct {
+		IsEnabled    bool `json:"isEnabled" yaml:"isEnabled"`
+		BackupWindow struct {
+			Days []struct {
+				Day   string `json:"day" yaml:"day"`
+				Hours string `json:"hours" yaml:"hours"`
+			} `json:"days" yaml:"days"`
+		} `json:"backupWindow" yaml:"backupWindow"`
+	} `json:"continuously" yaml:"continuously"`
+	AfterThisJob struct {
+		IsEnabled bool        `json:"isEnabled" yaml:"isEnabled"`
+		JobName   interface{} `json:"jobName" yaml:"jobName"`
+	} `json:"afterThisJob" yaml:"afterThisJob"`
+	Retry struct {
+		IsEnabled    bool `json:"isEnabled" yaml:"isEnabled"`
+		RetryCount   int  `json:"retryCount" yaml:"retryCount"`
+		AwaitMinutes int  `json:"awaitMinutes" yaml:"awaitMinutes"`
+	} `json:"retry" yaml:"retry"`
+	BackupWindow struct {
+		IsEnabled    bool `json:"isEnabled" yaml:"isEnabled"`
+		BackupWindow struct {
+			Days []struct {
+				Day   string `json:"day" yaml:"day"`
+				Hours string `json:"hours" yaml:"hours"`
+			} `json:"days" yaml:"days"`
+		} `json:"backupWindow" yaml:"backupWindow"`
+	} `json:"backupWindow" yaml:"backupWindow"`
 }
 
 type VbrJobPost struct {
-	IsHighPriority  bool            `json:"isHighPriority"`
-	VirtualMachines VirtualMachines `json:"virtualMachines"`
-	Storage         struct {
-		BackupRepositoryID string `json:"backupRepositoryId"`
-		BackupProxies      struct {
-			AutoSelection bool          `json:"autoSelection"`
-			ProxyIds      []interface{} `json:"proxyIds"`
-		} `json:"backupProxies"`
-		RetentionPolicy struct {
-			Type     string `json:"type"`
-			Quantity int    `json:"quantity"`
-		} `json:"retentionPolicy"`
-		GfsPolicy struct {
-			IsEnabled bool `json:"isEnabled"`
-			Weekly    struct {
-				DesiredTime          string `json:"desiredTime"`
-				IsEnabled            bool   `json:"isEnabled"`
-				KeepForNumberOfWeeks int    `json:"keepForNumberOfWeeks"`
-			} `json:"weekly"`
-			Monthly struct {
-				DesiredTime           string `json:"desiredTime"`
-				IsEnabled             bool   `json:"isEnabled"`
-				KeepForNumberOfMonths int    `json:"keepForNumberOfMonths"`
-			} `json:"monthly"`
-			Yearly struct {
-				DesiredTime          string `json:"desiredTime"`
-				IsEnabled            bool   `json:"isEnabled"`
-				KeepForNumberOfYears int    `json:"keepForNumberOfYears"`
-			} `json:"yearly"`
-		} `json:"gfsPolicy"`
-		AdvancedSettings struct {
-			BackupModeType  string `json:"backupModeType"`
-			SynthenticFulls struct {
-				IsEnabled bool     `json:"isEnabled"`
-				Days      []string `json:"days"`
-			} `json:"synthenticFulls"`
-			ActiveFulls struct {
-				IsEnabled bool `json:"isEnabled"`
-				Weekly    struct {
-					IsEnabled bool     `json:"isEnabled"`
-					Days      []string `json:"days"`
-				} `json:"weekly"`
-				Monthly struct {
-					DayOfWeek        string   `json:"dayOfWeek"`
-					DayNumberInMonth string   `json:"dayNumberInMonth"`
-					IsEnabled        bool     `json:"isEnabled"`
-					DayOfMonths      int      `json:"dayOfMonths"`
-					Months           []string `json:"months"`
-				} `json:"monthly"`
-			} `json:"activeFulls"`
-			BackupHealth struct {
-				IsEnabled bool `json:"isEnabled"`
-				Weekly    struct {
-					IsEnabled bool     `json:"isEnabled"`
-					Days      []string `json:"days"`
-				} `json:"weekly"`
-				Monthly struct {
-					DayOfWeek        string   `json:"dayOfWeek"`
-					DayNumberInMonth string   `json:"dayNumberInMonth"`
-					IsEnabled        bool     `json:"isEnabled"`
-					DayOfMonths      int      `json:"dayOfMonths"`
-					Months           []string `json:"months"`
-				} `json:"monthly"`
-			} `json:"backupHealth"`
-			FullBackupMaintenance struct {
-				RemoveData struct {
-					IsEnabled bool `json:"isEnabled"`
-					AfterDays int  `json:"afterDays"`
-				} `json:"RemoveData"`
-				DefragmentAndCompact struct {
-					IsEnabled bool `json:"isEnabled"`
-					Weekly    struct {
-						IsEnabled bool     `json:"isEnabled"`
-						Days      []string `json:"days"`
-					} `json:"weekly"`
-					Monthly struct {
-						DayOfWeek        string   `json:"dayOfWeek"`
-						DayNumberInMonth string   `json:"dayNumberInMonth"`
-						IsEnabled        bool     `json:"isEnabled"`
-						DayOfMonths      int      `json:"dayOfMonths"`
-						Months           []string `json:"months"`
-					} `json:"monthly"`
-				} `json:"defragmentAndCompact"`
-			} `json:"fullBackupMaintenance"`
-			StorageData struct {
-				CompressionLevel         string `json:"compressionLevel"`
-				StorageOptimization      string `json:"storageOptimization"`
-				EnableInlineDataDedup    bool   `json:"enableInlineDataDedup"`
-				ExcludeSwapFileBlocks    bool   `json:"excludeSwapFileBlocks"`
-				ExcludeDeletedFileBlocks bool   `json:"excludeDeletedFileBlocks"`
-				Encryption               struct {
-					IsEnabled                  bool        `json:"isEnabled"`
-					EncryptionPasswordIDOrNull string      `json:"encryptionPasswordIdOrNull"`
-					EncryptionPasswordTag      interface{} `json:"encryptionPasswordTag"`
-				} `json:"encryption"`
-			} `json:"storageData"`
-			Notifications struct {
-				SendSNMPNotifications bool `json:"sendSNMPNotifications"`
-				EmailNotifications    struct {
-					NotificationType           interface{}   `json:"notificationType"`
-					IsEnabled                  bool          `json:"isEnabled"`
-					Recipients                 []interface{} `json:"recipients"`
-					CustomNotificationSettings interface{}   `json:"customNotificationSettings"`
-				} `json:"emailNotifications"`
-				VMAttribute struct {
-					IsEnabled              bool   `json:"isEnabled"`
-					Notes                  string `json:"notes"`
-					AppendToExisitingValue bool   `json:"appendToExisitingValue"`
-				} `json:"vmAttribute"`
-			} `json:"notifications"`
-			VSphere struct {
-				EnableVMWareToolsQuiescence bool `json:"enableVMWareToolsQuiescence"`
-				ChangedBlockTracking        struct {
-					IsEnabled              bool `json:"isEnabled"`
-					EnableCBTautomatically bool `json:"enableCBTautomatically"`
-					ResetCBTonActiveFull   bool `json:"resetCBTonActiveFull"`
-				} `json:"changedBlockTracking"`
-			} `json:"vSphere"`
-			StorageIntegration struct {
-				IsEnabled                bool `json:"isEnabled"`
-				LimitProcessedVM         bool `json:"limitProcessedVm"`
-				LimitProcessedVMCount    int  `json:"limitProcessedVmCount"`
-				FailoverToStandardBackup bool `json:"failoverToStandardBackup"`
-			} `json:"storageIntegration"`
-			Scripts struct {
-				PeriodicityType string `json:"periodicityType"`
-				PreCommand      struct {
-					IsEnabled bool   `json:"isEnabled"`
-					Command   string `json:"command"`
-				} `json:"preCommand"`
-				PostCommand struct {
-					IsEnabled bool   `json:"isEnabled"`
-					Command   string `json:"command"`
-				} `json:"postCommand"`
-				RunScriptEvery int      `json:"runScriptEvery"`
-				DayOfWeek      []string `json:"dayOfWeek"`
-			} `json:"scripts"`
-		} `json:"advancedSettings"`
-	} `json:"storage"`
-	GuestProcessing struct {
-		AppAwareProcessing struct {
-			IsEnabled   bool `json:"isEnabled"`
-			AppSettings []struct {
-				Vss             string `json:"vss"`
-				TransactionLogs string `json:"transactionLogs"`
-				VMObject        struct {
-					Type     string `json:"type"`
-					HostName string `json:"hostName"`
-					Name     string `json:"name"`
-					ObjectID string `json:"objectId"`
-				} `json:"vmObject"`
-				UsePersistentGuestAgent bool `json:"usePersistentGuestAgent"`
-				Sql                     struct {
-					LogsProcessing     string      `json:"logsProcessing"`
-					RetainLogBackups   interface{} `json:"retainLogBackups"`
-					BackupMinsCount    interface{} `json:"backupMinsCount"`
-					KeepDaysCount      interface{} `json:"keepDaysCount"`
-					LogShippingServers interface{} `json:"logShippingServers"`
-				} `json:"sql"`
-				Oracle struct {
-					ArchiveLogs         string      `json:"archiveLogs"`
-					RetainLogBackups    string      `json:"retainLogBackups"`
-					UseGuestCredentials bool        `json:"useGuestCredentials"`
-					CredentialsID       interface{} `json:"credentialsId"`
-					DeleteHoursCount    interface{} `json:"deleteHoursCount"`
-					DeleteGBsCount      interface{} `json:"deleteGBsCount"`
-					BackupLogs          bool        `json:"backupLogs"`
-					BackupMinsCount     int         `json:"backupMinsCount"`
-					KeepDaysCount       int         `json:"keepDaysCount"`
-					LogShippingServers  struct {
-						AutoSelection     bool          `json:"autoSelection"`
-						ShippingServerIds []interface{} `json:"shippingServerIds"`
-					} `json:"logShippingServers"`
-				} `json:"oracle"`
-				Exclusions struct {
-					ExclusionPolicy string        `json:"exclusionPolicy"`
-					ItemsList       []interface{} `json:"itemsList"`
-				} `json:"exclusions"`
-				Scripts struct {
-					ScriptProcessingMode string      `json:"scriptProcessingMode"`
-					WindowsScripts       interface{} `json:"windowsScripts"`
-					LinuxScripts         interface{} `json:"linuxScripts"`
-				} `json:"scripts"`
-			} `json:"appSettings"`
-		} `json:"appAwareProcessing"`
-		GuestFSIndexing struct {
-			IsEnabled        bool          `json:"isEnabled"`
-			IndexingSettings []interface{} `json:"indexingSettings"`
-		} `json:"guestFSIndexing"`
-		GuestInteractionProxies struct {
-			AutoSelection bool          `json:"autoSelection"`
-			ProxyIds      []interface{} `json:"proxyIds"`
-		} `json:"guestInteractionProxies"`
-		GuestCredentials struct {
-			CredsType             string        `json:"credsType"`
-			CredsID               string        `json:"credsId"`
-			CredentialsPerMachine []interface{} `json:"credentialsPerMachine"`
-		} `json:"guestCredentials"`
-	} `json:"guestProcessing"`
-	Schedule struct {
-		RunAutomatically bool `json:"runAutomatically"`
-		Daily            struct {
-			DailyKind string   `json:"dailyKind"`
-			IsEnabled bool     `json:"isEnabled"`
-			LocalTime string   `json:"localTime"`
-			Days      []string `json:"days"`
-		} `json:"daily"`
-		Monthly struct {
-			DayOfWeek        string   `json:"dayOfWeek"`
-			DayNumberInMonth string   `json:"dayNumberInMonth"`
-			IsEnabled        bool     `json:"isEnabled"`
-			LocalTime        string   `json:"localTime"`
-			DayOfMonth       int      `json:"dayOfMonth"`
-			Months           []string `json:"months"`
-		} `json:"monthly"`
-		Periodically struct {
-			PeriodicallyKind string `json:"periodicallyKind"`
-			IsEnabled        bool   `json:"isEnabled"`
-			Frequency        int    `json:"frequency"`
-			BackupWindow     struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-			StartTimeWithinAnHour int `json:"startTimeWithinAnHour"`
-		} `json:"periodically"`
-		Continuously struct {
-			IsEnabled    bool `json:"isEnabled"`
-			BackupWindow struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-		} `json:"continuously"`
-		AfterThisJob struct {
-			IsEnabled bool        `json:"isEnabled"`
-			JobName   interface{} `json:"jobName"`
-		} `json:"afterThisJob"`
-		Retry struct {
-			IsEnabled    bool `json:"isEnabled"`
-			RetryCount   int  `json:"retryCount"`
-			AwaitMinutes int  `json:"awaitMinutes"`
-		} `json:"retry"`
-		BackupWindow struct {
-			IsEnabled    bool `json:"isEnabled"`
-			BackupWindow struct {
-				Days []struct {
-					Day   string `json:"day"`
-					Hours string `json:"hours"`
-				} `json:"days"`
-			} `json:"backupWindow"`
-		} `json:"backupWindow"`
-	} `json:"schedule"`
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsDisabled  bool   `json:"isDisabled"`
+	IsHighPriority  bool            `json:"isHighPriority" yaml:"isHighPriority"`
+	VirtualMachines VirtualMachines `json:"virtualMachines" yaml:"virtualMachines"`
+	Storage         Storage         `json:"storage" yaml:"storage"`
+	GuestProcessing GuestProcessing `json:"guestProcessing" yaml:"guestProcessing"`
+	Schedule        Schedule        `json:"schedule" yaml:"schedule"`
+	Type            string          `json:"type" yaml:"type"`
+	Name            string          `json:"name" yaml:"name"`
+	Description     string          `json:"description" yaml:"description"`
+	IsDisabled      bool            `json:"isDisabled" yaml:"isDisabled"`
+}
+
+type VbrJob struct {
+	Type            string          `json:"type" yaml:"type"`
+	Name            string          `json:"name" yaml:"name"`
+	Description     string          `json:"description" yaml:"description"`
+	IsDisabled      bool            `json:"isDisabled" yaml:"isDisabled"`
+	VirtualMachines VirtualMachines `json:"virtualMachines" yaml:"virtualMachines"`
 }

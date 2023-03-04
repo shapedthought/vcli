@@ -174,6 +174,16 @@ With "put" the endpoint must have a payload.
 
     vcli put jobs -f job_data.json
 
+## Job
+
+_new in 0.7.0_
+
+The job command allows you to create jobs using templates.
+
+See this guide for details.
+
+[Job Guide](https://github.com/shapedthought/vcli/blob/master/job.md)
+
 ## Utils
 
 _new in 0.5.0_

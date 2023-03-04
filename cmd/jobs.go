@@ -64,16 +64,16 @@ func getTemplates(args []string, folder string) {
 	varJobs := vhttp.GetData[models.VbrJobGet](ju, profile)
 
 	// save base job file
-	utils.SaveData(&varJobs, fmt.Sprintf("%s-job-template", varJobs.Name))
+	utils.SaveData(&varJobs, fmt.Sprintf("job-template-%s", varJobs.Name))
 
 	// save storage data 
-	utils.SaveData(&varJobs.Storage, fmt.Sprintf("%s-storage", varJobs.Name))
+	utils.SaveData(&varJobs.Storage, fmt.Sprintf("storage-%s", varJobs.Name))
 
 	// save guest processing data
-	utils.SaveData(&varJobs.GuestProcessing, fmt.Sprintf("%s-guest-processing", varJobs.Name))
+	utils.SaveData(&varJobs.GuestProcessing, fmt.Sprintf("guest-processing-%s", varJobs.Name))
 
 	// save schedule data
-	utils.SaveData(&varJobs.Schedule, fmt.Sprintf("%s-schedule", varJobs.Name))
+	utils.SaveData(&varJobs.Schedule, fmt.Sprintf("schedule-%s", varJobs.Name))
 
 	var inc []models.Includes
 
@@ -100,7 +100,7 @@ func getTemplates(args []string, folder string) {
 	saveJob.IsDisabled = varJobs.IsDisabled
 	saveJob.VirtualMachines = varVms
 
-	jobName := fmt.Sprintf("%s-job", varJobs.Name)
+	jobName := fmt.Sprintf("job-%s", varJobs.Name)
 	// save job data
 	utils.SaveData(&saveJob, jobName) 
 

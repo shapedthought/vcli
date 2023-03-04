@@ -68,11 +68,11 @@ YAML was selected as the file format as it is a human readable format and is eas
 
 The template command will take a specified job ID and convert into the following template files:
 
-- abc-job.yaml
-- abc-storage.yaml
-- abc-guest-processing.yaml
-- abc-schedule.yaml
-- abc-job-template.yaml
+- job-abc.yaml
+- storage-abc.yaml
+- guest-processing-abc.yaml
+- schedule-abc.yaml
+- job-template-abc.yaml
 
 The command will automatically convert the GET job object to a POST job object if the objects are different like in the case of VBR.
 
@@ -80,12 +80,12 @@ The command will automatically convert the GET job object to a POST job object i
 vcli job template 57b3baab-6237-41bf-add7-db63d41d984c
 ```
 
-You will then need to place the abc-job-template.yaml file in the settings folder named job-template.yaml.
+You will then need to place the job-template-abc.yaml file in the settings folder named job-template.yaml.
 
 This also requires that you are using the VCLI_SETTINGS_PATH environment variable (see main user guide).
 
 ```windows
-cp abc-job-template.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
+cp job-template-abc.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
 ```
 
 You can then use the other template files as the bases for your jobs.
@@ -114,10 +114,10 @@ The job folder structure is as follows:
 
 ```
 /path/to/job/folder
-├── abc-job.yaml
-├── abc-guest-processing.yaml
-├── abc-schedule.yaml
-└── abc-storage.yaml
+├── job-abc.yaml
+├── guest-processing-abc.yaml
+├── schedule-abc.yaml
+└── storage-abc.yaml
 ```
 
 Remember, you only need to include the files with the elements that differ from the base job template.
@@ -148,10 +148,10 @@ Create the base template from a job that you have already created and represents
 vcli job template 57b3baab-6237-41bf-add7-db63d41d984c
 ```
 
-Move the job-template.yaml file to the settings folder.
+Move the job-template-abc.yaml file to the settings folder.
 
 ```
-cp abc-job-template.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
+cp job-template-abc.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
 ```
 
 ### Create modification templates
@@ -160,11 +160,11 @@ For any variation in your jobs, create a template for each of them and save them
 
 ```
 my-job-templates
-├── 30day-schedule.yaml
-├── 7day-schedule.yaml
-├── SQL-guest-processing.yaml
-├── tiered-storage.yaml
-└── non-tiered-storage.yaml
+├── schedule-30day.yaml
+├── schedule-7day.yaml
+├── guest-processing-sql.yaml
+├── storage-tiered.yaml
+└── storage-non-tiered.yaml
 ```
 
 ### Create job folder
@@ -173,10 +173,10 @@ Create a folder for the job you want to create; modifying the job template as ne
 
 ```
 sql-job
-├── 30day-schedule.yaml
-├── SQL-guest-processing.yaml
-├── tiered-storage.yaml
-└── sql-job.yaml
+├── schedule-30day.yaml
+├── guest-processing-sql.yaml
+├── storage-tiered.yaml
+└── job-sql.yaml
 ```
 
 ### Create the job

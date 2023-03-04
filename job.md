@@ -151,7 +151,7 @@ vcli job template 57b3baab-6237-41bf-add7-db63d41d984c
 Move the job-template.yaml file to the settings folder.
 
 ```
-cp job-template.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
+cp abc-job-template.yaml "$env:VCLI_SETTINGS_PATH\job-template.yaml"
 ```
 
 ### Create modification templates

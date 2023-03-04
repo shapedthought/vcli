@@ -53,6 +53,7 @@ The current commands are:
 - put - sends a put request to the API with payload
 - profile - get, list and set the current API profile
 - utils - additional tools for working with Veeam APIs
+- job - create jobs using templates
 
 ## How to use
 
@@ -172,3 +173,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.4.0-beta1 | Added POST command and added new credentials management option      |
 | 0.5.0-beta1 | Added Utils and PUT commands                                        |
 | 0.6.0-beta1 | Added version check and updated VBR and VB365 to latest the version |
+| 0.7.0-beta1 | Added job feature                                                   |

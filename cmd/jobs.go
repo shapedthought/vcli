@@ -21,22 +21,22 @@ import (
 var folder string
 
 var jobsCmd = &cobra.Command{
-	Use:   "jobs",
-	Short: "Jobs",
-	Long: `Jobs related commands.
+	Use:   "job",
+	Short: "Job",
+	Long: `Job related commands.
 
 ONLY WORKS WITH VBR AT THE MOMENT.
 
 Subcommands:
 
 Create Templates
-vcli jobs template <job_id>
+vcli job template <job_id>
 
 Create job from job file
-vcli create jobs abc-job.yaml
+vcli create job abc-job.yaml
 
 Create jobs from folder
-vcli create jobs -f /path/to/jobs-folder
+vcli create job -f .\path\to\jobs-folder
 
 	`,
 	Args: cobra.MinimumNArgs(1),
@@ -104,18 +104,11 @@ func getTemplates(args []string, folder string) {
 	// save job data
 	utils.SaveData(&saveJob, jobName) 
 
+	fmt.Println("Job templates created.")
+
 }
 
-func createJob(args []string, folder string) {
-	profile := utils.GetProfile()
-	settings := utils.ReadSettings()
-
-	if profile.Name != "vbr" {
-		log.Fatal("This command only works with vbr at the moment.")
-	}
-
-	var templateFile models.VbrJobPost
-
+func getSettingsPath() string {
 	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
 	if len(settingsPath) != 0 {
 		if runtime.GOOS == "windows" {
@@ -135,7 +128,22 @@ func createJob(args []string, folder string) {
 		log.Fatal("VCLI_SETTINGS_PATH not set")
 	}
 
-	fmt.Println(settingsPath)
+	return settingsPath
+}
+
+
+func createJob(args []string, folder string) {
+	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with vbr at the moment.")
+	}
+
+	var templateFile models.VbrJobPost
+
+	settingsPath := getSettingsPath()
+
 	getYaml, err := os.Open(settingsPath)
 	if err != nil {
 		log.Fatal("Error opening job-template.yaml")
@@ -150,7 +158,94 @@ func createJob(args []string, folder string) {
 	api_url := utils.GetAddress(profile, settings)
 
 	if len(folder) > 0  {
-		fmt.Printf("Folder, flag: %v", folder)
+
+		// get all files in folder
+		fmt.Println("Reading folder: ", folder)
+		files, err := os.ReadDir(folder)
+		if err != nil {
+			log.Fatal("Error reading folder")
+		}
+
+		if len(files) == 0 {
+			log.Fatal("No files found in folder")
+		}
+
+		var vbrJob models.VbrJob 
+
+		for _, file := range files {
+			fp := fmt.Sprintf("%s%s", folder, file.Name())
+			if strings.Contains(fp, "job") {
+				getYaml, err := os.Open(fp)
+				if err != nil {
+					log.Fatalf("Error opening job file: %v", err)
+				}
+
+				b, err := io.ReadAll(getYaml)
+				utils.IsErr(err)
+
+				err = yaml.Unmarshal(b, &vbrJob)
+				utils.IsErr(err)
+
+				templateFile.Type = vbrJob.Type
+				templateFile.Name = vbrJob.Name
+				templateFile.Description = vbrJob.Description
+				templateFile.VirtualMachines = vbrJob.VirtualMachines
+			}
+			
+			if strings.Contains(fp, "storage") {
+				fmt.Println("Storage file found: ", file.Name())
+				var vbrStorage models.Storage
+
+				getYaml, err := os.Open(fp)
+				if err != nil {
+					log.Fatalf("Error opening storage file: %v", err)
+				}
+
+				b, err := io.ReadAll(getYaml)
+				utils.IsErr(err)
+
+				err = yaml.Unmarshal(b, &vbrStorage)
+				utils.IsErr(err)
+
+				templateFile.Storage = vbrStorage
+			} 
+			
+			if strings.Contains(fp, "guest-processing") {
+				fmt.Println("Guest processing file found: ", file.Name())
+				var vbrGuestProcessing models.GuestProcessing
+
+				getYaml, err := os.Open(fp)
+				if err != nil {
+					log.Fatalf("Error opening guest-processing file: %v", err)
+				}
+
+				b, err := io.ReadAll(getYaml)
+				utils.IsErr(err)
+
+				err = yaml.Unmarshal(b, &vbrGuestProcessing)
+				utils.IsErr(err)
+
+				templateFile.GuestProcessing = vbrGuestProcessing
+			} 
+			
+			if strings.Contains(fp, "schedule") {
+				fmt.Println("Schedule file found: ", file.Name())
+				var vbrSchedule models.Schedule
+
+				getYaml, err := os.Open(fp)
+				if err != nil {
+					log.Fatalf("Error opening schedule file: %v", err)
+				}
+
+				b, err := io.ReadAll(getYaml)
+				utils.IsErr(err)
+
+				err = yaml.Unmarshal(b, &vbrSchedule)
+				utils.IsErr(err)
+
+				templateFile.Schedule = vbrSchedule
+			}
+		}
 	} else if len(args) > 1 {
 
 		var vbrJob models.VbrJob 
@@ -172,36 +267,35 @@ func createJob(args []string, folder string) {
 		templateFile.Description = vbrJob.Description
 		templateFile.VirtualMachines = vbrJob.VirtualMachines
 
-		utils.SaveJson(&templateFile, fmt.Sprintf("%s-job", vbrJob.Name))
-
-		sendData, err := json.Marshal(templateFile)
-		utils.IsErr(err)
-
-		connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, "/api/", profile.APIVersion, "/jobs")
-
-		r, err := http.NewRequest("POST", connstring, bytes.NewReader(sendData))
-
-		utils.IsErr(err)
-		headers := utils.ReadHeader[models.SendHeader]()
-		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-		r.Header.Add("Content-Type", "application/json")
-
-		r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
-
-		client := vhttp.Client(settings.ApiNotSecure)
-		res, err := client.Do(r)
-		if err != nil {
-			fmt.Printf("Error sending HTTP request %v\n", err)
-			return
-		}
-
-		defer res.Body.Close()
-
-		fmt.Println("Status Code:", res.StatusCode)
-		fmt.Println("Status:", res.Status)
 	} else {
 		fmt.Printf("No file or folder passed")
 	}
+
+	sendData, err := json.Marshal(templateFile)
+	utils.IsErr(err)
+
+	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, "/api/", profile.APIVersion, "/jobs")
+
+	r, err := http.NewRequest("POST", connstring, bytes.NewReader(sendData))
+
+	utils.IsErr(err)
+	headers := utils.ReadHeader[models.SendHeader]()
+	r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
+	r.Header.Add("Content-Type", "application/json")
+
+	r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+
+	client := vhttp.Client(settings.ApiNotSecure)
+	res, err := client.Do(r)
+	if err != nil {
+		fmt.Printf("Error sending HTTP request %v\n", err)
+		return
+	}
+
+	defer res.Body.Close()
+
+	fmt.Println("Status Code:", res.StatusCode)
+	fmt.Println("Status:", res.Status)
 
 }
 

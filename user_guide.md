@@ -8,11 +8,13 @@ The default API versions are as follows:
 | ------------------ | ------- | ----------- | --------- |
 | VBR                | 12.0    | 1.1-rev0    |           |
 | Enterprise Manager | 12.0    | -           | No Change |
-| VONE               | 12.0    | 1.0-rev2    |           |
+| VONE               | 12.0    | v2.1        |           |
 | V365               | 7.0     | -           |           |
-| VBAWS              | 5.0     | 1.2-rev0    |           |
-| VBAZURE            | 4.0     | -           |           |
-| VBGCP              | 4.0     | 1.0-rev0    |           |
+| VBAWS              | 5.0     | 1.4-rev0    |           |
+| VBAZURE            | 5.0     | -           |           |
+| VBGCP              | 1.0     | 1.2-rev0    |           |
+
+Updated 18/10/2023
 
 If you wish to change API version, please update the profile in the profiles.json file.
 

@@ -58,7 +58,7 @@ func initApp() {
 		Headers: models.Headers{
 			Accept:      "application/json",
 			ContentType: "application/x-www-form-urlencoded",
-			XAPIVersion: "1.2-rev0",
+			XAPIVersion: "1.4-rev0",
 		},
 		URL:        ":11005/api/v1/token",
 		Port:       "11005",
@@ -90,7 +90,7 @@ func initApp() {
 		},
 		URL:        "/api/oauth2/token",
 		Port:       "",
-		APIVersion: "v3",
+		APIVersion: "v5",
 		Username: "",
 		Address: "",
 	}
@@ -100,7 +100,7 @@ func initApp() {
 		Headers: models.Headers{
 			Accept:      "application/json",
 			ContentType: "application/x-www-form-urlencoded",
-			XAPIVersion: "1.0-rev0",
+			XAPIVersion: "1.2-rev0",
 		},
 		URL:        ":13140/api/v1/token",
 		Port:       "13140",
@@ -118,7 +118,7 @@ func initApp() {
 		},
 		URL:        ":1239/api/token",
 		Port:       "1239",
-		APIVersion: "v2",
+		APIVersion: "v2.1",
 		Username: "",
 		Address: "",
 	}

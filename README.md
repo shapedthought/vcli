@@ -174,3 +174,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.5.0-beta1 | Added Utils and PUT commands                                        |
 | 0.6.0-beta1 | Added version check and updated VBR and VB365 to latest the version |
 | 0.7.0-beta1 | Added job template feature                                          |
+| 0.8.0-beta1 | Bumped API versions in the init command                             |

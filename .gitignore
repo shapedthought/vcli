@@ -3,6 +3,9 @@
 *.exe
 *.txt
 Dockerfile
-.dockerignoreCLAUDE.md
+.dockerignore
+CLAUDE.md
 analysis.md
 .vcli/
+.gitignore
+vcli

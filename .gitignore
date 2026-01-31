@@ -3,4 +3,5 @@
 *.exe
 *.txt
 Dockerfile
-.dockerignore
+.dockerignoreCLAUDE.md
+analysis.md

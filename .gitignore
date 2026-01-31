@@ -5,3 +5,4 @@
 Dockerfile
 .dockerignoreCLAUDE.md
 analysis.md
+.vcli/

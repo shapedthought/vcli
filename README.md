@@ -61,10 +61,10 @@ However, products such as VB for AWS/Azure/GCP do not have a command line interf
 - `job` - Create jobs using templates (legacy)
 
 ### Declarative Commands (VBR Only)
-- `export` - Export existing jobs to declarative YAML format
-- `apply` - Create or update jobs from YAML configuration
-- `plan` - Preview changes without applying them
-- `diff` - Detect configuration drift between state and VBR
+- `export` - Export existing jobs to declarative YAML format (full 300+ field export)
+- `job apply` - Create or update jobs from YAML configuration with overlay support
+- `job plan` - Preview merged configurations and changes
+- `diff` - Detect configuration drift between state and VBR (coming soon)
 
 ## How to use
 
@@ -72,94 +72,209 @@ Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/us
 
 ### Declarative Job Management (VBR)
 
-vcli now supports declarative infrastructure management for VBR backup jobs, enabling GitOps workflows and version control.
+vcli supports declarative infrastructure management for VBR backup jobs with **configuration overlays** for multi-environment deployments, enabling GitOps workflows and version control.
 
 #### Quick Start
 
-**1. Export existing job to YAML:**
+**1. Export existing job to YAML (full configuration):**
 ```bash
 vcli export <job-id> -o my-backup.yaml
+# Exports complete job with all 300+ VBR API fields
 ```
 
-**2. Edit the configuration:**
+**2. Create environment-specific overlays:**
 ```yaml
+# base-backup.yaml - Common configuration
 apiVersion: vcli.veeam.com/v1
 kind: VBRJob
 metadata:
-  name: prod-db-backup
+  name: database-backup
+  labels:
+    app: database
 spec:
-  type: Backup
-  description: "Production database backup"
-  repository: "Default Backup Repository"
-  schedule:
-    enabled: true
-    daily: "22:00"
+  type: VSphereBackup
+  repository: default-repo
+  storage:
+    compression: Optimal
+    retention:
+      type: Days
+      quantity: 7
   objects:
-    - type: VM
-      name: "PROD-SQL-01"
+    - type: VirtualMachine
+      name: db-server
+
+# prod-overlay.yaml - Production overrides
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  labels:
+    env: production
+spec:
+  description: "Production database backup (30-day retention)"
+  repository: prod-repo
+  storage:
+    retention:
+      quantity: 30
+  schedule:
+    daily: "02:00"
+
+# dev-overlay.yaml - Development overrides
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  labels:
+    env: development
+spec:
+  description: "Development database backup (3-day retention)"
+  repository: dev-repo
+  storage:
+    retention:
+      quantity: 3
+  schedule:
+    daily: "23:00"
 ```
 
-**3. Preview changes:**
+**3. Preview merged configuration:**
 ```bash
-vcli plan my-backup.yaml
+# Preview production configuration
+vcli job plan base-backup.yaml -o prod-overlay.yaml
+
+# Preview development configuration
+vcli job plan base-backup.yaml -o dev-overlay.yaml
+
+# Show full merged YAML
+vcli job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
 ```
 
-**4. Apply configuration:**
+**4. Apply configuration (dry-run mode):**
 ```bash
-vcli apply my-backup.yaml
+# Preview what would be applied
+vcli job apply base-backup.yaml -o prod-overlay.yaml --dry-run
+
+# Apply when ready (note: actual job creation coming in next release)
+vcli job apply base-backup.yaml -o prod-overlay.yaml
 ```
 
-**5. Detect drift:**
+**5. Configure environments (optional):**
+```yaml
+# vcli.yaml - Environment configuration
+currentEnvironment: production
+defaultOverlayDir: ./overlays
+environments:
+  production:
+    overlay: prod-overlay.yaml
+    profile: vbr-prod
+  development:
+    overlay: dev-overlay.yaml
+    profile: vbr-dev
+```
+
+Then simply:
 ```bash
-vcli diff
+vcli job plan base-backup.yaml  # Uses production overlay automatically
+vcli job apply base-backup.yaml --env development  # Use specific environment
 ```
 
 #### Key Benefits
 
+- **Multi-Environment Support**: Single base config with environment-specific overlays
+- **DRY Configuration**: Define common settings once, override only what differs
+- **Strategic Merge**: Deep merge preserves base values while applying overrides
 - **Version Control**: Track job configurations in Git
 - **GitOps Ready**: Automated deployments via CI/CD
-- **Drift Detection**: Identify manual changes made in VBR UI
-- **Idempotent**: Safe to run repeatedly, only applies needed changes
-- **Preview Changes**: See what will change before applying
-- **State Management**: Prevents concurrent modifications
+- **Rich Previews**: See merged configurations before applying
+- **Environment Awareness**: vcli.yaml manages environment-specific settings
+- **Full API Fidelity**: Export captures all 300+ VBR API fields
 
-#### Workflow Example
+#### Workflow Examples
 
+**Single Environment Workflow:**
 ```bash
-# Export all jobs
-vcli export --all -d ./jobs/
+# Export existing job
+vcli export <job-id> -o prod-backup.yaml
 
-# Make changes to YAML files
-vim jobs/prod-backup.yaml
+# Make changes to YAML file
+vim prod-backup.yaml
 
 # Preview changes
-vcli plan jobs/prod-backup.yaml
+vcli job plan prod-backup.yaml
 
 # Apply if satisfied
-vcli apply jobs/prod-backup.yaml
+vcli job apply prod-backup.yaml --dry-run
 
 # Commit to version control
-git add jobs/
+git add prod-backup.yaml
 git commit -m "Update backup schedule"
 git push
+```
 
-# Later, detect drift
-vcli diff  # Detects manual VBR UI changes
+**Multi-Environment Workflow:**
+```bash
+# 1. Create base template and overlays
+mkdir -p configs/overlays
+vcli export <job-id> -o configs/base-backup.yaml
+
+# 2. Create environment overlays
+cat > configs/overlays/prod.yaml <<EOF
+spec:
+  storage:
+    retention:
+      quantity: 30
+  schedule:
+    daily: "02:00"
+EOF
+
+cat > configs/overlays/dev.yaml <<EOF
+spec:
+  storage:
+    retention:
+      quantity: 3
+  schedule:
+    daily: "23:00"
+EOF
+
+# 3. Configure environments
+cat > vcli.yaml <<EOF
+currentEnvironment: production
+defaultOverlayDir: ./configs/overlays
+environments:
+  production:
+    overlay: prod.yaml
+  development:
+    overlay: dev.yaml
+EOF
+
+# 4. Preview and apply
+vcli job plan configs/base-backup.yaml  # Uses prod overlay (currentEnvironment)
+vcli job plan configs/base-backup.yaml --env development  # Preview dev
+
+# 5. Commit everything
+git add configs/ vcli.yaml
+git commit -m "Add multi-environment backup configuration"
+git push
+
+# 6. Deploy to different environments
+vcli job apply configs/base-backup.yaml --env production
+vcli job apply configs/base-backup.yaml --env development
 ```
 
 #### Commands Reference
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `export` | Generate YAML from existing jobs | `vcli export <job-id> -o backup.yaml` |
+| `export <job-id>` | Export job to YAML (full config) | `vcli export abc-123 -o job.yaml` |
 | `export --all` | Export all jobs to directory | `vcli export --all -d ./configs/` |
-| `apply` | Create/update jobs from YAML | `vcli apply backup.yaml` |
-| `apply --dry-run` | Preview without applying | `vcli apply backup.yaml --dry-run` |
-| `plan` | Show planned changes | `vcli plan backup.yaml` |
-| `diff` | Check for configuration drift | `vcli diff` |
-| `diff <name>` | Check specific resource | `vcli diff prod-backup` |
+| `export --simplified` | Export minimal format (legacy) | `vcli export abc-123 -o job.yaml --simplified` |
+| `job apply` | Apply configuration with overlay | `vcli job apply base.yaml -o prod.yaml --dry-run` |
+| `job apply --env` | Apply using environment overlay | `vcli job apply base.yaml --env production` |
+| `job plan` | Preview merged configuration | `vcli job plan base.yaml -o prod.yaml` |
+| `job plan --show-yaml` | Show full merged YAML | `vcli job plan base.yaml -o prod.yaml --show-yaml` |
 
-All declarative commands support `--json` output for CI/CD integration.
+**Overlay Resolution Priority:**
+1. Explicit `-o/--overlay` flag (highest)
+2. `--env` flag (looks up in vcli.yaml)
+3. `currentEnvironment` from vcli.yaml
+4. No overlay (base config only)
 
 ## Installing 🛠️
 
@@ -277,4 +392,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.6.0-beta1 | Added version check and updated VBR and VB365 to latest the version |
 | 0.7.0-beta1 | Added job template feature                                          |
 | 0.8.0-beta1 | Bumped API versions in the init command                             |
-| 0.9.0-beta1 | **Declarative Job Management**: Added export, apply, plan, and diff commands for VBR. Terraform-style workflows with state management, drift detection, and GitOps support. Updated dependencies. |
+| 0.9.0-beta1 | **Configuration Overlay System**: Strategic merge engine for multi-environment deployments. Enhanced export (300+ fields), vcli.yaml environment config, overlay support in apply/plan commands. Deep merge preserves base values. Full GitOps support. See [RELEASE_NOTES_v0.9.0-beta1.md](RELEASE_NOTES_v0.9.0-beta1.md) |

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -17,10 +18,12 @@ import (
 )
 
 var (
-	exportOutput    string
-	exportDirectory string
-	exportAll       bool
+	exportOutput     string
+	exportDirectory  string
+	exportAll        bool
 	exportSimplified bool
+	exportAsOverlay  bool
+	exportBasePath   string
 )
 
 var exportCmd = &cobra.Command{
@@ -34,6 +37,12 @@ Examples:
 
   # Export single job to file
   vcli export 57b3baab-6237-41bf-add7-db63d41d984c -o backup.yaml
+
+  # Export as overlay (minimal patch with only changed fields)
+  vcli export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay -o overlay.yaml
+
+  # Export as overlay with specific base
+  vcli export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay --base base/defaults.yaml -o overlay.yaml
 
   # Export all jobs to current directory
   vcli export --all
@@ -142,6 +151,9 @@ func exportAllJobs(profile models.Profile) {
 }
 
 func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
+	if exportAsOverlay {
+		return convertJobToYAMLOverlay(vbrJob, exportBasePath)
+	}
 	if exportSimplified {
 		return convertJobToYAMLSimplified(vbrJob)
 	}
@@ -287,6 +299,154 @@ func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 	return result, nil
 }
 
+func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte, error) {
+	var baseSpec map[string]interface{}
+
+	// Load base if provided
+	if basePath != "" {
+		baseData, err := os.ReadFile(basePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read base file: %w", err)
+		}
+
+		var baseResource resources.ResourceSpec
+		if err := yaml.Unmarshal(baseData, &baseResource); err != nil {
+			return nil, fmt.Errorf("failed to parse base file: %w", err)
+		}
+		baseSpec = baseResource.Spec
+	}
+
+	// Convert job to map
+	jobBytes, err := yaml.Marshal(vbrJob)
+	if err != nil {
+		return nil, err
+	}
+
+	var jobMap map[string]interface{}
+	if err := yaml.Unmarshal(jobBytes, &jobMap); err != nil {
+		return nil, err
+	}
+
+	// Calculate overlay (differences from base)
+	var overlaySpec map[string]interface{}
+	if baseSpec != nil {
+		// Diff against provided base
+		overlaySpec = calculateDiff(baseSpec, jobMap)
+	} else {
+		// No base provided - create minimal overlay with commonly changed fields
+		overlaySpec = extractCommonFields(jobMap)
+	}
+
+	// Create resource spec
+	resourceSpec := resources.ResourceSpec{
+		APIVersion: "vcli.veeam.com/v1",
+		Kind:       "VBRJob",
+		Metadata: resources.Metadata{
+			Name: vbrJob.Name,
+		},
+		Spec: overlaySpec,
+	}
+
+	// Add header comment
+	header := "# VBR Job Overlay\n"
+	if basePath != "" {
+		header += fmt.Sprintf("# Base: %s\n", basePath)
+	}
+	header += fmt.Sprintf("# Job ID: %s\n", vbrJob.ID)
+	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: vcli job apply base.yaml -o this-file.yaml\n\n"
+
+	// Marshal to YAML
+	yamlBytes, err := yaml.Marshal(resourceSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine header and YAML
+	result := []byte(header)
+	result = append(result, yamlBytes...)
+
+	return result, nil
+}
+
+// calculateDiff compares job against base and returns only differences
+func calculateDiff(base, job map[string]interface{}) map[string]interface{} {
+	diff := make(map[string]interface{})
+
+	for key, jobValue := range job {
+		// Skip read-only fields
+		if key == "id" {
+			continue
+		}
+
+		baseValue, existsInBase := base[key]
+
+		if !existsInBase {
+			// Field only in job, include it
+			diff[key] = jobValue
+			continue
+		}
+
+		// Both exist - check if different
+		if !deepEqual(baseValue, jobValue) {
+			// Different - add to diff
+			switch jv := jobValue.(type) {
+			case map[string]interface{}:
+				// Recursively diff nested objects
+				if bv, ok := baseValue.(map[string]interface{}); ok {
+					nestedDiff := calculateDiff(bv, jv)
+					if len(nestedDiff) > 0 {
+						diff[key] = nestedDiff
+					}
+				} else {
+					diff[key] = jobValue
+				}
+			default:
+				diff[key] = jobValue
+			}
+		}
+	}
+
+	return diff
+}
+
+// extractCommonFields extracts commonly changed fields when no base provided
+// This is intentionally minimal - it only extracts the most frequently modified fields
+// (description, retention policy, and daily schedule). If you need more fields in the
+// overlay, provide a base template with --base to get a full diff calculation.
+func extractCommonFields(job map[string]interface{}) map[string]interface{} {
+	overlay := make(map[string]interface{})
+
+	// Include description if present
+	if desc, ok := job["description"].(string); ok && desc != "" {
+		overlay["description"] = desc
+	}
+
+	// Include storage retention if present
+	if storage, ok := job["storage"].(map[string]interface{}); ok {
+		if retentionPolicy, ok := storage["retentionPolicy"].(map[string]interface{}); ok {
+			overlay["storage"] = map[string]interface{}{
+				"retentionPolicy": retentionPolicy,
+			}
+		}
+	}
+
+	// Include schedule if present
+	if schedule, ok := job["schedule"].(map[string]interface{}); ok {
+		if daily, ok := schedule["daily"].(map[string]interface{}); ok {
+			overlay["schedule"] = map[string]interface{}{
+				"daily": daily,
+			}
+		}
+	}
+
+	return overlay
+}
+
+// deepEqual compares two values for deep equality
+func deepEqual(a, b interface{}) bool {
+	return reflect.DeepEqual(a, b)
+}
+
 func sanitizeFilename(name string) string {
 	// Replace invalid filename characters with hyphens
 	reg := regexp.MustCompile(`[<>:"/\\|?*]`)
@@ -313,5 +473,7 @@ func init() {
 	exportCmd.Flags().StringVarP(&exportDirectory, "directory", "d", "", "Output directory for bulk export")
 	exportCmd.Flags().BoolVar(&exportAll, "all", false, "Export all jobs")
 	exportCmd.Flags().BoolVar(&exportSimplified, "simplified", false, "Export simplified format (legacy)")
+	exportCmd.Flags().BoolVar(&exportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
+	exportCmd.Flags().StringVar(&exportBasePath, "base", "", "Base template to diff against (for overlay export)")
 	rootCmd.AddCommand(exportCmd)
 }

@@ -294,9 +294,14 @@ type GuestProcessing struct {
 	} `json:"guestFSIndexing" yaml:"guestFSIndexing"`
 	GuestInteractionProxies GuestInteractionProxies `json:"guestInteractionProxies" yaml:"guestInteractionProxies"`
 	GuestCredentials        struct {
-		CredsType             string        `json:"credsType" yaml:"credsType"`
-		CredsID               string        `json:"credsId" yaml:"credsId"`
-		CredentialsPerMachine []interface{} `json:"credentialsPerMachine" yaml:"credentialsPerMachine"`
+		CredsType                      string        `json:"credsType,omitempty" yaml:"credsType,omitempty"`                         // v1.1 format (deprecated)
+		CredsID                        string        `json:"credsId,omitempty" yaml:"credsId,omitempty"`                             // v1.1 format (deprecated)
+		Credentials                    *struct{
+			CredentialsID   string `json:"credentialsId" yaml:"credentialsId"`
+			CredentialsType string `json:"credentialsType" yaml:"credentialsType"`
+		}                              `json:"credentials,omitempty" yaml:"credentials,omitempty"`                     // v1.3 format
+		UseAgentManagementCredentials  bool          `json:"useAgentManagementCredentials" yaml:"useAgentManagementCredentials"`     // REQUIRED - don't use omitempty
+		CredentialsPerMachine          []interface{} `json:"credentialsPerMachine" yaml:"credentialsPerMachine"`
 	} `json:"guestCredentials" yaml:"guestCredentials"`
 }
 

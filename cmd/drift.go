@@ -45,6 +45,26 @@ var repoCriticalPaths = map[string]bool{
 	"type": true,
 }
 
+// sobrIgnoreFields defines read-only or frequently changing fields to ignore during SOBR drift detection
+var sobrIgnoreFields = map[string]bool{
+	"id":       true,
+	"uniqueId": true,
+	"status":   true,
+}
+
+// sobrCriticalPaths defines field paths flagged as CRITICAL severity for SOBR drift
+var sobrCriticalPaths = map[string]bool{
+	"isEnabled":                      true,
+	"immutabilityMode":               true,
+	"daysCount":                      true,
+	"movePolicyEnabled":              true,
+	"copyPolicyEnabled":              true,
+	"performanceExtents":             true,
+	"extents":                        true,
+	"type":                           true,
+	"enforceStrictPlacementPolicy":   true,
+}
+
 // detectDrift compares state spec against live VBR config, ignoring specified fields
 func detectDrift(stateSpec, vbrMap map[string]interface{}, ignore map[string]bool) []Drift {
 	var drifts []Drift

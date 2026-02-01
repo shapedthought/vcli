@@ -18,6 +18,8 @@ import (
 var (
 	repoSnapshotAll bool
 	repoDiffAll     bool
+	sobrSnapshotAll bool
+	sobrDiffAll     bool
 )
 
 var repoCmd = &cobra.Command{
@@ -36,6 +38,12 @@ Snapshot repository configuration
 Detect configuration drift
   vcli repo diff "Default Backup Repository"
   vcli repo diff --all
+
+Scale-out backup repositories
+  vcli repo sobr-snapshot "Scale-out Backup Repository 1"
+  vcli repo sobr-snapshot --all
+  vcli repo sobr-diff "Scale-out Backup Repository 1"
+  vcli repo sobr-diff --all
 `,
 }
 
@@ -157,33 +165,7 @@ func snapshotAllRepos() {
 }
 
 func saveRepoToState(name, id string, rawData json.RawMessage) error {
-	// Convert raw API response to map for state storage
-	var spec map[string]interface{}
-	if err := json.Unmarshal(rawData, &spec); err != nil {
-		return fmt.Errorf("failed to unmarshal repository data: %w", err)
-	}
-
-	stateMgr := state.NewManager()
-
-	currentUser := "unknown"
-	if usr, err := user.Current(); err == nil {
-		currentUser = usr.Username
-	}
-
-	resource := &state.Resource{
-		Type:          "VBRRepository",
-		ID:            id,
-		Name:          name,
-		LastApplied:   time.Now(),
-		LastAppliedBy: currentUser,
-		Spec:          spec,
-	}
-
-	if err := stateMgr.UpdateResource(resource); err != nil {
-		return fmt.Errorf("failed to update state: %w", err)
-	}
-
-	return nil
+	return saveResourceToState("VBRRepository", name, id, rawData)
 }
 
 func diffSingleRepo(repoName string) {
@@ -297,11 +279,266 @@ func diffAllRepos() {
 	os.Exit(0)
 }
 
+// --- Scale-Out Backup Repository commands ---
+
+var sobrSnapshotCmd = &cobra.Command{
+	Use:   "sobr-snapshot [sobr-name]",
+	Short: "Snapshot scale-out backup repository configuration to state",
+	Long: `Capture the current configuration of a scale-out backup repository and store it in state.
+
+Examples:
+  # Snapshot a single SOBR
+  vcli repo sobr-snapshot "Scale-out Backup Repository 1"
+
+  # Snapshot all SOBRs
+  vcli repo sobr-snapshot --all
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if sobrSnapshotAll {
+			snapshotAllSobrs()
+		} else if len(args) > 0 {
+			snapshotSingleSobr(args[0])
+		} else {
+			log.Fatal("Provide SOBR name or use --all")
+		}
+	},
+}
+
+var sobrDiffCmd = &cobra.Command{
+	Use:   "sobr-diff [sobr-name]",
+	Short: "Detect configuration drift for scale-out backup repositories",
+	Long: `Compare current VBR scale-out backup repository configuration against the
+last snapshot state to detect manual changes or drift.
+
+Examples:
+  # Check single SOBR for drift
+  vcli repo sobr-diff "Scale-out Backup Repository 1"
+
+  # Check all SOBRs
+  vcli repo sobr-diff --all
+
+Exit Codes:
+  0 - No drift detected
+  3 - Drift detected
+  1 - Error occurred`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if sobrDiffAll {
+			diffAllSobrs()
+		} else if len(args) > 0 {
+			diffSingleSobr(args[0])
+		} else {
+			log.Fatal("Provide SOBR name or use --all")
+		}
+	},
+}
+
+func snapshotSingleSobr(sobrName string) {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	var found *models.VbrSobrGet
+	for i := range sobrList.Data {
+		if sobrList.Data[i].Name == sobrName {
+			found = &sobrList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("Scale-out repository '%s' not found in VBR.", sobrName)
+	}
+
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	if err := saveResourceToState("VBRScaleOutRepository", sobrName, found.ID, sobrData); err != nil {
+		log.Fatalf("Failed to save SOBR state: %v", err)
+	}
+
+	fmt.Printf("Snapshot saved for scale-out repository: %s\n", sobrName)
+}
+
+func snapshotAllSobrs() {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	if len(sobrList.Data) == 0 {
+		fmt.Println("No scale-out repositories found.")
+		return
+	}
+
+	fmt.Printf("Snapshotting %d scale-out repositories...\n", len(sobrList.Data))
+
+	for _, sobr := range sobrList.Data {
+		endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", sobr.ID)
+		sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		if err := saveResourceToState("VBRScaleOutRepository", sobr.Name, sobr.ID, sobrData); err != nil {
+			fmt.Printf("Warning: Failed to save state for '%s': %v\n", sobr.Name, err)
+			continue
+		}
+
+		fmt.Printf("  Snapshot saved: %s\n", sobr.Name)
+	}
+
+	stateMgr := state.NewManager()
+	fmt.Printf("\nState updated: %s\n", stateMgr.GetStatePath())
+}
+
+func diffSingleSobr(sobrName string) {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	stateMgr := state.NewManager()
+	resource, err := stateMgr.GetResource(sobrName)
+	if err != nil {
+		log.Fatalf("Scale-out repository '%s' not found in state. Has it been snapshotted?\n", sobrName)
+	}
+
+	if resource.Type != "VBRScaleOutRepository" {
+		log.Fatalf("Resource '%s' is not a scale-out repository (type: %s).\n", sobrName, resource.Type)
+	}
+
+	fmt.Printf("Checking drift for scale-out repository: %s\n\n", sobrName)
+
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", resource.ID)
+	currentRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	var currentMap map[string]interface{}
+	if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
+		log.Fatalf("Failed to unmarshal current SOBR data: %v", err)
+	}
+
+	drifts := detectDrift(resource.Spec, currentMap, sobrIgnoreFields)
+
+	if len(drifts) == 0 {
+		fmt.Println("No drift detected. Scale-out repository matches snapshot state.")
+		os.Exit(0)
+	}
+
+	fmt.Println("Drift detected:")
+	for _, drift := range drifts {
+		printDriftWithCritical(drift, sobrCriticalPaths)
+	}
+
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+
+	fmt.Println("\nThe scale-out repository has drifted from the snapshot configuration.")
+	fmt.Printf("\nTo update the snapshot, run:\n")
+	fmt.Printf("  vcli repo sobr-snapshot \"%s\"\n", sobrName)
+
+	os.Exit(3)
+}
+
+func diffAllSobrs() {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	stateMgr := state.NewManager()
+	resources, err := stateMgr.ListResources("VBRScaleOutRepository")
+	if err != nil {
+		log.Fatalf("Failed to load state: %v\n", err)
+	}
+
+	if len(resources) == 0 {
+		fmt.Println("No scale-out repositories in state.")
+		return
+	}
+
+	fmt.Printf("Checking %d scale-out repositories for drift...\n\n", len(resources))
+
+	driftedCount := 0
+	cleanCount := 0
+
+	for _, resource := range resources {
+		endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", resource.ID)
+		currentRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		var currentMap map[string]interface{}
+		if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
+			fmt.Printf("  %s: Failed to unmarshal SOBR data: %v\n", resource.Name, err)
+			continue
+		}
+
+		drifts := detectDrift(resource.Spec, currentMap, sobrIgnoreFields)
+
+		if len(drifts) > 0 {
+			fmt.Printf("  %s: %d drifts detected\n", resource.Name, len(drifts))
+			driftedCount++
+		} else {
+			fmt.Printf("  %s: No drift\n", resource.Name)
+			cleanCount++
+		}
+	}
+
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  - %d scale-out repositories clean\n", cleanCount)
+	fmt.Printf("  - %d scale-out repositories drifted\n", driftedCount)
+
+	if driftedCount > 0 {
+		os.Exit(3)
+	}
+	os.Exit(0)
+}
+
+// saveResourceToState is a shared helper for saving any resource type to state
+func saveResourceToState(resourceType, name, id string, rawData json.RawMessage) error {
+	var spec map[string]interface{}
+	if err := json.Unmarshal(rawData, &spec); err != nil {
+		return fmt.Errorf("failed to unmarshal data: %w", err)
+	}
+
+	stateMgr := state.NewManager()
+
+	currentUser := "unknown"
+	if usr, err := user.Current(); err == nil {
+		currentUser = usr.Username
+	}
+
+	resource := &state.Resource{
+		Type:          resourceType,
+		ID:            id,
+		Name:          name,
+		LastApplied:   time.Now(),
+		LastAppliedBy: currentUser,
+		Spec:          spec,
+	}
+
+	if err := stateMgr.UpdateResource(resource); err != nil {
+		return fmt.Errorf("failed to update state: %w", err)
+	}
+
+	return nil
+}
+
 func init() {
 	repoSnapshotCmd.Flags().BoolVar(&repoSnapshotAll, "all", false, "Snapshot all repositories")
 	repoDiffCmd.Flags().BoolVar(&repoDiffAll, "all", false, "Check drift for all repositories in state")
+	sobrSnapshotCmd.Flags().BoolVar(&sobrSnapshotAll, "all", false, "Snapshot all scale-out repositories")
+	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
 
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)
+	repoCmd.AddCommand(sobrSnapshotCmd)
+	repoCmd.AddCommand(sobrDiffCmd)
 	rootCmd.AddCommand(repoCmd)
 }

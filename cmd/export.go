@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -409,6 +410,9 @@ func calculateDiff(base, job map[string]interface{}) map[string]interface{} {
 }
 
 // extractCommonFields extracts commonly changed fields when no base provided
+// This is intentionally minimal - it only extracts the most frequently modified fields
+// (description, retention policy, and daily schedule). If you need more fields in the
+// overlay, provide a base template with --base to get a full diff calculation.
 func extractCommonFields(job map[string]interface{}) map[string]interface{} {
 	overlay := make(map[string]interface{})
 
@@ -440,10 +444,7 @@ func extractCommonFields(job map[string]interface{}) map[string]interface{} {
 
 // deepEqual compares two values for deep equality
 func deepEqual(a, b interface{}) bool {
-	// Simple comparison for now - could be enhanced
-	aBytes, _ := yaml.Marshal(a)
-	bBytes, _ := yaml.Marshal(b)
-	return string(aBytes) == string(bBytes)
+	return reflect.DeepEqual(a, b)
 }
 
 func sanitizeFilename(name string) string {

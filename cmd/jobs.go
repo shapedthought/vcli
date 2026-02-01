@@ -20,9 +20,30 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var (folder string
-	 customTemplate string
+var (
+	folder         string
+	customTemplate string
 )
+
+// ignoreFields defines read-only or frequently changing fields to ignore during drift detection
+var ignoreFields = map[string]bool{
+	"id":                true,
+	"lastRun":           true,
+	"nextRun":           true,
+	"statistics":        true,
+	"creationTime":      true,
+	"modificationTime":  true,
+	"targetType":        true,
+	"platform":          true,
+	"serverName":        true,
+	"isRunning":         true,
+	"lastResult":        true,
+	"sessionCount":      true,
+	"urn":               true,
+	"objectId":          true,
+	"size":              true,
+	"metadata":          true,
+}
 
 var jobsCmd = &cobra.Command{
 	Use:   "job",
@@ -353,9 +374,14 @@ func diffSingleJob(jobName string) {
 	current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
 
 	// Convert current job to map for comparison
-	currentBytes, _ := json.Marshal(current)
+	currentBytes, err := json.Marshal(current)
+	if err != nil {
+		log.Fatalf("Failed to marshal current job for drift detection: %v", err)
+	}
 	var currentMap map[string]interface{}
-	json.Unmarshal(currentBytes, &currentMap)
+	if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+		log.Fatalf("Failed to unmarshal current job into map for drift detection: %v", err)
+	}
 
 	// Compare
 	drifts := detectDrift(resource.Spec, currentMap)
@@ -412,9 +438,16 @@ func diffAllJobs() {
 		current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
 
 		// Convert to map for comparison
-		currentBytes, _ := json.Marshal(current)
+		currentBytes, err := json.Marshal(current)
+		if err != nil {
+			fmt.Printf("⚠️  %s: Failed to marshal job data: %v\n", resource.Name, err)
+			continue
+		}
 		var currentMap map[string]interface{}
-		json.Unmarshal(currentBytes, &currentMap)
+		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+			fmt.Printf("⚠️  %s: Failed to unmarshal job data: %v\n", resource.Name, err)
+			continue
+		}
 
 		// Detect drift
 		drifts := detectDrift(resource.Spec, currentMap)
@@ -452,26 +485,6 @@ func detectDrift(stateSpec, vbrMap map[string]interface{}) []Drift {
 }
 
 func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Drift) {
-	// Fields to ignore (read-only or frequently changing)
-	ignoreFields := map[string]bool{
-		"id":                    true,
-		"lastRun":               true,
-		"nextRun":               true,
-		"statistics":            true,
-		"creationTime":          true,
-		"modificationTime":      true,
-		"targetType":            true,
-		"platform":              true,
-		"serverName":            true,
-		"isRunning":             true,
-		"lastResult":            true,
-		"sessionCount":          true,
-		"urn":                   true,
-		"objectId":              true,
-		"size":                  true,
-		"metadata":              true,
-	}
-
 	// Check all fields in state
 	for key, stateValue := range state {
 		fullPath := key
@@ -603,6 +616,25 @@ func valuesEqual(a, b interface{}) bool {
 	if a == nil && bIsSlice {
 		// State has nil, VBR has empty slice - treat as equal if slice is empty
 		return len(bSlice) == 0
+	}
+
+	// Check if both are maps
+	aMap, aIsMap := a.(map[string]interface{})
+	bMap, bIsMap := b.(map[string]interface{})
+
+	if aIsMap && bIsMap {
+		// Both are maps - compare them
+		return reflect.DeepEqual(aMap, bMap)
+	}
+
+	if aIsMap && b == nil {
+		// State has empty map, VBR has nil - treat as equal if map is empty
+		return len(aMap) == 0
+	}
+
+	if a == nil && bIsMap {
+		// State has nil, VBR has empty map - treat as equal if map is empty
+		return len(bMap) == 0
 	}
 
 	// Fall back to reflect.DeepEqual for other types

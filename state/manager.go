@@ -66,7 +66,7 @@ func (m *Manager) Load() (*State, error) {
 	return &state, nil
 }
 
-// Save writes the state to disk
+// Save writes the state to disk atomically using temp file + rename
 func (m *Manager) Save(state *State) error {
 	// Ensure directory exists
 	dir := filepath.Dir(m.statePath)
@@ -80,9 +80,41 @@ func (m *Manager) Save(state *State) error {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	// Write to file
-	if err := os.WriteFile(m.statePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write state file: %w", err)
+	// Write atomically: write to temp file, then rename
+	tmpFile, err := os.CreateTemp(dir, "state.json.tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp state file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	// Ensure temp file is cleaned up on error
+	defer func() {
+		// Best-effort cleanup of temp file if it still exists
+		if _, statErr := os.Stat(tmpPath); statErr == nil {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	// Write data to temp file
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to write temp state file: %w", err)
+	}
+
+	// Sync to ensure data is written to disk
+	if err := tmpFile.Sync(); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to sync temp state file: %w", err)
+	}
+
+	// Close temp file
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp state file: %w", err)
+	}
+
+	// Atomically replace the old state file with the new one
+	if err := os.Rename(tmpPath, m.statePath); err != nil {
+		return fmt.Errorf("failed to rename temp state file: %w", err)
 	}
 
 	return nil

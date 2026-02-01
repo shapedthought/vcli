@@ -379,7 +379,7 @@ func diffSingleJob(jobName string) {
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Job matches applied state.")
+		fmt.Println(noDriftMessage("Job matches applied state.", minSev))
 		os.Exit(0)
 	}
 

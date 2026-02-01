@@ -36,10 +36,10 @@ func loadSeverityOverrides() {
 	if severityOverridesLoaded {
 		return
 	}
-	severityOverridesLoaded = true
 
 	configPath := findSeverityConfig()
 	if configPath == "" {
+		severityOverridesLoaded = true
 		return
 	}
 
@@ -59,6 +59,8 @@ func loadSeverityOverrides() {
 	applySeverityOverrides(config.Sobr, sobrSeverityMap)
 	applySeverityOverrides(config.Encryption, encryptionSeverityMap)
 	applySeverityOverrides(config.Kms, kmsSeverityMap)
+
+	severityOverridesLoaded = true
 }
 
 func findSeverityConfig() string {
@@ -89,6 +91,8 @@ func applySeverityOverrides(overrides map[string]string, sm SeverityMap) {
 		switch severity {
 		case SeverityCritical, SeverityWarning, SeverityInfo:
 			sm[field] = severity
+		default:
+			fmt.Fprintf(os.Stderr, "Warning: Unknown severity %q for field %q (use CRITICAL, WARNING, or INFO)\n", sev, field)
 		}
 	}
 }

@@ -248,7 +248,7 @@ func diffSingleEncryptionPassword(hint string) {
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Encryption password matches snapshot state.")
+		fmt.Println(noDriftMessage("Encryption password matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 
@@ -562,7 +562,7 @@ func diffSingleKmsServer(name string) {
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. KMS server matches snapshot state.")
+		fmt.Println(noDriftMessage("KMS server matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 

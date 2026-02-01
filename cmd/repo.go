@@ -206,7 +206,7 @@ func diffSingleRepo(repoName string) {
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Repository matches snapshot state.")
+		fmt.Println(noDriftMessage("Repository matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 
@@ -444,7 +444,7 @@ func diffSingleSobr(sobrName string) {
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Scale-out repository matches snapshot state.")
+		fmt.Println(noDriftMessage("Scale-out repository matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 

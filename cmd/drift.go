@@ -160,7 +160,7 @@ var jobSeverityMap = SeverityMap{
 
 // repoSeverityMap classifies repository drift fields by severity
 var repoSeverityMap = SeverityMap{
-	// CRITICAL — repository type or immutability changes
+	// CRITICAL — repository type changes
 	"type": SeverityCritical,
 	// WARNING — operational changes with security relevance
 	"path":         SeverityWarning,
@@ -320,6 +320,14 @@ func exitCodeForDrifts(drifts []Drift) int {
 		return 4
 	}
 	return 3
+}
+
+// noDriftMessage returns the appropriate "no drift" message, accounting for severity filtering
+func noDriftMessage(resourceDesc string, minSev Severity) string {
+	if minSev != SeverityInfo {
+		return fmt.Sprintf("No %s or higher drift detected. %s (lower severity drifts may exist.)", minSev, resourceDesc)
+	}
+	return fmt.Sprintf("No drift detected. %s", resourceDesc)
 }
 
 // --- Drift printing ---

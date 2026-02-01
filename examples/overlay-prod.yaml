@@ -1,0 +1,16 @@
+# Production environment overlay
+# Extends base template with prod-specific settings
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: database-backup
+  labels:
+    env: production
+spec:
+  description: Production database backup (30-day retention)
+  repository: prod-repo
+  storage:
+    retention:
+      quantity: 30
+  schedule:
+    daily: "02:00"

@@ -1,0 +1,29 @@
+# Base template for backup jobs
+# This defines common settings shared across all environments
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: database-backup
+  labels:
+    app: database
+    managed-by: vcli
+spec:
+  type: VSphereBackup
+  description: Database backup job
+  objects:
+    - type: VirtualMachine
+      name: db-server
+      hostName: 192.168.0.14
+  repository: default-repo
+  storage:
+    compression: Optimal
+    retention:
+      type: Days
+      quantity: 7
+  schedule:
+    enabled: true
+    daily: "22:00"
+    retry:
+      enabled: true
+      times: 3
+      wait: 10

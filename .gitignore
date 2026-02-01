@@ -1,5 +1,5 @@
 *.yaml
-*.json
+!examples/*.yaml
 *.exe
 *.txt
 Dockerfile
@@ -9,3 +9,8 @@ analysis.md
 .vcli/
 .gitignore
 vcli
+.DS_Store
+./actual_requests/
+settings.json
+profiles.json
+.env

@@ -1,0 +1,16 @@
+# Development environment overlay
+# Extends base template with dev-specific settings
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: database-backup
+  labels:
+    env: development
+spec:
+  description: Development database backup (3-day retention)
+  repository: dev-repo
+  storage:
+    retention:
+      quantity: 3
+  schedule:
+    daily: "23:00"

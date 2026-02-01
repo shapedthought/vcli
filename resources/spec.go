@@ -1,5 +1,12 @@
 package resources
 
+import (
+	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
 // ResourceSpec represents the declarative YAML specification structure
 type ResourceSpec struct {
 	APIVersion string                 `yaml:"apiVersion" json:"apiVersion"`
@@ -52,4 +59,34 @@ type JobStorageSettings struct {
 		Type     string `yaml:"type,omitempty" json:"type,omitempty"`         // "Days", "RestorePoints"
 		Quantity int    `yaml:"quantity,omitempty" json:"quantity,omitempty"` // Number of days or restore points
 	} `yaml:"retention,omitempty" json:"retention,omitempty"`
+}
+
+// LoadResourceSpec loads a ResourceSpec from a YAML file
+func LoadResourceSpec(path string) (ResourceSpec, error) {
+	var spec ResourceSpec
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return spec, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, &spec); err != nil {
+		return spec, fmt.Errorf("failed to unmarshal YAML: %w", err)
+	}
+
+	return spec, nil
+}
+
+// SaveResourceSpec saves a ResourceSpec to a YAML file
+func SaveResourceSpec(spec ResourceSpec, path string) error {
+	data, err := yaml.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("failed to marshal YAML: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }

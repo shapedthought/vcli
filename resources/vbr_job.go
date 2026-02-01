@@ -286,7 +286,7 @@ func (r *VBRJobResource) toVBRFormat() (*models.VbrJobPost, error) {
 	vbrJob.Storage.BackupRepositoryID = repoID
 
 	// Set storage defaults
-	vbrJob.Storage.BackupProxies.AutoSelection = true
+	vbrJob.Storage.BackupProxies.SetAutoSelect(true)
 	vbrJob.Storage.RetentionPolicy.Type = "Days"
 	vbrJob.Storage.RetentionPolicy.Quantity = 7
 

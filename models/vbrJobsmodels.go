@@ -70,13 +70,48 @@ type VirtualMachines struct {
 	} `json:"excludes" yaml:"excludes"`
 }
 
+// BackupProxies handles proxy selection for backups
+// Supports both v1.1 (autoSelection) and v1.3+ (autoSelectEnabled) API versions
+type BackupProxies struct {
+	AutoSelection     bool          `json:"autoSelection,omitempty" yaml:"autoSelection,omitempty"`         // v1.1-rev0
+	AutoSelectEnabled bool          `json:"autoSelectEnabled,omitempty" yaml:"autoSelectEnabled,omitempty"` // v1.3-rev1+
+	ProxyIds          []interface{} `json:"proxyIds" yaml:"proxyIds"`
+}
+
+// GetAutoSelect returns the auto-selection value, checking both API version fields
+func (b *BackupProxies) GetAutoSelect() bool {
+	return b.AutoSelection || b.AutoSelectEnabled
+}
+
+// SetAutoSelect sets both fields for maximum compatibility
+func (b *BackupProxies) SetAutoSelect(enabled bool) {
+	b.AutoSelection = enabled
+	b.AutoSelectEnabled = enabled
+}
+
+// GuestInteractionProxies handles proxy selection for guest processing
+// Supports both v1.1 (autoSelection) and v1.3+ (autoSelectEnabled) API versions
+type GuestInteractionProxies struct {
+	AutoSelection     bool          `json:"autoSelection,omitempty" yaml:"autoSelection,omitempty"`         // v1.1-rev0
+	AutoSelectEnabled bool          `json:"autoSelectEnabled,omitempty" yaml:"autoSelectEnabled,omitempty"` // v1.3-rev1+
+	ProxyIds          []interface{} `json:"proxyIds" yaml:"proxyIds"`
+}
+
+// GetAutoSelect returns the auto-selection value, checking both API version fields
+func (g *GuestInteractionProxies) GetAutoSelect() bool {
+	return g.AutoSelection || g.AutoSelectEnabled
+}
+
+// SetAutoSelect sets both fields for maximum compatibility
+func (g *GuestInteractionProxies) SetAutoSelect(enabled bool) {
+	g.AutoSelection = enabled
+	g.AutoSelectEnabled = enabled
+}
+
 type Storage struct {
-	BackupRepositoryID string `json:"backupRepositoryId" yaml:"backupRepositoryId"`
-	BackupProxies      struct {
-		AutoSelection bool          `json:"autoSelection" yaml:"autoSelection"`
-		ProxyIds      []interface{} `json:"proxyIds" yaml:"proxyIds"`
-	} `json:"backupProxies" yaml:"backupProxies"`
-	RetentionPolicy struct {
+	BackupRepositoryID string        `json:"backupRepositoryId" yaml:"backupRepositoryId"`
+	BackupProxies      BackupProxies `json:"backupProxies" yaml:"backupProxies"`
+	RetentionPolicy    struct {
 		Type     string `json:"type" yaml:"type"`
 		Quantity int    `json:"quantity" yaml:"quantity"`
 	} `json:"retentionPolicy" yaml:"retentionPolicy"`
@@ -258,11 +293,8 @@ type GuestProcessing struct {
 		IsEnabled        bool          `json:"isEnabled" yaml:"isEnabled"`
 		IndexingSettings []interface{} `json:"indexingSettings" yaml:"indexingSettings"`
 	} `json:"guestFSIndexing" yaml:"guestFSIndexing"`
-	GuestInteractionProxies struct {
-		AutoSelection bool          `json:"autoSelection" yaml:"autoSelection"`
-		ProxyIds      []interface{} `json:"proxyIds" yaml:"proxyIds"`
-	} `json:"guestInteractionProxies" yaml:"guestInteractionProxies"`
-	GuestCredentials struct {
+	GuestInteractionProxies GuestInteractionProxies `json:"guestInteractionProxies" yaml:"guestInteractionProxies"`
+	GuestCredentials        struct {
 		CredsType             string        `json:"credsType" yaml:"credsType"`
 		CredsID               string        `json:"credsId" yaml:"credsId"`
 		CredentialsPerMachine []interface{} `json:"credentialsPerMachine" yaml:"credentialsPerMachine"`

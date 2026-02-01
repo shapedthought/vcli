@@ -6,7 +6,7 @@ The default API versions are as follows:
 
 | Product            | Version | API Version | Notes     |
 | ------------------ | ------- | ----------- | --------- |
-| VBR                | 12.0    | 1.1-rev0    |           |
+| VBR                | 13.0    | 1.3-rev1    |           |
 | Enterprise Manager | 12.0    | -           | No Change |
 | VONE               | 12.0    | v2.1        |           |
 | V365               | 7.0     | -           |           |

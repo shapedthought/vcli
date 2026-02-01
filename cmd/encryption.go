@@ -93,7 +93,8 @@ Examples:
 
 Exit Codes:
   0 - No drift detected
-  3 - Drift detected
+  3 - Drift detected (INFO or WARNING)
+  4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if encDiffAll {
@@ -194,6 +195,7 @@ func saveEncryptionPasswordToState(p *models.VbrEncryptionPasswordGet, hintCount
 }
 
 func diffSingleEncryptionPassword(hint string) {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -236,11 +238,14 @@ func diffSingleEncryptionPassword(hint string) {
 		fmt.Printf("CRITICAL - Encryption password '%s' (ID: %s) has been removed from VBR!\n", hint, resource.ID)
 		fmt.Println("\nThis password may be referenced by active backup jobs.")
 		fmt.Println("Encrypted backups using this password may become unrecoverable.")
-		os.Exit(3)
+		os.Exit(4) // CRITICAL drift
 	}
 
-	// Compare fields
+	// Compare, classify, filter
 	drifts := detectDrift(resource.Spec, currentMap, encryptionIgnoreFields)
+	drifts = classifyDrifts(drifts, encryptionSeverityMap)
+	minSev := parseSeverityFlag()
+	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
 		fmt.Println("No drift detected. Encryption password matches snapshot state.")
@@ -249,11 +254,12 @@ func diffSingleEncryptionPassword(hint string) {
 
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
-		printDriftWithCritical(drift, encryptionCriticalPaths)
+		printDriftWithSeverity(drift)
 	}
 
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
 	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
 	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
 
@@ -261,10 +267,11 @@ func diffSingleEncryptionPassword(hint string) {
 	fmt.Printf("\nTo update the snapshot, run:\n")
 	fmt.Printf("  vcli encryption snapshot \"%s\"\n", hint)
 
-	os.Exit(3)
+	os.Exit(exitCodeForDrifts(drifts))
 }
 
 func diffAllEncryptionPasswords() {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -311,22 +318,32 @@ func diffAllEncryptionPasswords() {
 	fmt.Printf("Checking encryption password inventory...\n")
 	fmt.Printf("  State: %d passwords, VBR: %d passwords\n\n", len(stateResources), len(passwordList.Data))
 
+	minSev := parseSeverityFlag()
 	driftedCount := 0
 	cleanCount := 0
+	var allDrifts []Drift
 
 	// Check for removed passwords (in state but not in VBR) — always CRITICAL
 	for id, stateRes := range stateByID {
 		if _, exists := currentByID[id]; !exists {
-			fmt.Printf("  CRITICAL - %s (ID: %s): Removed from VBR\n", stateRes.Name, id)
-			driftedCount++
+			removedDrift := Drift{Path: "inventory", Action: "removed", State: stateRes.Name, Severity: SeverityCritical}
+			if severityRank(SeverityCritical) >= severityRank(minSev) {
+				fmt.Printf("  CRITICAL - %s (ID: %s): Removed from VBR\n", stateRes.Name, id)
+				allDrifts = append(allDrifts, removedDrift)
+				driftedCount++
+			}
 		}
 	}
 
-	// Check for added passwords (in VBR but not in state)
+	// Check for added passwords (in VBR but not in state) — INFO
 	for id, hint := range currentHintByID {
 		if _, exists := stateByID[id]; !exists {
-			fmt.Printf("  + %s (ID: %s): Added since last snapshot\n", hint, id)
-			driftedCount++
+			addedDrift := Drift{Path: "inventory", Action: "added", VBR: hint, Severity: SeverityInfo}
+			if severityRank(SeverityInfo) >= severityRank(minSev) {
+				fmt.Printf("  INFO + %s (ID: %s): Added since last snapshot\n", hint, id)
+				allDrifts = append(allDrifts, addedDrift)
+				driftedCount++
+			}
 		}
 	}
 
@@ -334,12 +351,15 @@ func diffAllEncryptionPasswords() {
 	for id, stateRes := range stateByID {
 		if currentMap, exists := currentByID[id]; exists {
 			drifts := detectDrift(stateRes.Spec, currentMap, encryptionIgnoreFields)
+			drifts = classifyDrifts(drifts, encryptionSeverityMap)
+			drifts = filterDriftsBySeverity(drifts, minSev)
 
 			if len(drifts) > 0 {
 				fmt.Printf("  %s: %d drifts detected\n", stateRes.Name, len(drifts))
 				for _, d := range drifts {
-					printDriftWithCritical(d, encryptionCriticalPaths)
+					printDriftWithSeverity(d)
 				}
+				allDrifts = append(allDrifts, drifts...)
 				driftedCount++
 			} else {
 				fmt.Printf("  %s: No drift\n", stateRes.Name)
@@ -353,7 +373,7 @@ func diffAllEncryptionPasswords() {
 	fmt.Printf("  - %d passwords drifted/changed\n", driftedCount)
 
 	if driftedCount > 0 {
-		os.Exit(3)
+		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)
 }
@@ -398,7 +418,8 @@ Examples:
 
 Exit Codes:
   0 - No drift detected
-  3 - Drift detected
+  3 - Drift detected (INFO or WARNING)
+  4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if kmsDiffAll {
@@ -491,6 +512,7 @@ func snapshotAllKmsServers() {
 }
 
 func diffSingleKmsServer(name string) {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -530,10 +552,14 @@ func diffSingleKmsServer(name string) {
 
 	if !found {
 		fmt.Printf("CRITICAL - KMS server '%s' (ID: %s) has been removed from VBR!\n", name, resource.ID)
-		os.Exit(3)
+		os.Exit(4) // CRITICAL drift
 	}
 
+	// Compare, classify, filter
 	drifts := detectDrift(resource.Spec, currentMap, kmsIgnoreFields)
+	drifts = classifyDrifts(drifts, kmsSeverityMap)
+	minSev := parseSeverityFlag()
+	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
 		fmt.Println("No drift detected. KMS server matches snapshot state.")
@@ -542,11 +568,12 @@ func diffSingleKmsServer(name string) {
 
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
-		printDriftWithCritical(drift, kmsCriticalPaths)
+		printDriftWithSeverity(drift)
 	}
 
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
 	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
 	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
 
@@ -554,10 +581,11 @@ func diffSingleKmsServer(name string) {
 	fmt.Printf("\nTo update the snapshot, run:\n")
 	fmt.Printf("  vcli encryption kms-snapshot \"%s\"\n", name)
 
-	os.Exit(3)
+	os.Exit(exitCodeForDrifts(drifts))
 }
 
 func diffAllKmsServers() {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -604,22 +632,32 @@ func diffAllKmsServers() {
 	fmt.Printf("Checking KMS server inventory...\n")
 	fmt.Printf("  State: %d servers, VBR: %d servers\n\n", len(stateResources), len(kmsList.Data))
 
+	minSev := parseSeverityFlag()
 	driftedCount := 0
 	cleanCount := 0
+	var allDrifts []Drift
 
-	// Check for removed KMS servers (in state but not in VBR)
+	// Check for removed KMS servers (in state but not in VBR) — CRITICAL
 	for id, stateRes := range stateByID {
 		if _, exists := currentByID[id]; !exists {
-			fmt.Printf("  CRITICAL - %s (ID: %s): Removed from VBR\n", stateRes.Name, id)
-			driftedCount++
+			removedDrift := Drift{Path: "inventory", Action: "removed", State: stateRes.Name, Severity: SeverityCritical}
+			if severityRank(SeverityCritical) >= severityRank(minSev) {
+				fmt.Printf("  CRITICAL - %s (ID: %s): Removed from VBR\n", stateRes.Name, id)
+				allDrifts = append(allDrifts, removedDrift)
+				driftedCount++
+			}
 		}
 	}
 
-	// Check for added KMS servers (in VBR but not in state)
+	// Check for added KMS servers (in VBR but not in state) — INFO
 	for id, name := range currentNameByID {
 		if _, exists := stateByID[id]; !exists {
-			fmt.Printf("  + %s (ID: %s): Added since last snapshot\n", name, id)
-			driftedCount++
+			addedDrift := Drift{Path: "inventory", Action: "added", VBR: name, Severity: SeverityInfo}
+			if severityRank(SeverityInfo) >= severityRank(minSev) {
+				fmt.Printf("  INFO + %s (ID: %s): Added since last snapshot\n", name, id)
+				allDrifts = append(allDrifts, addedDrift)
+				driftedCount++
+			}
 		}
 	}
 
@@ -627,12 +665,15 @@ func diffAllKmsServers() {
 	for id, stateRes := range stateByID {
 		if currentMap, exists := currentByID[id]; exists {
 			drifts := detectDrift(stateRes.Spec, currentMap, kmsIgnoreFields)
+			drifts = classifyDrifts(drifts, kmsSeverityMap)
+			drifts = filterDriftsBySeverity(drifts, minSev)
 
 			if len(drifts) > 0 {
 				fmt.Printf("  %s: %d drifts detected\n", stateRes.Name, len(drifts))
 				for _, d := range drifts {
-					printDriftWithCritical(d, kmsCriticalPaths)
+					printDriftWithSeverity(d)
 				}
+				allDrifts = append(allDrifts, drifts...)
 				driftedCount++
 			} else {
 				fmt.Printf("  %s: No drift\n", stateRes.Name)
@@ -646,7 +687,7 @@ func diffAllKmsServers() {
 	fmt.Printf("  - %d KMS servers drifted/changed\n", driftedCount)
 
 	if driftedCount > 0 {
-		os.Exit(3)
+		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)
 }
@@ -654,8 +695,10 @@ func diffAllKmsServers() {
 func init() {
 	encSnapshotCmd.Flags().BoolVar(&encSnapshotAll, "all", false, "Snapshot all encryption passwords")
 	encDiffCmd.Flags().BoolVar(&encDiffAll, "all", false, "Check drift for all encryption passwords in state")
+	addSeverityFlags(encDiffCmd)
 	kmsSnapshotCmd.Flags().BoolVar(&kmsSnapshotAll, "all", false, "Snapshot all KMS servers")
 	kmsDiffCmd.Flags().BoolVar(&kmsDiffAll, "all", false, "Check drift for all KMS servers in state")
+	addSeverityFlags(kmsDiffCmd)
 
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)

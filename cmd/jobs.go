@@ -310,6 +310,8 @@ var diffCmd = &cobra.Command{
 	Long: `Compare current VBR job configuration against the last applied state
 to detect manual changes or drift.
 
+Each drift is classified by severity: CRITICAL, WARNING, or INFO.
+
 Examples:
   # Check single job for drift
   vcli job diff SQL-Backup-Job
@@ -317,9 +319,16 @@ Examples:
   # Check all jobs
   vcli job diff --all
 
+  # Show only security-relevant drifts
+  vcli job diff --all --security-only
+
+  # Show only critical drifts
+  vcli job diff --all --severity critical
+
 Exit Codes:
   0 - No drift detected
-  3 - Drift detected
+  3 - Drift detected (INFO or WARNING)
+  4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if diffAll {
@@ -333,6 +342,7 @@ Exit Codes:
 }
 
 func diffSingleJob(jobName string) {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -362,22 +372,26 @@ func diffSingleJob(jobName string) {
 		log.Fatalf("Failed to unmarshal current job into map for drift detection: %v", err)
 	}
 
-	// Compare
+	// Compare, classify, filter
 	drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
+	drifts = classifyDrifts(drifts, jobSeverityMap)
+	minSev := parseSeverityFlag()
+	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("✓ No drift detected. Job matches applied state.")
-		os.Exit(0) // Exit 0 = no drift
+		fmt.Println("No drift detected. Job matches applied state.")
+		os.Exit(0)
 	}
 
 	// Display drift
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
-		printDrift(drift)
+		printDriftWithSeverity(drift)
 	}
 
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
 	fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
 	fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
 
@@ -385,10 +399,11 @@ func diffSingleJob(jobName string) {
 	fmt.Printf("\nTo reapply the desired state, run:\n")
 	fmt.Printf("  vcli job apply <your-job-file>.yaml\n")
 
-	os.Exit(3) // Exit 3 = drift detected
+	os.Exit(exitCodeForDrifts(drifts))
 }
 
 func diffAllJobs() {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -408,8 +423,10 @@ func diffAllJobs() {
 
 	fmt.Printf("Checking %d jobs for drift...\n\n", len(resources))
 
+	minSev := parseSeverityFlag()
 	driftedCount := 0
 	cleanCount := 0
+	var allDrifts []Drift
 
 	for _, resource := range resources {
 		// Fetch current from VBR
@@ -419,23 +436,27 @@ func diffAllJobs() {
 		// Convert to map for comparison
 		currentBytes, err := json.Marshal(current)
 		if err != nil {
-			fmt.Printf("⚠️  %s: Failed to marshal job data: %v\n", resource.Name, err)
+			fmt.Printf("  %s: Failed to marshal job data: %v\n", resource.Name, err)
 			continue
 		}
 		var currentMap map[string]interface{}
 		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
-			fmt.Printf("⚠️  %s: Failed to unmarshal job data: %v\n", resource.Name, err)
+			fmt.Printf("  %s: Failed to unmarshal job data: %v\n", resource.Name, err)
 			continue
 		}
 
-		// Detect drift
+		// Detect, classify, filter
 		drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
+		drifts = classifyDrifts(drifts, jobSeverityMap)
+		drifts = filterDriftsBySeverity(drifts, minSev)
 
 		if len(drifts) > 0 {
-			fmt.Printf("⚠️  %s: %d drifts detected\n", resource.Name, len(drifts))
+			maxSev := getMaxSeverity(drifts)
+			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			allDrifts = append(allDrifts, drifts...)
 			driftedCount++
 		} else {
-			fmt.Printf("✓  %s: No drift\n", resource.Name)
+			fmt.Printf("  %s: No drift\n", resource.Name)
 			cleanCount++
 		}
 	}
@@ -445,13 +466,14 @@ func diffAllJobs() {
 	fmt.Printf("  - %d jobs drifted\n", driftedCount)
 
 	if driftedCount > 0 {
-		os.Exit(3) // Drift detected
+		os.Exit(exitCodeForDrifts(allDrifts))
 	}
-	os.Exit(0) // All clean
+	os.Exit(0)
 }
 
 func init() {
 	diffCmd.Flags().BoolVar(&diffAll, "all", false, "Check drift for all jobs in state")
+	addSeverityFlags(diffCmd)
 	jobsCmd.AddCommand(diffCmd)
 
 	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input")

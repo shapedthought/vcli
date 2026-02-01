@@ -2,17 +2,99 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+// Severity represents the security severity level of a drift
+type Severity string
+
+const (
+	SeverityCritical Severity = "CRITICAL"
+	SeverityWarning  Severity = "WARNING"
+	SeverityInfo     Severity = "INFO"
 )
 
 // Drift represents a single configuration drift between state and live VBR
 type Drift struct {
-	Path   string
-	Action string // "modified", "added", "removed"
-	State  interface{}
-	VBR    interface{}
+	Path     string
+	Action   string // "modified", "added", "removed"
+	State    interface{}
+	VBR      interface{}
+	Severity Severity
 }
+
+// SeverityMap maps field path segments to severity levels.
+// Fields not listed default to INFO.
+type SeverityMap map[string]Severity
+
+// GetSeverity returns the severity for a drift path.
+// Checks full path first, then last segment. Defaults to INFO.
+func (sm SeverityMap) GetSeverity(path string) Severity {
+	if s, ok := sm[path]; ok {
+		return s
+	}
+	parts := strings.Split(path, ".")
+	if len(parts) > 0 {
+		if s, ok := sm[parts[len(parts)-1]]; ok {
+			return s
+		}
+	}
+	return SeverityInfo
+}
+
+// severityRank returns numeric rank for severity comparison (higher = more severe)
+func severityRank(s Severity) int {
+	switch s {
+	case SeverityCritical:
+		return 3
+	case SeverityWarning:
+		return 2
+	case SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// --- Shared severity filter flags ---
+
+var (
+	severityFilter string
+	securityOnly   bool
+)
+
+// addSeverityFlags registers --severity and --security-only flags on a diff command
+func addSeverityFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&severityFilter, "severity", "", "Minimum severity to show (critical, warning, info)")
+	cmd.Flags().BoolVar(&securityOnly, "security-only", false, "Show only WARNING and CRITICAL drifts (alias for --severity warning)")
+}
+
+// parseSeverityFlag returns the minimum severity from flags.
+// --severity takes precedence over --security-only.
+func parseSeverityFlag() Severity {
+	if severityFilter != "" {
+		switch strings.ToLower(severityFilter) {
+		case "critical":
+			return SeverityCritical
+		case "warning":
+			return SeverityWarning
+		case "info":
+			return SeverityInfo
+		default:
+			log.Fatalf("Invalid severity: %s (use critical, warning, or info)", severityFilter)
+		}
+	}
+	if securityOnly {
+		return SeverityWarning
+	}
+	return SeverityInfo
+}
+
+// --- Per-resource ignore fields ---
 
 // jobIgnoreFields defines read-only or frequently changing fields to ignore during job drift detection
 var jobIgnoreFields = map[string]bool{
@@ -40,29 +122,11 @@ var repoIgnoreFields = map[string]bool{
 	"uniqueId": true,
 }
 
-// repoCriticalPaths defines field paths that should be flagged as CRITICAL severity in drift output
-var repoCriticalPaths = map[string]bool{
-	"type": true,
-}
-
 // sobrIgnoreFields defines read-only or frequently changing fields to ignore during SOBR drift detection
 var sobrIgnoreFields = map[string]bool{
 	"id":       true,
 	"uniqueId": true,
 	"status":   true,
-}
-
-// sobrCriticalPaths defines field paths flagged as CRITICAL severity for SOBR drift
-var sobrCriticalPaths = map[string]bool{
-	"isEnabled":                      true,
-	"immutabilityMode":               true,
-	"daysCount":                      true,
-	"movePolicyEnabled":              true,
-	"copyPolicyEnabled":              true,
-	"performanceExtents":             true,
-	"extents":                        true,
-	"type":                           true,
-	"enforceStrictPlacementPolicy":   true,
 }
 
 // encryptionIgnoreFields defines read-only or frequently changing fields to ignore during encryption password drift detection
@@ -72,20 +136,64 @@ var encryptionIgnoreFields = map[string]bool{
 	"modificationTime": true,
 }
 
-// encryptionCriticalPaths defines field paths flagged as CRITICAL severity for encryption password drift
-var encryptionCriticalPaths = map[string]bool{
-	"hint": true,
-}
-
 // kmsIgnoreFields defines read-only fields to ignore during KMS server drift detection
 var kmsIgnoreFields = map[string]bool{
 	"id": true,
 }
 
-// kmsCriticalPaths defines field paths flagged as CRITICAL severity for KMS server drift
-var kmsCriticalPaths = map[string]bool{
-	"type": true,
+// --- Per-resource severity maps ---
+
+// jobSeverityMap classifies job drift fields by severity
+var jobSeverityMap = SeverityMap{
+	// CRITICAL — changes that directly affect data protection
+	"isDisabled":          SeverityCritical,
+	"retentionPolicy":     SeverityCritical,
+	"retainCycles":        SeverityCritical,
+	"gfsPolicy":           SeverityCritical,
+	"backupRepositoryId":  SeverityCritical,
+	// WARNING — changes that weaken defense-in-depth
+	"guestProcessing":     SeverityWarning,
+	"schedule":            SeverityWarning,
+	"encryption":          SeverityWarning,
+	"healthCheck":         SeverityWarning,
 }
+
+// repoSeverityMap classifies repository drift fields by severity
+var repoSeverityMap = SeverityMap{
+	// CRITICAL — repository type or immutability changes
+	"type": SeverityCritical,
+	// WARNING — operational changes with security relevance
+	"path":         SeverityWarning,
+	"maxTaskCount": SeverityWarning,
+}
+
+// sobrSeverityMap classifies SOBR drift fields by severity
+var sobrSeverityMap = SeverityMap{
+	// CRITICAL — SOBR availability and immutability
+	"isEnabled":                    SeverityCritical,
+	"immutabilityMode":             SeverityCritical,
+	"type":                         SeverityCritical,
+	"enforceStrictPlacementPolicy": SeverityCritical,
+	// WARNING — policy and tier changes
+	"movePolicyEnabled":  SeverityWarning,
+	"copyPolicyEnabled":  SeverityWarning,
+	"daysCount":          SeverityWarning,
+	"performanceExtents": SeverityWarning,
+	"extents":            SeverityWarning,
+}
+
+// encryptionSeverityMap classifies encryption password drift fields by severity
+var encryptionSeverityMap = SeverityMap{
+	"hint": SeverityWarning,
+}
+
+// kmsSeverityMap classifies KMS server drift fields by severity
+var kmsSeverityMap = SeverityMap{
+	"type":        SeverityCritical,
+	"description": SeverityWarning,
+}
+
+// --- Drift detection ---
 
 // detectDrift compares state spec against live VBR config, ignoring specified fields
 func detectDrift(stateSpec, vbrMap map[string]interface{}, ignore map[string]bool) []Drift {
@@ -165,44 +273,72 @@ func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Dri
 	}
 }
 
-// printDrift formats and prints a single drift entry
-func printDrift(drift Drift) {
-	printDriftWithCritical(drift, nil)
+// --- Severity classification and filtering ---
+
+// classifyDrifts assigns severity to each drift based on the resource-specific severity map
+func classifyDrifts(drifts []Drift, sm SeverityMap) []Drift {
+	for i := range drifts {
+		drifts[i].Severity = sm.GetSeverity(drifts[i].Path)
+	}
+	return drifts
 }
 
-// printDriftWithCritical formats and prints a single drift entry, annotating critical paths
-func printDriftWithCritical(drift Drift, criticalPaths map[string]bool) {
-	severity := ""
-	if criticalPaths != nil && isCriticalPath(drift.Path, criticalPaths) {
-		severity = "CRITICAL "
+// filterDriftsBySeverity returns only drifts at or above the minimum severity level
+func filterDriftsBySeverity(drifts []Drift, minSeverity Severity) []Drift {
+	if minSeverity == SeverityInfo {
+		return drifts
 	}
+	minRank := severityRank(minSeverity)
+	var filtered []Drift
+	for _, d := range drifts {
+		if severityRank(d.Severity) >= minRank {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
+// getMaxSeverity returns the highest severity among the given drifts
+func getMaxSeverity(drifts []Drift) Severity {
+	max := SeverityInfo
+	for _, d := range drifts {
+		if severityRank(d.Severity) > severityRank(max) {
+			max = d.Severity
+		}
+	}
+	return max
+}
+
+// exitCodeForDrifts returns the appropriate exit code:
+//
+//	0 = no drift, 3 = INFO/WARNING drift, 4 = CRITICAL drift
+func exitCodeForDrifts(drifts []Drift) int {
+	if len(drifts) == 0 {
+		return 0
+	}
+	if getMaxSeverity(drifts) == SeverityCritical {
+		return 4
+	}
+	return 3
+}
+
+// --- Drift printing ---
+
+// printDriftWithSeverity prints a single drift entry with its severity label
+func printDriftWithSeverity(drift Drift) {
+	sev := string(drift.Severity)
 
 	switch drift.Action {
 	case "modified":
 		stateStr := formatValue(drift.State)
 		vbrStr := formatValue(drift.VBR)
-		fmt.Printf("  %s~ %s: %s (state) → %s (VBR)\n", severity, drift.Path, stateStr, vbrStr)
+		fmt.Printf("  %s ~ %s: %s (state) -> %s (VBR)\n", sev, drift.Path, stateStr, vbrStr)
 	case "removed":
-		fmt.Printf("  %s- %s: Removed from VBR\n", severity, drift.Path)
+		fmt.Printf("  %s - %s: Removed from VBR\n", sev, drift.Path)
 	case "added":
 		vbrStr := formatValue(drift.VBR)
-		fmt.Printf("  %s+ %s: Added in VBR (value: %s)\n", severity, drift.Path, vbrStr)
+		fmt.Printf("  %s + %s: Added in VBR (value: %s)\n", sev, drift.Path, vbrStr)
 	}
-}
-
-// isCriticalPath checks if the drift path matches any critical path pattern.
-// Matches if the path equals or ends with a critical field name.
-func isCriticalPath(path string, criticalPaths map[string]bool) bool {
-	// Direct match
-	if criticalPaths[path] {
-		return true
-	}
-	// Check if the last segment matches
-	parts := strings.Split(path, ".")
-	if len(parts) > 0 {
-		return criticalPaths[parts[len(parts)-1]]
-	}
-	return false
 }
 
 func formatValue(value interface{}) string {

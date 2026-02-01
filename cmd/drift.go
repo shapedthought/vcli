@@ -65,6 +65,28 @@ var sobrCriticalPaths = map[string]bool{
 	"enforceStrictPlacementPolicy":   true,
 }
 
+// encryptionIgnoreFields defines read-only or frequently changing fields to ignore during encryption password drift detection
+var encryptionIgnoreFields = map[string]bool{
+	"id":               true,
+	"uniqueId":         true,
+	"modificationTime": true,
+}
+
+// encryptionCriticalPaths defines field paths flagged as CRITICAL severity for encryption password drift
+var encryptionCriticalPaths = map[string]bool{
+	"hint": true,
+}
+
+// kmsIgnoreFields defines read-only fields to ignore during KMS server drift detection
+var kmsIgnoreFields = map[string]bool{
+	"id": true,
+}
+
+// kmsCriticalPaths defines field paths flagged as CRITICAL severity for KMS server drift
+var kmsCriticalPaths = map[string]bool{
+	"type": true,
+}
+
 // detectDrift compares state spec against live VBR config, ignoring specified fields
 func detectDrift(stateSpec, vbrMap map[string]interface{}, ignore map[string]bool) []Drift {
 	var drifts []Drift

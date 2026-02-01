@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"runtime"
 	"strings"
 
@@ -24,26 +23,6 @@ var (
 	folder         string
 	customTemplate string
 )
-
-// ignoreFields defines read-only or frequently changing fields to ignore during drift detection
-var ignoreFields = map[string]bool{
-	"id":                true,
-	"lastRun":           true,
-	"nextRun":           true,
-	"statistics":        true,
-	"creationTime":      true,
-	"modificationTime":  true,
-	"targetType":        true,
-	"platform":          true,
-	"serverName":        true,
-	"isRunning":         true,
-	"lastResult":        true,
-	"sessionCount":      true,
-	"urn":               true,
-	"objectId":          true,
-	"size":              true,
-	"metadata":          true,
-}
 
 var jobsCmd = &cobra.Command{
 	Use:   "job",
@@ -384,7 +363,7 @@ func diffSingleJob(jobName string) {
 	}
 
 	// Compare
-	drifts := detectDrift(resource.Spec, currentMap)
+	drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
 
 	if len(drifts) == 0 {
 		fmt.Println("✓ No drift detected. Job matches applied state.")
@@ -450,7 +429,7 @@ func diffAllJobs() {
 		}
 
 		// Detect drift
-		drifts := detectDrift(resource.Spec, currentMap)
+		drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
 
 		if len(drifts) > 0 {
 			fmt.Printf("⚠️  %s: %d drifts detected\n", resource.Name, len(drifts))
@@ -469,176 +448,6 @@ func diffAllJobs() {
 		os.Exit(3) // Drift detected
 	}
 	os.Exit(0) // All clean
-}
-
-type Drift struct {
-	Path   string
-	Action string // "modified", "added", "removed"
-	State  interface{}
-	VBR    interface{}
-}
-
-func detectDrift(stateSpec, vbrMap map[string]interface{}) []Drift {
-	var drifts []Drift
-	collectDrifts("", stateSpec, vbrMap, &drifts)
-	return drifts
-}
-
-func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Drift) {
-	// Check all fields in state
-	for key, stateValue := range state {
-		fullPath := key
-		if path != "" {
-			fullPath = path + "." + key
-		}
-
-		// Skip ignored fields
-		if ignoreFields[key] {
-			continue
-		}
-
-		vbrValue, existsInVBR := vbr[key]
-
-		if !existsInVBR {
-			// Field was removed from VBR
-			*drifts = append(*drifts, Drift{
-				Path:   fullPath,
-				Action: "removed",
-				State:  stateValue,
-				VBR:    nil,
-			})
-			continue
-		}
-
-		// Both exist - check if different (using semantic equality)
-		if !valuesEqual(stateValue, vbrValue) {
-			// Try recursive comparison for maps
-			if stateMap, stateIsMap := stateValue.(map[string]interface{}); stateIsMap {
-				if vbrMap, vbrIsMap := vbrValue.(map[string]interface{}); vbrIsMap {
-					// Recursively compare nested maps
-					collectDrifts(fullPath, stateMap, vbrMap, drifts)
-					continue
-				}
-			}
-
-			// Values are different
-			*drifts = append(*drifts, Drift{
-				Path:   fullPath,
-				Action: "modified",
-				State:  stateValue,
-				VBR:    vbrValue,
-			})
-		}
-	}
-
-	// Check for fields added in VBR
-	for key, vbrValue := range vbr {
-		fullPath := key
-		if path != "" {
-			fullPath = path + "." + key
-		}
-
-		// Skip ignored fields
-		if ignoreFields[key] {
-			continue
-		}
-
-		if _, existsInState := state[key]; !existsInState {
-			// Field was added in VBR
-			*drifts = append(*drifts, Drift{
-				Path:   fullPath,
-				Action: "added",
-				State:  nil,
-				VBR:    vbrValue,
-			})
-		}
-	}
-}
-
-func printDrift(drift Drift) {
-	switch drift.Action {
-	case "modified":
-		// Format values for display
-		stateStr := formatValue(drift.State)
-		vbrStr := formatValue(drift.VBR)
-		fmt.Printf("  ~ %s: %s (state) → %s (VBR)\n", drift.Path, stateStr, vbrStr)
-	case "removed":
-		fmt.Printf("  - %s: Removed from VBR\n", drift.Path)
-	case "added":
-		vbrStr := formatValue(drift.VBR)
-		fmt.Printf("  + %s: Added in VBR (value: %s)\n", drift.Path, vbrStr)
-	}
-}
-
-func formatValue(value interface{}) string {
-	if value == nil {
-		return "nil"
-	}
-
-	// For complex types, just show type
-	switch v := value.(type) {
-	case map[string]interface{}:
-		return fmt.Sprintf("{%d fields}", len(v))
-	case []interface{}:
-		return fmt.Sprintf("[%d items]", len(v))
-	case string:
-		if len(v) > 50 {
-			return fmt.Sprintf("\"%s...\"", v[:47])
-		}
-		return fmt.Sprintf("\"%s\"", v)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// valuesEqual compares two values for semantic equality
-// Treats nil and empty arrays/slices as equivalent
-func valuesEqual(a, b interface{}) bool {
-	// Handle nil cases
-	if a == nil && b == nil {
-		return true
-	}
-
-	// Check if both are slices/arrays
-	aSlice, aIsSlice := a.([]interface{})
-	bSlice, bIsSlice := b.([]interface{})
-
-	if aIsSlice && bIsSlice {
-		// Both are slices - compare them
-		return reflect.DeepEqual(aSlice, bSlice)
-	}
-
-	if aIsSlice && b == nil {
-		// State has empty slice, VBR has nil - treat as equal if slice is empty
-		return len(aSlice) == 0
-	}
-
-	if a == nil && bIsSlice {
-		// State has nil, VBR has empty slice - treat as equal if slice is empty
-		return len(bSlice) == 0
-	}
-
-	// Check if both are maps
-	aMap, aIsMap := a.(map[string]interface{})
-	bMap, bIsMap := b.(map[string]interface{})
-
-	if aIsMap && bIsMap {
-		// Both are maps - compare them
-		return reflect.DeepEqual(aMap, bMap)
-	}
-
-	if aIsMap && b == nil {
-		// State has empty map, VBR has nil - treat as equal if map is empty
-		return len(aMap) == 0
-	}
-
-	if a == nil && bIsMap {
-		// State has nil, VBR has empty map - treat as equal if map is empty
-		return len(bMap) == 0
-	}
-
-	// Fall back to reflect.DeepEqual for other types
-	return reflect.DeepEqual(a, b)
 }
 
 func init() {

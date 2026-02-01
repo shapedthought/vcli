@@ -2,63 +2,57 @@ package state
 
 import "time"
 
-// State represents the entire state file structure
+// State represents the vcli state file structure
+//
+// WARNING: State files are mutable and NOT suitable for compliance or audit.
+// For compliance, use Git commit history + CI/CD logs + VBR audit logs.
+// State is purely operational - used for drift detection and tracking what was last applied.
 type State struct {
-	Resources    []Resource `json:"resources"`
-	Version      int        `json:"version"`
-	LastModified time.Time  `json:"last_modified"`
+	Version   int                  `json:"version"`
+	Resources map[string]*Resource `json:"resources"`
 }
 
-// Resource represents a managed resource in the state
+// Resource represents a managed resource in state
 type Resource struct {
-	Type        string                 `json:"type"`
-	Name        string                 `json:"name"`
-	ID          string                 `json:"id"`
-	Spec        map[string]interface{} `json:"spec"`
-	LastApplied time.Time              `json:"last_applied"`
+	Type          string                 `json:"type"`           // e.g., "VBRJob"
+	ID            string                 `json:"id"`             // VBR resource ID
+	Name          string                 `json:"name"`           // Resource name
+	LastApplied   time.Time              `json:"lastApplied"`    // When it was last applied
+	LastAppliedBy string                 `json:"lastAppliedBy"`  // User who applied it
+	Spec          map[string]interface{} `json:"spec"`           // The applied configuration
 }
 
 // NewState creates a new empty state
 func NewState() *State {
 	return &State{
-		Resources:    []Resource{},
-		Version:      1,
-		LastModified: time.Now(),
+		Version:   1,
+		Resources: make(map[string]*Resource),
 	}
 }
 
 // GetResource retrieves a resource by name
 func (s *State) GetResource(name string) (*Resource, bool) {
-	for i := range s.Resources {
-		if s.Resources[i].Name == name {
-			return &s.Resources[i], true
-		}
-	}
-	return nil, false
+	resource, exists := s.Resources[name]
+	return resource, exists
 }
 
-// UpsertResource adds or updates a resource in the state
-func (s *State) UpsertResource(resource Resource) {
-	resource.LastApplied = time.Now()
-	for i := range s.Resources {
-		if s.Resources[i].Name == resource.Name {
-			s.Resources[i] = resource
-			s.LastModified = time.Now()
-			return
-		}
-	}
-	s.Resources = append(s.Resources, resource)
-	s.LastModified = time.Now()
+// SetResource adds or updates a resource in state
+func (s *State) SetResource(resource *Resource) {
+	s.Resources[resource.Name] = resource
 }
 
-// DeleteResource removes a resource from the state by name
-func (s *State) DeleteResource(name string) bool {
-	for i := range s.Resources {
-		if s.Resources[i].Name == name {
-			s.Resources = append(s.Resources[:i], s.Resources[i+1:]...)
-			s.LastModified = time.Now()
-			return true
+// DeleteResource removes a resource from state
+func (s *State) DeleteResource(name string) {
+	delete(s.Resources, name)
+}
+
+// ListResources returns all resources of a given type
+func (s *State) ListResources(resourceType string) []*Resource {
+	var resources []*Resource
+	for _, resource := range s.Resources {
+		if resourceType == "" || resource.Type == resourceType {
+			resources = append(resources, resource)
 		}
 	}
-	return false
+	return resources
 }

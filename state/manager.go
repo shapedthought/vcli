@@ -4,127 +4,178 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
-
-	"github.com/shapedthought/vcli/utils"
 )
 
-const stateFile = ".vcli/state.json"
-
-// Manager handles state operations
+// Manager handles state file operations
 type Manager struct {
 	statePath string
-	lock      *Lock
 }
 
 // NewManager creates a new state manager
+// Uses VCLI_SETTINGS_PATH if set, otherwise ~/.vcli/
 func NewManager() *Manager {
-	settingsPath := utils.SettingPath()
+	var statePath string
+
+	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	if settingsPath != "" {
+		statePath = filepath.Join(settingsPath, "state.json")
+	} else {
+		usr, err := user.Current()
+		if err != nil {
+			// Fallback to current directory if we can't get home dir
+			statePath = "state.json"
+		} else {
+			vcliDir := filepath.Join(usr.HomeDir, ".vcli")
+			// Create .vcli directory if it doesn't exist
+			os.MkdirAll(vcliDir, 0755)
+			statePath = filepath.Join(vcliDir, "state.json")
+		}
+	}
+
 	return &Manager{
-		statePath: filepath.Join(settingsPath, stateFile),
-		lock:      NewLock(),
+		statePath: statePath,
 	}
 }
 
-// Lock acquires the state lock
-func (m *Manager) Lock() error {
-	return m.lock.Acquire()
-}
-
-// Unlock releases the state lock
-func (m *Manager) Unlock() error {
-	return m.lock.Release()
-}
-
-// LoadState reads the state file or initializes a new one if it doesn't exist
-func (m *Manager) LoadState() (*State, error) {
-	// Check if state file exists
+// Load reads the state file from disk
+// Returns a new empty state if file doesn't exist
+func (m *Manager) Load() (*State, error) {
+	// Check if file exists
 	if _, err := os.Stat(m.statePath); os.IsNotExist(err) {
-		// State file doesn't exist, return new empty state
+		// Return new empty state if file doesn't exist
 		return NewState(), nil
 	}
 
-	// Read state file
 	data, err := os.ReadFile(m.statePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read state file: %w", err)
 	}
 
-	// Parse state
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("failed to parse state file: %w", err)
 	}
 
+	// Initialize resources map if nil (shouldn't happen, but defensive)
+	if state.Resources == nil {
+		state.Resources = make(map[string]*Resource)
+	}
+
 	return &state, nil
 }
 
-// SaveState writes the state to disk atomically
-func (m *Manager) SaveState(state *State) error {
-	// Ensure .vcli directory exists
+// Save writes the state to disk atomically using temp file + rename
+func (m *Manager) Save(state *State) error {
+	// Ensure directory exists
 	dir := filepath.Dir(m.statePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create state directory: %w", err)
 	}
 
-	// Marshal state to JSON
+	// Marshal with indentation for readability
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	// Write to temporary file first (atomic write)
-	tmpFile := m.statePath + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0644); err != nil {
-		return fmt.Errorf("failed to write temporary state file: %w", err)
+	// Write atomically: write to temp file, then rename
+	tmpFile, err := os.CreateTemp(dir, "state.json.tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp state file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	// Ensure temp file is cleaned up on error
+	defer func() {
+		// Best-effort cleanup of temp file if it still exists
+		if _, statErr := os.Stat(tmpPath); statErr == nil {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	// Write data to temp file
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to write temp state file: %w", err)
 	}
 
-	// Rename temporary file to actual state file (atomic operation)
-	if err := os.Rename(tmpFile, m.statePath); err != nil {
-		os.Remove(tmpFile) // Clean up temp file on error
-		return fmt.Errorf("failed to save state file: %w", err)
+	// Sync to ensure data is written to disk
+	if err := tmpFile.Sync(); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to sync temp state file: %w", err)
+	}
+
+	// Close temp file
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp state file: %w", err)
+	}
+
+	// Atomically replace the old state file with the new one
+	if err := os.Rename(tmpPath, m.statePath); err != nil {
+		return fmt.Errorf("failed to rename temp state file: %w", err)
 	}
 
 	return nil
 }
 
-// GetResource retrieves a resource by name from the current state
+// GetStatePath returns the path to the state file
+func (m *Manager) GetStatePath() string {
+	return m.statePath
+}
+
+// UpdateResource is a convenience method that loads state, updates a resource, and saves
+func (m *Manager) UpdateResource(resource *Resource) error {
+	state, err := m.Load()
+	if err != nil {
+		return err
+	}
+
+	state.SetResource(resource)
+
+	return m.Save(state)
+}
+
+// RemoveResource is a convenience method that loads state, removes a resource, and saves
+func (m *Manager) RemoveResource(name string) error {
+	state, err := m.Load()
+	if err != nil {
+		return err
+	}
+
+	state.DeleteResource(name)
+
+	return m.Save(state)
+}
+
+// GetResource is a convenience method to load and retrieve a single resource
 func (m *Manager) GetResource(name string) (*Resource, error) {
-	state, err := m.LoadState()
+	state, err := m.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	resource, found := state.GetResource(name)
-	if !found {
-		return nil, fmt.Errorf("resource %s not found in state", name)
+	resource, exists := state.GetResource(name)
+	if !exists {
+		return nil, fmt.Errorf("resource '%s' not found in state", name)
 	}
 
 	return resource, nil
 }
 
-// UpsertResource adds or updates a resource and saves the state
-func (m *Manager) UpsertResource(resource Resource) error {
-	state, err := m.LoadState()
+// ListResources is a convenience method to load and list resources
+func (m *Manager) ListResources(resourceType string) ([]*Resource, error) {
+	state, err := m.Load()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	state.UpsertResource(resource)
-
-	return m.SaveState(state)
+	return state.ListResources(resourceType), nil
 }
 
-// DeleteResource removes a resource and saves the state
-func (m *Manager) DeleteResource(name string) error {
-	state, err := m.LoadState()
-	if err != nil {
-		return err
-	}
-
-	if !state.DeleteResource(name) {
-		return fmt.Errorf("resource %s not found in state", name)
-	}
-
-	return m.SaveState(state)
+// stateExists checks if the state file exists
+func (m *Manager) StateExists() bool {
+	_, err := os.Stat(m.statePath)
+	return err == nil
 }

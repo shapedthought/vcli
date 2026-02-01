@@ -211,6 +211,7 @@ func diffSingleRepo(repoName string) {
 	}
 
 	// Display drift
+	printSecuritySummary(drifts)
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
 		printDriftWithSeverity(drift)
@@ -282,6 +283,9 @@ func diffAllRepos() {
 		}
 	}
 
+	if len(allDrifts) > 0 {
+		printSecuritySummary(allDrifts)
+	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d repositories clean\n", cleanCount)
 	fmt.Printf("  - %d repositories drifted\n", driftedCount)
@@ -448,6 +452,7 @@ func diffSingleSobr(sobrName string) {
 		os.Exit(0)
 	}
 
+	printSecuritySummary(drifts)
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
 		printDriftWithSeverity(drift)
@@ -518,6 +523,9 @@ func diffAllSobrs() {
 		}
 	}
 
+	if len(allDrifts) > 0 {
+		printSecuritySummary(allDrifts)
+	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d scale-out repositories clean\n", cleanCount)
 	fmt.Printf("  - %d scale-out repositories drifted\n", driftedCount)

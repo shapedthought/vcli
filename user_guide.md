@@ -331,6 +331,34 @@ Nushell has it's own HTTP get and post options, which could be turned into a spe
 
 There is also a plugin system that Nushell provides which might be something I look at in the future.
 
+## Drift Detection & Security Alerting (VBR)
+
+_new in 0.10.0-beta1_
+
+vcli provides drift detection across multiple VBR resource types with security-aware severity classification. For full details see:
+
+- [Drift Detection Guide](docs/drift-detection.md) - All resource types, filtering, CI/CD integration
+- [Security Alerting](docs/security-alerting.md) - Value-aware severity, cross-resource validation, severity reference
+
+**Quick reference:**
+```bash
+# Snapshot resources to establish baseline
+vcli repo snapshot --all
+vcli repo sobr-snapshot --all
+vcli encryption snapshot --all
+
+# Detect drift across all resource types
+vcli job diff --all
+vcli repo diff --all
+vcli repo sobr-diff --all
+vcli encryption diff --all
+vcli encryption kms-diff --all
+
+# Show only security-relevant drifts
+vcli job diff --all --security-only
+vcli job diff --all --severity critical
+```
+
 ## Declarative Job Management (VBR)
 
 _new in 0.9.0-beta1_

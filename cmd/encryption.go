@@ -252,6 +252,7 @@ func diffSingleEncryptionPassword(hint string) {
 		os.Exit(0)
 	}
 
+	printSecuritySummary(drifts)
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
 		printDriftWithSeverity(drift)
@@ -368,6 +369,9 @@ func diffAllEncryptionPasswords() {
 		}
 	}
 
+	if len(allDrifts) > 0 {
+		printSecuritySummary(allDrifts)
+	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d passwords clean\n", cleanCount)
 	fmt.Printf("  - %d passwords drifted/changed\n", driftedCount)
@@ -566,6 +570,7 @@ func diffSingleKmsServer(name string) {
 		os.Exit(0)
 	}
 
+	printSecuritySummary(drifts)
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
 		printDriftWithSeverity(drift)
@@ -682,6 +687,9 @@ func diffAllKmsServers() {
 		}
 	}
 
+	if len(allDrifts) > 0 {
+		printSecuritySummary(allDrifts)
+	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d KMS servers clean\n", cleanCount)
 	fmt.Printf("  - %d KMS servers drifted/changed\n", driftedCount)

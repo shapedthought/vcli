@@ -372,9 +372,11 @@ func diffSingleJob(jobName string) {
 		log.Fatalf("Failed to unmarshal current job into map for drift detection: %v", err)
 	}
 
-	// Compare, classify, filter
+	// Compare, classify, enhance, filter
 	drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
 	drifts = classifyDrifts(drifts, jobSeverityMap)
+	drifts = enhanceJobDriftSeverity(drifts)
+	drifts = checkRepoHardeningDrift(drifts, resource.Spec)
 	minSev := parseSeverityFlag()
 	drifts = filterDriftsBySeverity(drifts, minSev)
 
@@ -384,6 +386,7 @@ func diffSingleJob(jobName string) {
 	}
 
 	// Display drift
+	printSecuritySummary(drifts)
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
 		printDriftWithSeverity(drift)
@@ -445,9 +448,11 @@ func diffAllJobs() {
 			continue
 		}
 
-		// Detect, classify, filter
+		// Detect, classify, enhance, filter
 		drifts := detectDrift(resource.Spec, currentMap, jobIgnoreFields)
 		drifts = classifyDrifts(drifts, jobSeverityMap)
+		drifts = enhanceJobDriftSeverity(drifts)
+		drifts = checkRepoHardeningDrift(drifts, resource.Spec)
 		drifts = filterDriftsBySeverity(drifts, minSev)
 
 		if len(drifts) > 0 {
@@ -461,7 +466,12 @@ func diffAllJobs() {
 		}
 	}
 
-	fmt.Printf("\nSummary:\n")
+	if driftedCount > 0 {
+		fmt.Println()
+		printSecuritySummary(allDrifts)
+	}
+
+	fmt.Printf("Summary:\n")
 	fmt.Printf("  - %d jobs clean\n", cleanCount)
 	fmt.Printf("  - %d jobs drifted\n", driftedCount)
 

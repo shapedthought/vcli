@@ -146,16 +146,25 @@ var kmsIgnoreFields = map[string]bool{
 // jobSeverityMap classifies job drift fields by severity
 var jobSeverityMap = SeverityMap{
 	// CRITICAL — changes that directly affect data protection
-	"isDisabled":          SeverityCritical,
-	"retentionPolicy":     SeverityCritical,
-	"retainCycles":        SeverityCritical,
-	"gfsPolicy":           SeverityCritical,
-	"backupRepositoryId":  SeverityCritical,
+	"isDisabled":         SeverityCritical,
+	"retentionPolicy":    SeverityCritical,
+	"retainCycles":       SeverityCritical,
+	"gfsPolicy":          SeverityCritical,
+	"backupRepositoryId": SeverityCritical,
+	// CRITICAL — full dotted paths for nested fields
+	"storage.advancedSettings.storageData.encryption.isEnabled": SeverityCritical,
+	"storage.retentionPolicy.quantity":                          SeverityCritical,
+	"storage.backupRepositoryId":                                SeverityCritical,
 	// WARNING — changes that weaken defense-in-depth
-	"guestProcessing":     SeverityWarning,
-	"schedule":            SeverityWarning,
-	"encryption":          SeverityWarning,
-	"healthCheck":         SeverityWarning,
+	"guestProcessing": SeverityWarning,
+	"schedule":        SeverityWarning,
+	"encryption":      SeverityWarning,
+	"healthCheck":     SeverityWarning,
+	// WARNING — full dotted paths for nested fields
+	"storage.retentionPolicy.type":                 SeverityWarning,
+	"guestProcessing.appAwareProcessing.isEnabled": SeverityWarning,
+	"schedule.daily.isEnabled":                     SeverityWarning,
+	"schedule.runAutomatically":                    SeverityWarning,
 }
 
 // repoSeverityMap classifies repository drift fields by severity

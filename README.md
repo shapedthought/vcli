@@ -67,7 +67,11 @@ However, products such as VB for AWS/Azure/GCP do not have a command line interf
 - `export --as-overlay` - Export minimal overlay with only changed fields
 - `job apply` - Create or update jobs from YAML configuration with overlay support
 - `job plan` - Preview merged configurations and changes
-- `job diff` - Detect configuration drift between state and VBR
+- `job diff` - Detect job configuration drift with security severity classification
+- `repo snapshot` / `repo diff` - Snapshot and detect drift in backup repositories
+- `repo sobr-snapshot` / `repo sobr-diff` - Snapshot and detect drift in scale-out repositories
+- `encryption snapshot` / `encryption diff` - Track encryption password inventory
+- `encryption kms-snapshot` / `encryption kms-diff` - Track KMS server configuration
 
 ## How to use
 
@@ -275,6 +279,16 @@ vcli job apply configs/base-backup.yaml --env development
 | `job plan --show-yaml` | Show full merged YAML | `vcli job plan base.yaml -o prod.yaml --show-yaml` |
 | `job diff <name>` | Check single job for drift | `vcli job diff "SQL-Backup-Job"` |
 | `job diff --all` | Check all jobs for drift | `vcli job diff --all` |
+| `job diff --security-only` | Show only WARNING+ drifts | `vcli job diff --all --security-only` |
+| `job diff --severity` | Filter by minimum severity | `vcli job diff --all --severity critical` |
+| `repo snapshot` | Snapshot repository config | `vcli repo snapshot --all` |
+| `repo diff` | Detect repository drift | `vcli repo diff --all` |
+| `repo sobr-snapshot` | Snapshot SOBR config | `vcli repo sobr-snapshot --all` |
+| `repo sobr-diff` | Detect SOBR drift | `vcli repo sobr-diff --all` |
+| `encryption snapshot` | Snapshot encryption passwords | `vcli encryption snapshot --all` |
+| `encryption diff` | Detect encryption drift | `vcli encryption diff --all` |
+| `encryption kms-snapshot` | Snapshot KMS servers | `vcli encryption kms-snapshot --all` |
+| `encryption kms-diff` | Detect KMS server drift | `vcli encryption kms-diff --all` |
 
 **Overlay Resolution Priority:**
 1. Explicit `-o/--overlay` flag (highest)
@@ -284,134 +298,53 @@ vcli job apply configs/base-backup.yaml --env development
 
 ### State Management & Drift Detection
 
-vcli tracks applied configurations in a **state file** to enable drift detection and GitOps workflows. When you apply a job configuration, vcli records what was applied, when, and by whom.
+vcli tracks applied configurations in a **state file** and detects when VBR has diverged from the desired state. This covers multiple resource types with security-aware severity classification.
 
-> **⚠️ Important**: State files are **operational tools**, not compliance-grade audit logs. For compliance, use Git commit history + CI/CD logs + VBR audit logs. State management follows the same pattern as Terraform - mutable state for drift detection, immutable audit trails elsewhere.
+**Supported Resources:**
 
-#### How It Works
+| Resource | Snapshot | Drift Check |
+|----------|----------|-------------|
+| Backup Jobs | `vcli job apply` | `vcli job diff --all` |
+| Repositories | `vcli repo snapshot --all` | `vcli repo diff --all` |
+| Scale-Out Repos | `vcli repo sobr-snapshot --all` | `vcli repo sobr-diff --all` |
+| Encryption | `vcli encryption snapshot --all` | `vcli encryption diff --all` |
+| KMS Servers | `vcli encryption kms-snapshot --all` | `vcli encryption kms-diff --all` |
 
-**State File Location:**
-- Default: `~/.vcli/state.json`
-- Custom: `$VCLI_SETTINGS_PATH/state.json`
+**Security-Aware Classification:**
 
-**What's Tracked:**
-```json
-{
-  "version": 1,
-  "resources": {
-    "SQL-Backup-Job": {
-      "type": "VBRJob",
-      "id": "c07c7ea3-0471-43a6-af57-c03c0d82354a",
-      "name": "SQL-Backup-Job",
-      "lastApplied": "2026-02-01T14:30:00Z",
-      "lastAppliedBy": "edwardhoward",
-      "spec": { /* applied configuration */ }
-    }
-  }
-}
+Each drift is classified as CRITICAL, WARNING, or INFO based on its security impact. Value-aware rules consider the *direction* of change (e.g., encryption disabled = CRITICAL, enabled = INFO). Cross-resource validation detects when jobs are moved off hardened repositories.
+
 ```
+$ vcli job diff "Backup Job 1"
+Checking drift for job: Backup Job 1
 
-#### Drift Detection
-
-Detect when VBR configuration has diverged from your declared state (e.g., manual changes made in VBR console):
-
-**Check single job:**
-```bash
-vcli job diff SQL-Backup-Job
-```
-
-**Output when drift detected:**
-```
-Checking drift for job: SQL-Backup-Job
+CRITICAL: 2 security-relevant changes detected
 
 Drift detected:
-  ~ storage.retentionPolicy.quantity: 30 (state) → 14 (VBR)
-  - virtualMachines.includes[1]: Removed from VBR
-  + schedule.retry.isEnabled: Added in VBR (value: true)
-
-Summary:
-  - 3 drifts detected
-  - Last applied: 2026-02-01 14:30:00
-  - Last applied by: edwardhoward
-
-The job has drifted from the applied configuration.
-
-To reapply the desired state, run:
-  vcli job apply <your-job-file>.yaml
+  CRITICAL ~ isDisabled: false (state) -> true (VBR)
+  CRITICAL ~ storage.retentionPolicy.quantity: 3 (state) -> 1 (VBR)
+  INFO ~ schedule.runAutomatically: false (state) -> true (VBR)
 ```
 
-**Check all jobs:**
-```bash
-vcli job diff --all
-```
-
-**Output:**
-```
-Checking 5 jobs for drift...
-
-✓  SQL-Backup-Job: No drift
-⚠️  Web-Backup-Job: 2 drifts detected
-✓  DB-Backup-Job: No drift
-⚠️  File-Backup-Job: 1 drifts detected
-✓  Mail-Backup-Job: No drift
-
-Summary:
-  - 3 jobs clean
-  - 2 jobs drifted
-```
-
-**Exit Codes:**
-- `0` - No drift detected (all jobs match state)
-- `3` - Drift detected (manual changes found)
-- `1` - Error occurred
-
-**Use in CI/CD:**
-```bash
-#!/bin/bash
-# Detect and auto-remediate drift
-
-vcli job diff --all
-if [ $? -eq 3 ]; then
-    echo "Drift detected! Reapplying configurations..."
-    vcli job apply configs/base-backup.yaml -o prod-overlay.yaml
-
-    # Send notification
-    curl -X POST https://slack.com/api/chat.postMessage \
-      -d "text=VBR drift detected and auto-remediated"
-fi
-```
-
-#### GitOps Workflow
-
-**Complete workflow with drift detection:**
+**Severity Filtering:**
 
 ```bash
-# 1. Export existing configuration to Git
-vcli export <job-id> -o configs/prod-backup.yaml
-git add configs/prod-backup.yaml
-git commit -m "Initial backup configuration"
-git push
-
-# 2. Apply configuration (creates state)
-vcli job apply configs/prod-backup.yaml
-
-# 3. Verify no drift
-vcli job diff "Backup Job 1"
-# ✓ No drift detected
-
-# 4. Someone manually changes job in VBR console...
-
-# 5. CI/CD detects drift (scheduled check)
-vcli job diff --all
-# ⚠️ Drift detected
-
-# 6. Auto-remediate by reapplying Git state
-vcli job apply configs/prod-backup.yaml
-
-# 7. Verify drift is fixed
-vcli job diff "Backup Job 1"
-# ✓ No drift detected
+vcli job diff --all --severity critical    # Only CRITICAL drifts
+vcli job diff --all --security-only        # WARNING and above
 ```
+
+**Exit Codes for CI/CD:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | No drift |
+| `3` | Drift detected (INFO or WARNING) |
+| `4` | Critical security drift detected |
+| `1` | Error |
+
+For full details, see:
+- [Drift Detection Guide](docs/drift-detection.md)
+- [Security Alerting](docs/security-alerting.md)
 
 #### Export as Overlay
 
@@ -602,3 +535,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.7.0-beta1 | Added job template feature                                          |
 | 0.8.0-beta1 | Bumped API versions in the init command                             |
 | 0.9.0-beta1 | **Configuration Overlay System**: Strategic merge engine for multi-environment deployments. Enhanced export (300+ fields), vcli.yaml environment config, overlay support in apply/plan commands. Deep merge preserves base values. Full GitOps support. See [RELEASE_NOTES_v0.9.0-beta1.md](RELEASE_NOTES_v0.9.0-beta1.md) |
+| 0.10.0-beta1 | **Security Drift Detection**: State management and drift detection for repositories, SOBRs, encryption passwords, and KMS servers. Security severity classification (CRITICAL/WARNING/INFO) for all resource types. Value-aware severity with directional change analysis. Cross-resource hardened repository validation. Customizable severity via severity-config.json. CI/CD-ready exit codes. See [RELEASE_NOTES_v0.10.0-beta1.md](RELEASE_NOTES_v0.10.0-beta1.md) |

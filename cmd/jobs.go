@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 
 	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/state"
 	"github.com/shapedthought/vcli/utils"
 	"github.com/shapedthought/vcli/vhttp"
 	"github.com/spf13/cobra"
@@ -298,7 +300,288 @@ func createJob(args []string, folder string, customTemplate string) {
 
 }
 
+var (
+	diffAll bool
+)
+
+var diffCmd = &cobra.Command{
+	Use:   "diff [job-name]",
+	Short: "Detect configuration drift from applied state",
+	Long: `Compare current VBR job configuration against the last applied state
+to detect manual changes or drift.
+
+Examples:
+  # Check single job for drift
+  vcli job diff SQL-Backup-Job
+
+  # Check all jobs
+  vcli job diff --all
+
+Exit Codes:
+  0 - No drift detected
+  3 - Drift detected
+  1 - Error occurred`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if diffAll {
+			diffAllJobs()
+		} else if len(args) > 0 {
+			diffSingleJob(args[0])
+		} else {
+			log.Fatal("Provide job name or use --all")
+		}
+	},
+}
+
+func diffSingleJob(jobName string) {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	// Load from state
+	stateMgr := state.NewManager()
+	resource, err := stateMgr.GetResource(jobName)
+	if err != nil {
+		log.Fatalf("Job '%s' not found in state. Has it been applied?\n", jobName)
+	}
+
+	fmt.Printf("Checking drift for job: %s\n\n", jobName)
+
+	// Fetch current from VBR
+	endpoint := fmt.Sprintf("jobs/%s", resource.ID)
+	current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+
+	// Convert current job to map for comparison
+	currentBytes, _ := json.Marshal(current)
+	var currentMap map[string]interface{}
+	json.Unmarshal(currentBytes, &currentMap)
+
+	// Compare
+	drifts := detectDrift(resource.Spec, currentMap)
+
+	if len(drifts) == 0 {
+		fmt.Println("✓ No drift detected. Job matches applied state.")
+		os.Exit(0) // Exit 0 = no drift
+	}
+
+	// Display drift
+	fmt.Println("Drift detected:")
+	for _, drift := range drifts {
+		printDrift(drift)
+	}
+
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
+
+	fmt.Println("\nThe job has drifted from the applied configuration.")
+	fmt.Printf("\nTo reapply the desired state, run:\n")
+	fmt.Printf("  vcli job apply <your-job-file>.yaml\n")
+
+	os.Exit(3) // Exit 3 = drift detected
+}
+
+func diffAllJobs() {
+	profile := utils.GetProfile()
+
+	if profile.Name != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	stateMgr := state.NewManager()
+	resources, err := stateMgr.ListResources("VBRJob")
+	if err != nil {
+		log.Fatalf("Failed to load state: %v\n", err)
+	}
+
+	if len(resources) == 0 {
+		fmt.Println("No jobs in state.")
+		return
+	}
+
+	fmt.Printf("Checking %d jobs for drift...\n\n", len(resources))
+
+	driftedCount := 0
+	cleanCount := 0
+
+	for _, resource := range resources {
+		// Fetch current from VBR
+		endpoint := fmt.Sprintf("jobs/%s", resource.ID)
+		current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+
+		// Convert to map for comparison
+		currentBytes, _ := json.Marshal(current)
+		var currentMap map[string]interface{}
+		json.Unmarshal(currentBytes, &currentMap)
+
+		// Detect drift
+		drifts := detectDrift(resource.Spec, currentMap)
+
+		if len(drifts) > 0 {
+			fmt.Printf("⚠️  %s: %d drifts detected\n", resource.Name, len(drifts))
+			driftedCount++
+		} else {
+			fmt.Printf("✓  %s: No drift\n", resource.Name)
+			cleanCount++
+		}
+	}
+
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  - %d jobs clean\n", cleanCount)
+	fmt.Printf("  - %d jobs drifted\n", driftedCount)
+
+	if driftedCount > 0 {
+		os.Exit(3) // Drift detected
+	}
+	os.Exit(0) // All clean
+}
+
+type Drift struct {
+	Path   string
+	Action string // "modified", "added", "removed"
+	State  interface{}
+	VBR    interface{}
+}
+
+func detectDrift(stateSpec, vbrMap map[string]interface{}) []Drift {
+	var drifts []Drift
+	collectDrifts("", stateSpec, vbrMap, &drifts)
+	return drifts
+}
+
+func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Drift) {
+	// Fields to ignore (read-only or frequently changing)
+	ignoreFields := map[string]bool{
+		"id":                    true,
+		"lastRun":               true,
+		"nextRun":               true,
+		"statistics":            true,
+		"creationTime":          true,
+		"modificationTime":      true,
+		"targetType":            true,
+		"platform":              true,
+		"serverName":            true,
+		"isRunning":             true,
+		"lastResult":            true,
+		"sessionCount":          true,
+		"urn":                   true,
+		"objectId":              true,
+		"size":                  true,
+		"metadata":              true,
+	}
+
+	// Check all fields in state
+	for key, stateValue := range state {
+		fullPath := key
+		if path != "" {
+			fullPath = path + "." + key
+		}
+
+		// Skip ignored fields
+		if ignoreFields[key] {
+			continue
+		}
+
+		vbrValue, existsInVBR := vbr[key]
+
+		if !existsInVBR {
+			// Field was removed from VBR
+			*drifts = append(*drifts, Drift{
+				Path:   fullPath,
+				Action: "removed",
+				State:  stateValue,
+				VBR:    nil,
+			})
+			continue
+		}
+
+		// Both exist - check if different
+		if !reflect.DeepEqual(stateValue, vbrValue) {
+			// Try recursive comparison for maps
+			if stateMap, stateIsMap := stateValue.(map[string]interface{}); stateIsMap {
+				if vbrMap, vbrIsMap := vbrValue.(map[string]interface{}); vbrIsMap {
+					// Recursively compare nested maps
+					collectDrifts(fullPath, stateMap, vbrMap, drifts)
+					continue
+				}
+			}
+
+			// Values are different
+			*drifts = append(*drifts, Drift{
+				Path:   fullPath,
+				Action: "modified",
+				State:  stateValue,
+				VBR:    vbrValue,
+			})
+		}
+	}
+
+	// Check for fields added in VBR
+	for key, vbrValue := range vbr {
+		fullPath := key
+		if path != "" {
+			fullPath = path + "." + key
+		}
+
+		// Skip ignored fields
+		if ignoreFields[key] {
+			continue
+		}
+
+		if _, existsInState := state[key]; !existsInState {
+			// Field was added in VBR
+			*drifts = append(*drifts, Drift{
+				Path:   fullPath,
+				Action: "added",
+				State:  nil,
+				VBR:    vbrValue,
+			})
+		}
+	}
+}
+
+func printDrift(drift Drift) {
+	switch drift.Action {
+	case "modified":
+		// Format values for display
+		stateStr := formatValue(drift.State)
+		vbrStr := formatValue(drift.VBR)
+		fmt.Printf("  ~ %s: %s (state) → %s (VBR)\n", drift.Path, stateStr, vbrStr)
+	case "removed":
+		fmt.Printf("  - %s: Removed from VBR\n", drift.Path)
+	case "added":
+		vbrStr := formatValue(drift.VBR)
+		fmt.Printf("  + %s: Added in VBR (value: %s)\n", drift.Path, vbrStr)
+	}
+}
+
+func formatValue(value interface{}) string {
+	if value == nil {
+		return "nil"
+	}
+
+	// For complex types, just show type
+	switch v := value.(type) {
+	case map[string]interface{}:
+		return fmt.Sprintf("{%d fields}", len(v))
+	case []interface{}:
+		return fmt.Sprintf("[%d items]", len(v))
+	case string:
+		if len(v) > 50 {
+			return fmt.Sprintf("\"%s...\"", v[:47])
+		}
+		return fmt.Sprintf("\"%s\"", v)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
 func init() {
+	diffCmd.Flags().BoolVar(&diffAll, "all", false, "Check drift for all jobs in state")
+	jobsCmd.AddCommand(diffCmd)
+
 	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input")
 	jobsCmd.Flags().StringVarP(&customTemplate, "template", "t", "", "custom template")
 	rootCmd.AddCommand(jobsCmd)

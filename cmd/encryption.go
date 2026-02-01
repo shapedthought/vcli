@@ -128,7 +128,7 @@ func snapshotSingleEncryptionPassword(hint string) {
 		log.Fatalf("Encryption password with hint '%s' not found in VBR.", hint)
 	}
 
-	if err := saveEncryptionPasswordToState(found); err != nil {
+	if err := saveEncryptionPasswordToState(found, nil); err != nil {
 		log.Fatalf("Failed to save encryption password state: %v", err)
 	}
 
@@ -151,21 +151,31 @@ func snapshotAllEncryptionPasswords() {
 
 	fmt.Printf("Snapshotting %d encryption passwords...\n", len(passwordList.Data))
 
+	// Build hint counts to detect duplicates
+	hintCounts := make(map[string]int, len(passwordList.Data))
+	for _, p := range passwordList.Data {
+		hintCounts[p.Hint]++
+	}
+
 	for i := range passwordList.Data {
 		p := &passwordList.Data[i]
-		if err := saveEncryptionPasswordToState(p); err != nil {
+		if err := saveEncryptionPasswordToState(p, hintCounts); err != nil {
 			fmt.Printf("Warning: Failed to save state for '%s': %v\n", p.Hint, err)
 			continue
 		}
 
-		fmt.Printf("  Snapshot saved: %s\n", p.Hint)
+		displayName := p.Hint
+		if hintCounts[p.Hint] > 1 {
+			displayName = fmt.Sprintf("%s-%s", p.Hint, p.ID)
+		}
+		fmt.Printf("  Snapshot saved: %s\n", displayName)
 	}
 
 	stateMgr := state.NewManager()
 	fmt.Printf("\nState updated: %s\n", stateMgr.GetStatePath())
 }
 
-func saveEncryptionPasswordToState(p *models.VbrEncryptionPasswordGet) error {
+func saveEncryptionPasswordToState(p *models.VbrEncryptionPasswordGet, hintCounts map[string]int) error {
 	// Marshal to JSON then to map for state storage
 	pBytes, err := json.Marshal(p)
 	if err != nil {
@@ -175,6 +185,9 @@ func saveEncryptionPasswordToState(p *models.VbrEncryptionPasswordGet) error {
 	name := p.Hint
 	if name == "" {
 		name = p.ID
+	} else if hintCounts != nil && hintCounts[p.Hint] > 1 {
+		// Hints are not guaranteed unique; append ID to avoid overwriting
+		name = fmt.Sprintf("%s-%s", name, p.ID)
 	}
 
 	return saveResourceToState("VBREncryptionPassword", name, p.ID, json.RawMessage(pBytes))
@@ -290,8 +303,8 @@ func diffAllEncryptionPasswords() {
 		currentHintByID[p.ID] = p.Hint
 	}
 
-	if len(stateResources) == 0 && len(passwordList.Data) == 0 {
-		fmt.Println("No encryption passwords in state or VBR.")
+	if len(stateResources) == 0 {
+		fmt.Println("No encryption passwords in state.")
 		return
 	}
 
@@ -447,6 +460,12 @@ func snapshotAllKmsServers() {
 
 	fmt.Printf("Snapshotting %d KMS servers...\n", len(kmsList.Data))
 
+	// Build name counts to detect duplicates
+	nameCounts := make(map[string]int, len(kmsList.Data))
+	for _, k := range kmsList.Data {
+		nameCounts[k.Name]++
+	}
+
 	for _, k := range kmsList.Data {
 		kBytes, err := json.Marshal(k)
 		if err != nil {
@@ -454,12 +473,17 @@ func snapshotAllKmsServers() {
 			continue
 		}
 
-		if err := saveResourceToState("VBRKmsServer", k.Name, k.ID, json.RawMessage(kBytes)); err != nil {
-			fmt.Printf("Warning: Failed to save state for '%s': %v\n", k.Name, err)
+		resourceName := k.Name
+		if nameCounts[k.Name] > 1 {
+			resourceName = fmt.Sprintf("%s-%s", k.Name, k.ID)
+		}
+
+		if err := saveResourceToState("VBRKmsServer", resourceName, k.ID, json.RawMessage(kBytes)); err != nil {
+			fmt.Printf("Warning: Failed to save state for '%s': %v\n", resourceName, err)
 			continue
 		}
 
-		fmt.Printf("  Snapshot saved: %s\n", k.Name)
+		fmt.Printf("  Snapshot saved: %s\n", resourceName)
 	}
 
 	stateMgr := state.NewManager()
@@ -572,8 +596,8 @@ func diffAllKmsServers() {
 		currentNameByID[k.ID] = k.Name
 	}
 
-	if len(stateResources) == 0 && len(kmsList.Data) == 0 {
-		fmt.Println("No KMS servers in state or VBR.")
+	if len(stateResources) == 0 {
+		fmt.Println("No KMS servers in state.")
 		return
 	}
 

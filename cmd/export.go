@@ -20,6 +20,7 @@ var (
 	exportOutput    string
 	exportDirectory string
 	exportAll       bool
+	exportSimplified bool
 )
 
 var exportCmd = &cobra.Command{
@@ -141,10 +142,56 @@ func exportAllJobs(profile models.Profile) {
 }
 
 func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
+	if exportSimplified {
+		return convertJobToYAMLSimplified(vbrJob)
+	}
+	return convertJobToYAMLFull(vbrJob)
+}
+
+func convertJobToYAMLFull(vbrJob *models.VbrJobGet) ([]byte, error) {
+	// Create full resource spec with complete job object
+	resourceSpec := resources.ResourceSpec{
+		APIVersion: "vcli.veeam.com/v1",
+		Kind:       "VBRJob",
+		Metadata: resources.Metadata{
+			Name: vbrJob.Name,
+		},
+		Spec: make(map[string]interface{}),
+	}
+
+	// Marshal the entire job to preserve all fields
+	jobBytes, err := yaml.Marshal(vbrJob)
+	if err != nil {
+		return nil, err
+	}
+
+	var jobMap map[string]interface{}
+	if err := yaml.Unmarshal(jobBytes, &jobMap); err != nil {
+		return nil, err
+	}
+	resourceSpec.Spec = jobMap
+
+	// Add header comment
+	header := fmt.Sprintf("# VBR Job Configuration (Full Export)\n# Exported from VBR\n# Job ID: %s\n# API Version: 1.3-rev1\n#\n# This export contains the complete job configuration.\n# All ~300 fields from the VBR API are preserved.\n\n", vbrJob.ID)
+
+	// Marshal to YAML
+	yamlBytes, err := yaml.Marshal(resourceSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine header and YAML
+	result := []byte(header)
+	result = append(result, yamlBytes...)
+
+	return result, nil
+}
+
+func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 	// Create resolver for name resolution
 	resolver := resources.NewResolver()
 
-	// Build spec
+	// Build simplified spec
 	spec := resources.VBRJobSpec{
 		Type:        vbrJob.Type,
 		Description: vbrJob.Description,
@@ -265,5 +312,6 @@ func init() {
 	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Output file (default: stdout)")
 	exportCmd.Flags().StringVarP(&exportDirectory, "directory", "d", "", "Output directory for bulk export")
 	exportCmd.Flags().BoolVar(&exportAll, "all", false, "Export all jobs")
+	exportCmd.Flags().BoolVar(&exportSimplified, "simplified", false, "Export simplified format (legacy)")
 	rootCmd.AddCommand(exportCmd)
 }

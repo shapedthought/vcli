@@ -26,9 +26,11 @@ The vcli is a powerful CLI tool for interacting with Veeam APIs, featuring both 
 **Key Features:**
 - **Imperative Mode**: Direct API interactions (GET, POST, PUT)
 - **Declarative Mode**: Terraform-style infrastructure management for VBR jobs
-- Version control friendly YAML configurations
-- GitOps workflows with drift detection
-- State management and conflict prevention
+- **Configuration Overlays**: Multi-environment deployments with strategic merge
+- **State Management**: Tracks applied configurations for drift detection
+- **Drift Detection**: Detects manual changes and configuration drift
+- **GitOps Ready**: Version control, CI/CD automation, auto-remediation
+- **Overlay Export**: Create minimal configuration patches from existing jobs
 
 You can also add new endpoints by updating the profiles.json file.
 
@@ -62,9 +64,10 @@ However, products such as VB for AWS/Azure/GCP do not have a command line interf
 
 ### Declarative Commands (VBR Only)
 - `export` - Export existing jobs to declarative YAML format (full 300+ field export)
+- `export --as-overlay` - Export minimal overlay with only changed fields
 - `job apply` - Create or update jobs from YAML configuration with overlay support
 - `job plan` - Preview merged configurations and changes
-- `diff` - Detect configuration drift between state and VBR (coming soon)
+- `job diff` - Detect configuration drift between state and VBR
 
 ## How to use
 
@@ -264,17 +267,223 @@ vcli job apply configs/base-backup.yaml --env development
 |---------|-------------|---------|
 | `export <job-id>` | Export job to YAML (full config) | `vcli export abc-123 -o job.yaml` |
 | `export --all` | Export all jobs to directory | `vcli export --all -d ./configs/` |
+| `export --as-overlay` | Export minimal overlay patch | `vcli export abc-123 --as-overlay --base base.yaml -o overlay.yaml` |
 | `export --simplified` | Export minimal format (legacy) | `vcli export abc-123 -o job.yaml --simplified` |
 | `job apply` | Apply configuration with overlay | `vcli job apply base.yaml -o prod.yaml --dry-run` |
 | `job apply --env` | Apply using environment overlay | `vcli job apply base.yaml --env production` |
 | `job plan` | Preview merged configuration | `vcli job plan base.yaml -o prod.yaml` |
 | `job plan --show-yaml` | Show full merged YAML | `vcli job plan base.yaml -o prod.yaml --show-yaml` |
+| `job diff <name>` | Check single job for drift | `vcli job diff "SQL-Backup-Job"` |
+| `job diff --all` | Check all jobs for drift | `vcli job diff --all` |
 
 **Overlay Resolution Priority:**
 1. Explicit `-o/--overlay` flag (highest)
 2. `--env` flag (looks up in vcli.yaml)
 3. `currentEnvironment` from vcli.yaml
 4. No overlay (base config only)
+
+### State Management & Drift Detection
+
+vcli tracks applied configurations in a **state file** to enable drift detection and GitOps workflows. When you apply a job configuration, vcli records what was applied, when, and by whom.
+
+> **⚠️ Important**: State files are **operational tools**, not compliance-grade audit logs. For compliance, use Git commit history + CI/CD logs + VBR audit logs. State management follows the same pattern as Terraform - mutable state for drift detection, immutable audit trails elsewhere.
+
+#### How It Works
+
+**State File Location:**
+- Default: `~/.vcli/state.json`
+- Custom: `$VCLI_SETTINGS_PATH/state.json`
+
+**What's Tracked:**
+```json
+{
+  "version": 1,
+  "resources": {
+    "SQL-Backup-Job": {
+      "type": "VBRJob",
+      "id": "c07c7ea3-0471-43a6-af57-c03c0d82354a",
+      "name": "SQL-Backup-Job",
+      "lastApplied": "2026-02-01T14:30:00Z",
+      "lastAppliedBy": "edwardhoward",
+      "spec": { /* applied configuration */ }
+    }
+  }
+}
+```
+
+#### Drift Detection
+
+Detect when VBR configuration has diverged from your declared state (e.g., manual changes made in VBR console):
+
+**Check single job:**
+```bash
+vcli job diff SQL-Backup-Job
+```
+
+**Output when drift detected:**
+```
+Checking drift for job: SQL-Backup-Job
+
+Drift detected:
+  ~ storage.retentionPolicy.quantity: 30 (state) → 14 (VBR)
+  - virtualMachines.includes[1]: Removed from VBR
+  + schedule.retry.isEnabled: Added in VBR (value: true)
+
+Summary:
+  - 3 drifts detected
+  - Last applied: 2026-02-01 14:30:00
+  - Last applied by: edwardhoward
+
+The job has drifted from the applied configuration.
+
+To reapply the desired state, run:
+  vcli job apply <your-job-file>.yaml
+```
+
+**Check all jobs:**
+```bash
+vcli job diff --all
+```
+
+**Output:**
+```
+Checking 5 jobs for drift...
+
+✓  SQL-Backup-Job: No drift
+⚠️  Web-Backup-Job: 2 drifts detected
+✓  DB-Backup-Job: No drift
+⚠️  File-Backup-Job: 1 drifts detected
+✓  Mail-Backup-Job: No drift
+
+Summary:
+  - 3 jobs clean
+  - 2 jobs drifted
+```
+
+**Exit Codes:**
+- `0` - No drift detected (all jobs match state)
+- `3` - Drift detected (manual changes found)
+- `1` - Error occurred
+
+**Use in CI/CD:**
+```bash
+#!/bin/bash
+# Detect and auto-remediate drift
+
+vcli job diff --all
+if [ $? -eq 3 ]; then
+    echo "Drift detected! Reapplying configurations..."
+    vcli job apply configs/base-backup.yaml -o prod-overlay.yaml
+
+    # Send notification
+    curl -X POST https://slack.com/api/chat.postMessage \
+      -d "text=VBR drift detected and auto-remediated"
+fi
+```
+
+#### GitOps Workflow
+
+**Complete workflow with drift detection:**
+
+```bash
+# 1. Export existing configuration to Git
+vcli export <job-id> -o configs/prod-backup.yaml
+git add configs/prod-backup.yaml
+git commit -m "Initial backup configuration"
+git push
+
+# 2. Apply configuration (creates state)
+vcli job apply configs/prod-backup.yaml
+
+# 3. Verify no drift
+vcli job diff "Backup Job 1"
+# ✓ No drift detected
+
+# 4. Someone manually changes job in VBR console...
+
+# 5. CI/CD detects drift (scheduled check)
+vcli job diff --all
+# ⚠️ Drift detected
+
+# 6. Auto-remediate by reapplying Git state
+vcli job apply configs/prod-backup.yaml
+
+# 7. Verify drift is fixed
+vcli job diff "Backup Job 1"
+# ✓ No drift detected
+```
+
+#### Export as Overlay
+
+Create minimal overlay patches for existing jobs:
+
+**Export full job:**
+```bash
+vcli export <job-id> -o full-job.yaml
+# Creates 300+ line YAML with all fields
+```
+
+**Export as overlay (with base):**
+```bash
+vcli export <job-id> --as-overlay --base base-template.yaml -o overlay.yaml
+# Creates minimal overlay with only differences
+```
+
+**Export as overlay (without base):**
+```bash
+vcli export <job-id> --as-overlay -o overlay.yaml
+# Extracts commonly changed fields (description, retention, schedule)
+```
+
+**Example overlay output:**
+```yaml
+# VBR Job Overlay
+# Base: configs/base-backup.yaml
+# Job ID: c07c7ea3-0471-43a6-af57-c03c0d82354a
+#
+# This overlay contains only the fields that differ from the base.
+# Apply with: vcli job apply base.yaml -o this-file.yaml
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+    name: Backup Job 1
+spec:
+    description: Development Debian backup - 3-day retention
+    storage:
+        retentionPolicy:
+            quantity: 3
+    schedule:
+        daily:
+            localTime: "23:00"
+```
+
+**Benefits:**
+- Minimal, readable configuration patches
+- Easy to review in pull requests
+- Reduces Git diff noise
+- Focuses on what actually changed
+
+#### Compliance Considerations
+
+**State File is NOT for Audit:**
+- Mutable (can be edited/deleted)
+- Stored locally on operator's machine
+- Not cryptographically signed
+- Not append-only
+
+**For Compliance, Use:**
+1. **Git Commit History** - Signed commits of YAML files (what was requested)
+2. **CI/CD Logs** - GitHub Actions, GitLab CI run logs (who approved, when executed)
+3. **VBR Audit Logs** - Immutable VBR audit trail (what actually changed)
+4. **PR Approvals** - GitHub PR review/approval records (approval chain)
+
+**State File Purpose:**
+- Operational drift detection (did someone change VBR manually?)
+- GitOps automation (does VBR match Git?)
+- Local development workflow (what did I last apply?)
+
+This is the same model as Terraform - state is operational, audit comes from external systems.
 
 ## Installing 🛠️
 

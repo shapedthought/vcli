@@ -1,0 +1,51 @@
+# vcli Configuration File
+# Place this file in your project root or ~/.vcli/vcli.yaml
+
+# Current active environment
+currentEnvironment: production
+
+# Default directory for overlay files (relative paths will be resolved from here)
+defaultOverlayDir: ./overlays
+
+# Environment-specific configurations
+environments:
+  production:
+    # Overlay file to apply for this environment
+    overlay: prod-overlay.yaml
+    # VBR profile to use
+    profile: vbr-prod
+    # Labels applied to all resources in this environment
+    labels:
+      env: production
+      managed-by: vcli
+
+  development:
+    overlay: dev-overlay.yaml
+    profile: vbr-dev
+    labels:
+      env: development
+      managed-by: vcli
+
+  staging:
+    overlay: staging-overlay.yaml
+    profile: vbr-staging
+    labels:
+      env: staging
+      managed-by: vcli
+
+# Usage Examples:
+#
+# 1. Apply job with environment overlay (uses currentEnvironment)
+#    vcli job apply base-job.yaml
+#
+# 2. Apply job with specific environment
+#    vcli job apply base-job.yaml --env development
+#
+# 3. Override with custom overlay
+#    vcli job apply base-job.yaml -o custom-overlay.yaml
+#
+# 4. Change current environment
+#    vcli config set-env staging
+#
+# 5. View current configuration
+#    vcli config show

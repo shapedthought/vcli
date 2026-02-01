@@ -334,9 +334,9 @@ func (r *VBRJobResource) fromVBRFormat(vbrJob *models.VbrJobGet) (VBRJobSpec, er
 	// Convert VMs
 	for _, include := range vbrJob.VirtualMachines.Includes {
 		spec.Objects = append(spec.Objects, JobObject{
-			Type:     include.InventoryObject.Type,
-			Name:     include.InventoryObject.Name,
-			HostName: include.InventoryObject.HostName,
+			Type:     include.Type,
+			Name:     include.Name,
+			HostName: include.HostName,
 		})
 	}
 

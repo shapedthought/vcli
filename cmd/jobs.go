@@ -77,21 +77,9 @@ func getTemplates(args []string, folder string) {
 	// save schedule data
 	utils.SaveData(&varJobs.Schedule, fmt.Sprintf("schedule-%s", varJobs.Name))
 
-	var inc []models.Includes
-
-	for _, v := range varJobs.VirtualMachines.Includes {
-		ti := models.Includes{
-			Type: v.InventoryObject.Type,
-			HostName: v.InventoryObject.HostName,
-			Name: v.InventoryObject.Name,
-			ObjectID: v.InventoryObject.ObjectID,
-		}
-
-		inc = append(inc, ti)
-	}
-
+	// VirtualMachines.Includes already has correct type after model fix
 	varVms := models.VirtualMachines{}
-	varVms.Includes = inc
+	varVms.Includes = varJobs.VirtualMachines.Includes
 	varVms.Excludes = varJobs.VirtualMachines.Excludes
 
 	var saveJob models.VbrJob

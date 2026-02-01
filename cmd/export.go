@@ -154,9 +154,9 @@ func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
 	// Convert VMs
 	for _, include := range vbrJob.VirtualMachines.Includes {
 		spec.Objects = append(spec.Objects, resources.JobObject{
-			Type:     include.InventoryObject.Type,
-			Name:     include.InventoryObject.Name,
-			HostName: include.InventoryObject.HostName,
+			Type:     include.Type,
+			Name:     include.Name,
+			HostName: include.HostName,
 		})
 	}
 

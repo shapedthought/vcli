@@ -53,10 +53,10 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 			// iterate through the source job vm includes and create a new includes struct
 			for _, v := range varJobs.VirtualMachines.Includes {
 				ti := models.Includes{
-					Type: v.InventoryObject.Type,
-					HostName: v.InventoryObject.HostName,
-					Name: v.InventoryObject.Name,
-					ObjectID: v.InventoryObject.ObjectID,
+					Type: v.Type,
+					HostName: v.HostName,
+					Name: v.Name,
+					ObjectID: v.ObjectID,
 				}
 
 				inc = append(inc, ti)

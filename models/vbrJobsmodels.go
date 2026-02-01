@@ -3,15 +3,7 @@ package models
 type VbrJobGet struct {
 	IsHighPriority  bool `json:"isHighPriority" yaml:"isHighPriority"`
 	VirtualMachines struct {
-		Includes []struct {
-			InventoryObject struct {
-				Type     string `json:"type" yaml:"type"`
-				HostName string `json:"hostName" yaml:"hostName"`
-				Name     string `json:"name" yaml:"name"`
-				ObjectID string `json:"objectId" yaml:"objectId"`
-			} `json:"inventoryObject" yaml:"inventoryObject"`
-			Size string `json:"size" yaml:"size"`
-		} `json:"includes" yaml:"includes"`
+		Includes []Includes `json:"includes" yaml:"includes"`
 		Excludes struct {
 			Vms   []interface{} `json:"vms" yaml:"vms"`
 			Disks []struct {
@@ -41,11 +33,18 @@ type VbrJobGet struct {
 	IsDisabled      bool            `json:"isDisabled" yaml:"isDisabled"`
 }
 
+// Includes represents a VM or object included in a backup job
+// Structure matches VBR API v1.3 GET response (flat, no inventoryObject wrapper)
 type Includes struct {
-	Type     string `json:"type" yaml:"type"`
-	HostName string `json:"hostName" yaml:"hostName"`
-	Name     string `json:"name" yaml:"name"`
-	ObjectID string `json:"objectId" yaml:"objectId"`
+	Type      string                   `json:"type" yaml:"type"`
+	HostName  string                   `json:"hostName" yaml:"hostName"`
+	Name      string                   `json:"name" yaml:"name"`
+	ObjectID  string                   `json:"objectId" yaml:"objectId"`
+	Size      string                   `json:"size,omitempty" yaml:"size,omitempty"`
+	Platform  string                   `json:"platform,omitempty" yaml:"platform,omitempty"`
+	IsEnabled bool                     `json:"isEnabled,omitempty" yaml:"isEnabled,omitempty"`
+	URN       string                   `json:"urn,omitempty" yaml:"urn,omitempty"`
+	Metadata  []map[string]interface{} `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 type VirtualMachines struct {

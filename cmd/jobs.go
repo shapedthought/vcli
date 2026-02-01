@@ -497,8 +497,8 @@ func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Dri
 			continue
 		}
 
-		// Both exist - check if different
-		if !reflect.DeepEqual(stateValue, vbrValue) {
+		// Both exist - check if different (using semantic equality)
+		if !valuesEqual(stateValue, vbrValue) {
 			// Try recursive comparison for maps
 			if stateMap, stateIsMap := stateValue.(map[string]interface{}); stateIsMap {
 				if vbrMap, vbrIsMap := vbrValue.(map[string]interface{}); vbrIsMap {
@@ -576,6 +576,37 @@ func formatValue(value interface{}) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// valuesEqual compares two values for semantic equality
+// Treats nil and empty arrays/slices as equivalent
+func valuesEqual(a, b interface{}) bool {
+	// Handle nil cases
+	if a == nil && b == nil {
+		return true
+	}
+
+	// Check if both are slices/arrays
+	aSlice, aIsSlice := a.([]interface{})
+	bSlice, bIsSlice := b.([]interface{})
+
+	if aIsSlice && bIsSlice {
+		// Both are slices - compare them
+		return reflect.DeepEqual(aSlice, bSlice)
+	}
+
+	if aIsSlice && b == nil {
+		// State has empty slice, VBR has nil - treat as equal if slice is empty
+		return len(aSlice) == 0
+	}
+
+	if a == nil && bIsSlice {
+		// State has nil, VBR has empty slice - treat as equal if slice is empty
+		return len(bSlice) == 0
+	}
+
+	// Fall back to reflect.DeepEqual for other types
+	return reflect.DeepEqual(a, b)
 }
 
 func init() {

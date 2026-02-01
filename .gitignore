@@ -4,3 +4,8 @@
 *.txt
 Dockerfile
 .dockerignore
+CLAUDE.md
+analysis.md
+.vcli/
+.gitignore
+vcli

@@ -12,17 +12,23 @@ NOTE:
 
 ## What is it?
 
-The vcli is a simple tool to interact with (most) Veeam APIs.
+The vcli is a powerful CLI tool for interacting with Veeam APIs, featuring both imperative API operations and declarative infrastructure management.
 
-These include:
-
-- VBR
+**Supported Products:**
+- VBR (Veeam Backup & Replication)
 - Enterprise Manager
-- VB365
-- VONE
+- VB365 (Veeam Backup for Microsoft 365)
+- VONE (Veeam ONE)
 - VB for Azure
 - VB for AWS
 - VB for GCP
+
+**Key Features:**
+- **Imperative Mode**: Direct API interactions (GET, POST, PUT)
+- **Declarative Mode**: Terraform-style infrastructure management for VBR jobs
+- Version control friendly YAML configurations
+- GitOps workflows with drift detection
+- State management and conflict prevention
 
 You can also add new endpoints by updating the profiles.json file.
 
@@ -45,19 +51,115 @@ However, products such as VB for AWS/Azure/GCP do not have a command line interf
 
 ## Commands
 
-The current commands are:
+### Imperative Commands
+- `login` - Authenticate with Veeam APIs
+- `get` - Retrieve information from the API
+- `post` - Send POST requests with optional data payload
+- `put` - Send PUT requests with data payload
+- `profile` - Manage API profiles (get, list, set)
+- `utils` - Additional tools for working with Veeam APIs
+- `job` - Create jobs using templates (legacy)
 
-- login - logs into the API
-- get - gets information from the API
-- post - sends a post request to the API with optional data payload
-- put - sends a put request to the API with payload
-- profile - get, list and set the current API profile
-- utils - additional tools for working with Veeam APIs
-- job - create jobs using templates
+### Declarative Commands (VBR Only)
+- `export` - Export existing jobs to declarative YAML format
+- `apply` - Create or update jobs from YAML configuration
+- `plan` - Preview changes without applying them
+- `diff` - Detect configuration drift between state and VBR
 
 ## How to use
 
-Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information
+Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information on imperative commands.
+
+### Declarative Job Management (VBR)
+
+vcli now supports declarative infrastructure management for VBR backup jobs, enabling GitOps workflows and version control.
+
+#### Quick Start
+
+**1. Export existing job to YAML:**
+```bash
+vcli export <job-id> -o my-backup.yaml
+```
+
+**2. Edit the configuration:**
+```yaml
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: prod-db-backup
+spec:
+  type: Backup
+  description: "Production database backup"
+  repository: "Default Backup Repository"
+  schedule:
+    enabled: true
+    daily: "22:00"
+  objects:
+    - type: VM
+      name: "PROD-SQL-01"
+```
+
+**3. Preview changes:**
+```bash
+vcli plan my-backup.yaml
+```
+
+**4. Apply configuration:**
+```bash
+vcli apply my-backup.yaml
+```
+
+**5. Detect drift:**
+```bash
+vcli diff
+```
+
+#### Key Benefits
+
+- **Version Control**: Track job configurations in Git
+- **GitOps Ready**: Automated deployments via CI/CD
+- **Drift Detection**: Identify manual changes made in VBR UI
+- **Idempotent**: Safe to run repeatedly, only applies needed changes
+- **Preview Changes**: See what will change before applying
+- **State Management**: Prevents concurrent modifications
+
+#### Workflow Example
+
+```bash
+# Export all jobs
+vcli export --all -d ./jobs/
+
+# Make changes to YAML files
+vim jobs/prod-backup.yaml
+
+# Preview changes
+vcli plan jobs/prod-backup.yaml
+
+# Apply if satisfied
+vcli apply jobs/prod-backup.yaml
+
+# Commit to version control
+git add jobs/
+git commit -m "Update backup schedule"
+git push
+
+# Later, detect drift
+vcli diff  # Detects manual VBR UI changes
+```
+
+#### Commands Reference
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `export` | Generate YAML from existing jobs | `vcli export <job-id> -o backup.yaml` |
+| `export --all` | Export all jobs to directory | `vcli export --all -d ./configs/` |
+| `apply` | Create/update jobs from YAML | `vcli apply backup.yaml` |
+| `apply --dry-run` | Preview without applying | `vcli apply backup.yaml --dry-run` |
+| `plan` | Show planned changes | `vcli plan backup.yaml` |
+| `diff` | Check for configuration drift | `vcli diff` |
+| `diff <name>` | Check specific resource | `vcli diff prod-backup` |
+
+All declarative commands support `--json` output for CI/CD integration.
 
 ## Installing 🛠️
 
@@ -175,3 +277,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.6.0-beta1 | Added version check and updated VBR and VB365 to latest the version |
 | 0.7.0-beta1 | Added job template feature                                          |
 | 0.8.0-beta1 | Bumped API versions in the init command                             |
+| 0.9.0-beta1 | **Declarative Job Management**: Added export, apply, plan, and diff commands for VBR. Terraform-style workflows with state management, drift detection, and GitOps support. Updated dependencies. |

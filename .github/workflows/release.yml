@@ -1,6 +1,11 @@
+name: Release Go Binaries
+
 on:
   release:
     types: [created]
+
+permissions:
+  contents: write
 
 jobs:
   releases-matrix:
@@ -8,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+        # Build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
         goos: [linux, windows, darwin]
         goarch: ["386", amd64, arm64]
         exclude:
@@ -17,11 +22,26 @@ jobs:
           - goarch: arm64
             goos: windows
     steps:
-      - uses: actions/checkout@v3
-      - uses: wangyoucao577/go-release-action@v1.34
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          github_token: ${{ secrets.TOKEN }}
+          go-version: '1.21'
+
+      - name: Build and release
+        uses: wangyoucao577/go-release-action@v1.51
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          extra_files: LICENSE
-          sha256sum: TRUE
+          goversion: '1.21'
+          project_path: "./"
+          binary_name: "vcli"
+          extra_files: LICENSE README.md RELEASE_NOTES_v0.9.0-beta1.md
+          sha256sum: true
+          md5sum: false
+          release_tag: ${{ github.ref_name }}
+          overwrite: true
+          asset_name: "vcli-${{ matrix.goos }}-${{ matrix.goarch }}"

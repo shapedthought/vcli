@@ -1,0 +1,319 @@
+# VBR Job Configuration (Full Export)
+# Exported from VBR
+# Job ID: c07c7ea3-0471-43a6-af57-c03c0d82354a
+# API Version: 1.3-rev1
+#
+# This export contains the complete job configuration.
+# All ~300 fields from the VBR API are preserved.
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+    name: Backup Job 1
+spec:
+    description: Created by .\veeamadmin at 09/01/2026 08:14.
+    guestProcessing:
+        appAwareProcessing:
+            appSettings: []
+            isEnabled: false
+        guestCredentials:
+            credentialsPerMachine:
+                - default: true
+                  vmObject:
+                    hostName: 192.168.0.14
+                    isEnabled: false
+                    metadata:
+                        - data: Debian 11
+                          field: guestOsName
+                        - data: debian11_64Guest
+                          field: guestOsType
+                    name: Debian
+                    objectId: "211"
+                    platform: VSphere
+                    size: 16 GB
+                    type: VirtualMachine
+                    urn: esx:192.168.0.14;vm:211
+            credsId: ""
+            credsType: ""
+        guestFSIndexing:
+            indexingSettings: []
+            isEnabled: false
+        guestInteractionProxies:
+            autoSelectEnabled: true
+            proxyIds: []
+    id: c07c7ea3-0471-43a6-af57-c03c0d82354a
+    isDisabled: false
+    isHighPriority: false
+    name: Backup Job 1
+    schedule:
+        afterThisJob:
+            isEnabled: false
+            jobName: null
+        backupWindow:
+            backupWindow:
+                days:
+                    - day: Sunday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Monday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Tuesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Wednesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Thursday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Friday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Saturday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+            isEnabled: false
+        continuously:
+            backupWindow:
+                days:
+                    - day: Sunday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Monday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Tuesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Wednesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Thursday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Friday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Saturday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+            isEnabled: false
+        daily:
+            dailyKind: Everyday
+            days:
+                - Monday
+                - Tuesday
+                - Wednesday
+                - Thursday
+                - Friday
+                - Saturday
+                - Sunday
+            isEnabled: true
+            localTime: "22:00"
+        monthly:
+            dayNumberInMonth: Fourth
+            dayOfMonth: 0
+            dayOfWeek: Saturday
+            isEnabled: false
+            localTime: "22:00"
+            months:
+                - January
+                - February
+                - March
+                - April
+                - May
+                - June
+                - July
+                - August
+                - September
+                - October
+                - November
+                - December
+        periodically:
+            backupWindow:
+                days:
+                    - day: Sunday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Monday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Tuesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Wednesday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Thursday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Friday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+                    - day: Saturday
+                      hours: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+            frequency: 1
+            isEnabled: false
+            periodicallyKind: Hours
+            startTimeWithinAnHour: 0
+        retry:
+            awaitMinutes: 10
+            isEnabled: true
+            retryCount: 3
+        runAutomatically: false
+    storage:
+        advancedSettings:
+            activeFulls:
+                isEnabled: false
+                monthly:
+                    dayNumberInMonth: First
+                    dayOfMonths: 0
+                    dayOfWeek: Monday
+                    isEnabled: false
+                    months:
+                        - January
+                        - February
+                        - March
+                        - April
+                        - May
+                        - June
+                        - July
+                        - August
+                        - September
+                        - October
+                        - November
+                        - December
+                weekly:
+                    days:
+                        - Saturday
+                    isEnabled: true
+            backupHealth:
+                isEnabled: false
+                monthly:
+                    dayNumberInMonth: Last
+                    dayOfMonths: 0
+                    dayOfWeek: Saturday
+                    isEnabled: true
+                    months:
+                        - January
+                        - February
+                        - March
+                        - April
+                        - May
+                        - June
+                        - July
+                        - August
+                        - September
+                        - October
+                        - November
+                        - December
+                weekly:
+                    days:
+                        - Saturday
+                    isEnabled: false
+            backupModeType: Incremental
+            fullBackupMaintenance:
+                RemoveData:
+                    afterDays: 14
+                    isEnabled: false
+                defragmentAndCompact:
+                    isEnabled: false
+                    monthly:
+                        dayNumberInMonth: Last
+                        dayOfMonths: 0
+                        dayOfWeek: Saturday
+                        isEnabled: true
+                        months:
+                            - January
+                            - February
+                            - March
+                            - April
+                            - May
+                            - June
+                            - July
+                            - August
+                            - September
+                            - October
+                            - November
+                            - December
+                    weekly:
+                        days:
+                            - Saturday
+                        isEnabled: false
+            notifications:
+                emailNotifications:
+                    customNotificationSettings: null
+                    isEnabled: false
+                    notificationType: null
+                    recipients: []
+                sendSNMPNotifications: false
+                vmAttribute:
+                    appendToExisitingValue: false
+                    isEnabled: false
+                    notes: Notes
+            scripts:
+                dayOfWeek:
+                    - Saturday
+                periodicityType: BackupSessions
+                postCommand:
+                    command: ""
+                    isEnabled: false
+                preCommand:
+                    command: ""
+                    isEnabled: false
+                runScriptEvery: 1
+            storageData:
+                compressionLevel: Optimal
+                enableInlineDataDedup: false
+                encryption:
+                    encryptionPasswordIdOrNull: ""
+                    encryptionPasswordTag: null
+                    isEnabled: false
+                excludeDeletedFileBlocks: true
+                excludeSwapFileBlocks: true
+                storageOptimization: 1MB
+            storageIntegration:
+                failoverToStandardBackup: false
+                isEnabled: true
+                limitProcessedVm: false
+                limitProcessedVmCount: 0
+            synthenticFulls:
+                days: []
+                isEnabled: true
+            vSphere:
+                changedBlockTracking:
+                    enableCBTautomatically: true
+                    isEnabled: true
+                    resetCBTonActiveFull: true
+                enableVMWareToolsQuiescence: false
+        backupProxies:
+            autoSelectEnabled: true
+            proxyIds: []
+        backupRepositoryId: a23581e8-0980-4c92-8d76-043d4c4f0ba9
+        gfsPolicy:
+            isEnabled: false
+            monthly:
+                desiredTime: First
+                isEnabled: false
+                keepForNumberOfMonths: 1
+            weekly:
+                desiredTime: Sunday
+                isEnabled: false
+                keepForNumberOfWeeks: 1
+            yearly:
+                desiredTime: January
+                isEnabled: false
+                keepForNumberOfYears: 1
+        retentionPolicy:
+            quantity: 7
+            type: Days
+    type: VSphereBackup
+    virtualMachines:
+        excludes:
+            disks:
+                - disks: []
+                  disksToProcess: AllDisks
+                  removeFromVMConfiguration: true
+                  vmObject:
+                    hostName: 192.168.0.14
+                    name: Debian
+                    objectId: "211"
+                    type: VirtualMachine
+            templates:
+                excludeFromIncremental: true
+                isEnabled: true
+            vms: []
+        includes:
+            - hostName: 192.168.0.14
+              metadata:
+                - data: Debian 11
+                  field: guestOsName
+                - data: debian11_64Guest
+                  field: guestOsType
+              name: Debian
+              objectId: "211"
+              platform: VSphere
+              size: 16 GB
+              type: VirtualMachine
+              urn: esx:192.168.0.14;vm:211

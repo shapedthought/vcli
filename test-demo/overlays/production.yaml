@@ -1,0 +1,17 @@
+# Production Environment Overlay
+# Extends base backup with production-specific settings
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Backup Job 1
+  labels:
+    env: production
+    tier: critical
+spec:
+  description: "Production Debian backup - 30-day retention"
+  storage:
+    retentionPolicy:
+      quantity: 30
+  schedule:
+    daily:
+      localTime: "02:00"

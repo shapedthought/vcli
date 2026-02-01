@@ -1,0 +1,30 @@
+# vcli Configuration File
+# Multi-environment backup configuration
+
+currentEnvironment: production
+defaultOverlayDir: ./overlays
+
+environments:
+  production:
+    overlay: production.yaml
+    profile: vbr
+    labels:
+      env: production
+      managed-by: vcli
+      tier: critical
+
+  development:
+    overlay: development.yaml
+    profile: vbr
+    labels:
+      env: development
+      managed-by: vcli
+      tier: standard
+
+  staging:
+    overlay: staging.yaml
+    profile: vbr
+    labels:
+      env: staging
+      managed-by: vcli
+      tier: standard

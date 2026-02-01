@@ -1,0 +1,17 @@
+# Development Environment Overlay
+# Extends base backup with development-specific settings
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Backup Job 1
+  labels:
+    env: development
+    tier: standard
+spec:
+  description: "Development Debian backup - 3-day retention"
+  storage:
+    retentionPolicy:
+      quantity: 3
+  schedule:
+    daily:
+      localTime: "23:00"

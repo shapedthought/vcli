@@ -1,0 +1,17 @@
+# Staging Environment Overlay
+# Extends base backup with staging-specific settings
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Backup Job 1
+  labels:
+    env: staging
+    tier: standard
+spec:
+  description: "Staging Debian backup - 14-day retention"
+  storage:
+    retentionPolicy:
+      quantity: 14
+  schedule:
+    daily:
+      localTime: "01:00"

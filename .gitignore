@@ -1,5 +1,7 @@
 *.yaml
 !examples/*.yaml
+!test-demo/*.yaml
+!test-demo/**/*.yaml
 *.exe
 *.txt
 Dockerfile

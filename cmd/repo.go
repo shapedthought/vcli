@@ -85,7 +85,8 @@ Examples:
 
 Exit Codes:
   0 - No drift detected
-  3 - Drift detected
+  3 - Drift detected (INFO or WARNING)
+  4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if repoDiffAll {
@@ -169,6 +170,7 @@ func saveRepoToState(name, id string, rawData json.RawMessage) error {
 }
 
 func diffSingleRepo(repoName string) {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -197,22 +199,26 @@ func diffSingleRepo(repoName string) {
 		log.Fatalf("Failed to unmarshal current repository data: %v", err)
 	}
 
-	// Compare
+	// Compare, classify, filter
 	drifts := detectDrift(resource.Spec, currentMap, repoIgnoreFields)
+	drifts = classifyDrifts(drifts, repoSeverityMap)
+	minSev := parseSeverityFlag()
+	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Repository matches snapshot state.")
+		fmt.Println(noDriftMessage("Repository matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 
 	// Display drift
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
-		printDriftWithCritical(drift, repoCriticalPaths)
+		printDriftWithSeverity(drift)
 	}
 
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
 	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
 	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
 
@@ -220,10 +226,11 @@ func diffSingleRepo(repoName string) {
 	fmt.Printf("\nTo update the snapshot, run:\n")
 	fmt.Printf("  vcli repo snapshot \"%s\"\n", repoName)
 
-	os.Exit(3)
+	os.Exit(exitCodeForDrifts(drifts))
 }
 
 func diffAllRepos() {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -243,8 +250,10 @@ func diffAllRepos() {
 
 	fmt.Printf("Checking %d repositories for drift...\n\n", len(resources))
 
+	minSev := parseSeverityFlag()
 	driftedCount := 0
 	cleanCount := 0
+	var allDrifts []Drift
 
 	for _, resource := range resources {
 		// Fetch current from VBR
@@ -257,11 +266,15 @@ func diffAllRepos() {
 			continue
 		}
 
-		// Detect drift
+		// Detect, classify, filter
 		drifts := detectDrift(resource.Spec, currentMap, repoIgnoreFields)
+		drifts = classifyDrifts(drifts, repoSeverityMap)
+		drifts = filterDriftsBySeverity(drifts, minSev)
 
 		if len(drifts) > 0 {
-			fmt.Printf("  %s: %d drifts detected\n", resource.Name, len(drifts))
+			maxSev := getMaxSeverity(drifts)
+			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			allDrifts = append(allDrifts, drifts...)
 			driftedCount++
 		} else {
 			fmt.Printf("  %s: No drift\n", resource.Name)
@@ -274,7 +287,7 @@ func diffAllRepos() {
 	fmt.Printf("  - %d repositories drifted\n", driftedCount)
 
 	if driftedCount > 0 {
-		os.Exit(3)
+		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)
 }
@@ -319,7 +332,8 @@ Examples:
 
 Exit Codes:
   0 - No drift detected
-  3 - Drift detected
+  3 - Drift detected (INFO or WARNING)
+  4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sobrDiffAll {
@@ -396,6 +410,7 @@ func snapshotAllSobrs() {
 }
 
 func diffSingleSobr(sobrName string) {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -422,20 +437,25 @@ func diffSingleSobr(sobrName string) {
 		log.Fatalf("Failed to unmarshal current SOBR data: %v", err)
 	}
 
+	// Compare, classify, filter
 	drifts := detectDrift(resource.Spec, currentMap, sobrIgnoreFields)
+	drifts = classifyDrifts(drifts, sobrSeverityMap)
+	minSev := parseSeverityFlag()
+	drifts = filterDriftsBySeverity(drifts, minSev)
 
 	if len(drifts) == 0 {
-		fmt.Println("No drift detected. Scale-out repository matches snapshot state.")
+		fmt.Println(noDriftMessage("Scale-out repository matches snapshot state.", minSev))
 		os.Exit(0)
 	}
 
 	fmt.Println("Drift detected:")
 	for _, drift := range drifts {
-		printDriftWithCritical(drift, sobrCriticalPaths)
+		printDriftWithSeverity(drift)
 	}
 
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
+	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
 	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
 	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
 
@@ -443,10 +463,11 @@ func diffSingleSobr(sobrName string) {
 	fmt.Printf("\nTo update the snapshot, run:\n")
 	fmt.Printf("  vcli repo sobr-snapshot \"%s\"\n", sobrName)
 
-	os.Exit(3)
+	os.Exit(exitCodeForDrifts(drifts))
 }
 
 func diffAllSobrs() {
+	loadSeverityOverrides()
 	profile := utils.GetProfile()
 
 	if profile.Name != "vbr" {
@@ -466,8 +487,10 @@ func diffAllSobrs() {
 
 	fmt.Printf("Checking %d scale-out repositories for drift...\n\n", len(resources))
 
+	minSev := parseSeverityFlag()
 	driftedCount := 0
 	cleanCount := 0
+	var allDrifts []Drift
 
 	for _, resource := range resources {
 		endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", resource.ID)
@@ -479,10 +502,15 @@ func diffAllSobrs() {
 			continue
 		}
 
+		// Detect, classify, filter
 		drifts := detectDrift(resource.Spec, currentMap, sobrIgnoreFields)
+		drifts = classifyDrifts(drifts, sobrSeverityMap)
+		drifts = filterDriftsBySeverity(drifts, minSev)
 
 		if len(drifts) > 0 {
-			fmt.Printf("  %s: %d drifts detected\n", resource.Name, len(drifts))
+			maxSev := getMaxSeverity(drifts)
+			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			allDrifts = append(allDrifts, drifts...)
 			driftedCount++
 		} else {
 			fmt.Printf("  %s: No drift\n", resource.Name)
@@ -495,7 +523,7 @@ func diffAllSobrs() {
 	fmt.Printf("  - %d scale-out repositories drifted\n", driftedCount)
 
 	if driftedCount > 0 {
-		os.Exit(3)
+		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)
 }
@@ -533,8 +561,10 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 func init() {
 	repoSnapshotCmd.Flags().BoolVar(&repoSnapshotAll, "all", false, "Snapshot all repositories")
 	repoDiffCmd.Flags().BoolVar(&repoDiffAll, "all", false, "Check drift for all repositories in state")
+	addSeverityFlags(repoDiffCmd)
 	sobrSnapshotCmd.Flags().BoolVar(&sobrSnapshotAll, "all", false, "Snapshot all scale-out repositories")
 	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
+	addSeverityFlags(sobrDiffCmd)
 
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)

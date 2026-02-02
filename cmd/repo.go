@@ -16,16 +16,20 @@ import (
 )
 
 var (
-	repoSnapshotAll bool
-	repoDiffAll     bool
-	sobrSnapshotAll bool
-	sobrDiffAll     bool
+	repoSnapshotAll  bool
+	repoDiffAll      bool
+	sobrSnapshotAll  bool
+	sobrDiffAll      bool
+	repoExportAll    bool
+	repoExportOutput string
+	sobrExportAll    bool
+	sobrExportOutput string
 )
 
 var repoCmd = &cobra.Command{
 	Use:   "repo",
 	Short: "Repository management commands",
-	Long: `Repository related commands for state management and drift detection.
+	Long: `Repository related commands for state management, drift detection, and export.
 
 ONLY WORKS WITH VBR AT THE MOMENT.
 
@@ -39,11 +43,17 @@ Detect configuration drift
   vcli repo diff "Default Backup Repository"
   vcli repo diff --all
 
+Export repository to declarative YAML
+  vcli repo export "Default Backup Repository"
+  vcli repo export --all -o /tmp/repos/
+
 Scale-out backup repositories
   vcli repo sobr-snapshot "Scale-out Backup Repository 1"
   vcli repo sobr-snapshot --all
   vcli repo sobr-diff "Scale-out Backup Repository 1"
   vcli repo sobr-diff --all
+  vcli repo sobr-export "Scale-out Backup Repository 1"
+  vcli repo sobr-export --all -o /tmp/sobrs/
 `,
 }
 
@@ -536,6 +546,254 @@ func diffAllSobrs() {
 	os.Exit(0)
 }
 
+// --- Repository Export commands ---
+
+var repoExportCmd = &cobra.Command{
+	Use:   "export [repo-name]",
+	Short: "Export repository configuration to declarative YAML",
+	Long: `Export a backup repository configuration to declarative YAML format.
+
+Examples:
+  # Export single repository to stdout
+  vcli repo export "Default Backup Repository"
+
+  # Export single repository to file
+  vcli repo export "Default Backup Repository" -o repo.yaml
+
+  # Export all repositories to current directory
+  vcli repo export --all
+
+  # Export all repositories to specific directory
+  vcli repo export --all -o /tmp/repos/
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		if repoExportAll {
+			exportAllRepos(profile)
+		} else if len(args) > 0 {
+			exportSingleRepo(args[0], profile)
+		} else {
+			log.Fatal("Provide repository name or use --all")
+		}
+	},
+}
+
+func exportSingleRepo(repoName string, profile models.Profile) {
+	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
+
+	var found *models.VbrRepoGet
+	for i := range repoList.Data {
+		if repoList.Data[i].Name == repoName {
+			found = &repoList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("Repository '%s' not found in VBR.", repoName)
+	}
+
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", found.ID)
+	repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRRepository",
+		IgnoreFields: repoIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Repository Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	yamlContent, err := convertResourceToYAML(repoName, repoData, cfg)
+	if err != nil {
+		log.Fatalf("Failed to convert repository to YAML: %v", err)
+	}
+
+	writeExportOutput(yamlContent, repoExportOutput, repoName)
+}
+
+func exportAllRepos(profile models.Profile) {
+	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
+
+	if len(repoList.Data) == 0 {
+		fmt.Println("No repositories found.")
+		return
+	}
+
+	outputDir := repoExportOutput
+	if outputDir == "" {
+		outputDir = "."
+	}
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+
+	fmt.Printf("Exporting %d repositories...\n", len(repoList.Data))
+
+	successCount := 0
+	failedCount := 0
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRRepository",
+		IgnoreFields: repoIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Repository Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	for i, repo := range repoList.Data {
+		endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", repo.ID)
+		repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		yamlContent, err := convertResourceToYAML(repo.Name, repoData, cfg)
+		if err != nil {
+			fmt.Printf("Warning: Failed to convert repository %s: %v\n", repo.Name, err)
+			failedCount++
+			continue
+		}
+
+		if err := writeExportAllOutput(yamlContent, outputDir, repo.Name, i, len(repoList.Data)); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+			failedCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
+}
+
+// --- SOBR Export commands ---
+
+var sobrExportCmd = &cobra.Command{
+	Use:   "sobr-export [sobr-name]",
+	Short: "Export scale-out backup repository to declarative YAML",
+	Long: `Export a scale-out backup repository configuration to declarative YAML format.
+
+Examples:
+  # Export single SOBR to stdout
+  vcli repo sobr-export "Scale-out Backup Repository 1"
+
+  # Export single SOBR to file
+  vcli repo sobr-export "Scale-out Backup Repository 1" -o sobr.yaml
+
+  # Export all SOBRs to current directory
+  vcli repo sobr-export --all
+
+  # Export all SOBRs to specific directory
+  vcli repo sobr-export --all -o /tmp/sobrs/
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		if sobrExportAll {
+			exportAllSobrs(profile)
+		} else if len(args) > 0 {
+			exportSingleSobr(args[0], profile)
+		} else {
+			log.Fatal("Provide SOBR name or use --all")
+		}
+	},
+}
+
+func exportSingleSobr(sobrName string, profile models.Profile) {
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	var found *models.VbrSobrGet
+	for i := range sobrList.Data {
+		if sobrList.Data[i].Name == sobrName {
+			found = &sobrList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("Scale-out repository '%s' not found in VBR.", sobrName)
+	}
+
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRScaleOutRepository",
+		IgnoreFields: sobrIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Scale-Out Repository Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	yamlContent, err := convertResourceToYAML(sobrName, sobrData, cfg)
+	if err != nil {
+		log.Fatalf("Failed to convert scale-out repository to YAML: %v", err)
+	}
+
+	writeExportOutput(yamlContent, sobrExportOutput, sobrName)
+}
+
+func exportAllSobrs(profile models.Profile) {
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	if len(sobrList.Data) == 0 {
+		fmt.Println("No scale-out repositories found.")
+		return
+	}
+
+	outputDir := sobrExportOutput
+	if outputDir == "" {
+		outputDir = "."
+	}
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+
+	fmt.Printf("Exporting %d scale-out repositories...\n", len(sobrList.Data))
+
+	successCount := 0
+	failedCount := 0
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRScaleOutRepository",
+		IgnoreFields: sobrIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Scale-Out Repository Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	for i, sobr := range sobrList.Data {
+		endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", sobr.ID)
+		sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		yamlContent, err := convertResourceToYAML(sobr.Name, sobrData, cfg)
+		if err != nil {
+			fmt.Printf("Warning: Failed to convert scale-out repository %s: %v\n", sobr.Name, err)
+			failedCount++
+			continue
+		}
+
+		if err := writeExportAllOutput(yamlContent, outputDir, sobr.Name, i, len(sobrList.Data)); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+			failedCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
+}
+
 // saveResourceToState is a shared helper for saving any resource type to state
 func saveResourceToState(resourceType, name, id string, rawData json.RawMessage) error {
 	var spec map[string]interface{}
@@ -575,9 +833,16 @@ func init() {
 	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
 	addSeverityFlags(sobrDiffCmd)
 
+	repoExportCmd.Flags().BoolVar(&repoExportAll, "all", false, "Export all repositories")
+	repoExportCmd.Flags().StringVarP(&repoExportOutput, "output", "o", "", "Output file or directory (default: stdout)")
+	sobrExportCmd.Flags().BoolVar(&sobrExportAll, "all", false, "Export all scale-out repositories")
+	sobrExportCmd.Flags().StringVarP(&sobrExportOutput, "output", "o", "", "Output file or directory (default: stdout)")
+
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)
+	repoCmd.AddCommand(repoExportCmd)
 	repoCmd.AddCommand(sobrSnapshotCmd)
 	repoCmd.AddCommand(sobrDiffCmd)
+	repoCmd.AddCommand(sobrExportCmd)
 	rootCmd.AddCommand(repoCmd)
 }

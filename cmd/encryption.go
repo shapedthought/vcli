@@ -14,16 +14,20 @@ import (
 )
 
 var (
-	encSnapshotAll bool
-	encDiffAll     bool
-	kmsSnapshotAll bool
-	kmsDiffAll     bool
+	encSnapshotAll   bool
+	encDiffAll       bool
+	kmsSnapshotAll   bool
+	kmsDiffAll       bool
+	encExportAll     bool
+	encExportOutput  string
+	kmsExportAll     bool
+	kmsExportOutput  string
 )
 
 var encryptionCmd = &cobra.Command{
 	Use:   "encryption",
 	Short: "Encryption password and KMS server management commands",
-	Long: `Encryption related commands for state management and drift detection.
+	Long: `Encryption related commands for state management, drift detection, and export.
 
 ONLY WORKS WITH VBR AT THE MOMENT.
 
@@ -39,11 +43,17 @@ Detect encryption password drift
   vcli encryption diff "My backup password"
   vcli encryption diff --all
 
+Export encryption passwords to declarative YAML
+  vcli encryption export "My backup password"
+  vcli encryption export --all -o /tmp/enc/
+
 KMS server management
   vcli encryption kms-snapshot "My KMS Server"
   vcli encryption kms-snapshot --all
   vcli encryption kms-diff "My KMS Server"
   vcli encryption kms-diff --all
+  vcli encryption kms-export "My KMS Server"
+  vcli encryption kms-export --all -o /tmp/kms/
 `,
 }
 
@@ -382,6 +392,283 @@ func diffAllEncryptionPasswords() {
 	os.Exit(0)
 }
 
+// --- Encryption Password Export commands ---
+
+var encExportCmd = &cobra.Command{
+	Use:   "export [password-hint]",
+	Short: "Export encryption password metadata to declarative YAML",
+	Long: `Export encryption password metadata to declarative YAML format.
+Only metadata (hint, import status) is exported — never actual password values.
+
+Examples:
+  # Export single password to stdout
+  vcli encryption export "My backup password"
+
+  # Export single password to file
+  vcli encryption export "My backup password" -o password.yaml
+
+  # Export all passwords to current directory
+  vcli encryption export --all
+
+  # Export all passwords to specific directory
+  vcli encryption export --all -o /tmp/enc/
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		if encExportAll {
+			exportAllEncryptionPasswords(profile)
+		} else if len(args) > 0 {
+			exportSingleEncryptionPassword(args[0], profile)
+		} else {
+			log.Fatal("Provide password hint or use --all")
+		}
+	},
+}
+
+func exportSingleEncryptionPassword(hint string, profile models.Profile) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	var found *models.VbrEncryptionPasswordGet
+	for i := range passwordList.Data {
+		if passwordList.Data[i].Hint == hint {
+			found = &passwordList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("Encryption password with hint '%s' not found in VBR.", hint)
+	}
+
+	pBytes, err := json.Marshal(found)
+	if err != nil {
+		log.Fatalf("Failed to marshal encryption password data: %v", err)
+	}
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBREncryptionPassword",
+		IgnoreFields: encryptionIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Encryption Password Configuration (Full Export)",
+			"# Exported from VBR",
+			"# Note: Only metadata is exported — never actual password values.",
+		},
+	}
+
+	yamlContent, err := convertResourceToYAML(hint, json.RawMessage(pBytes), cfg)
+	if err != nil {
+		log.Fatalf("Failed to convert encryption password to YAML: %v", err)
+	}
+
+	writeExportOutput(yamlContent, encExportOutput, hint)
+}
+
+func exportAllEncryptionPasswords(profile models.Profile) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	if len(passwordList.Data) == 0 {
+		fmt.Println("No encryption passwords found.")
+		return
+	}
+
+	outputDir := encExportOutput
+	if outputDir == "" {
+		outputDir = "."
+	}
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Build hint counts to detect duplicates
+	hintCounts := make(map[string]int, len(passwordList.Data))
+	for _, p := range passwordList.Data {
+		hintCounts[p.Hint]++
+	}
+
+	fmt.Printf("Exporting %d encryption passwords...\n", len(passwordList.Data))
+
+	successCount := 0
+	failedCount := 0
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBREncryptionPassword",
+		IgnoreFields: encryptionIgnoreFields,
+		HeaderLines: []string{
+			"# VBR Encryption Password Configuration (Full Export)",
+			"# Exported from VBR",
+			"# Note: Only metadata is exported — never actual password values.",
+		},
+	}
+
+	for i, p := range passwordList.Data {
+		pBytes, err := json.Marshal(p)
+		if err != nil {
+			fmt.Printf("Warning: Failed to marshal password '%s': %v\n", p.Hint, err)
+			failedCount++
+			continue
+		}
+
+		// Handle duplicate hints by appending ID
+		resourceName := p.Hint
+		if resourceName == "" {
+			resourceName = p.ID
+		} else if hintCounts[p.Hint] > 1 {
+			resourceName = fmt.Sprintf("%s-%s", resourceName, p.ID)
+		}
+
+		yamlContent, err := convertResourceToYAML(resourceName, json.RawMessage(pBytes), cfg)
+		if err != nil {
+			fmt.Printf("Warning: Failed to convert password %s: %v\n", resourceName, err)
+			failedCount++
+			continue
+		}
+
+		if err := writeExportAllOutput(yamlContent, outputDir, resourceName, i, len(passwordList.Data)); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+			failedCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
+}
+
+// --- KMS Server Export commands ---
+
+var kmsExportCmd = &cobra.Command{
+	Use:   "kms-export [kms-name]",
+	Short: "Export KMS server configuration to declarative YAML",
+	Long: `Export a KMS server configuration to declarative YAML format.
+
+Examples:
+  # Export single KMS server to stdout
+  vcli encryption kms-export "My KMS Server"
+
+  # Export single KMS server to file
+  vcli encryption kms-export "My KMS Server" -o kms.yaml
+
+  # Export all KMS servers to current directory
+  vcli encryption kms-export --all
+
+  # Export all KMS servers to specific directory
+  vcli encryption kms-export --all -o /tmp/kms/
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		if kmsExportAll {
+			exportAllKmsServers(profile)
+		} else if len(args) > 0 {
+			exportSingleKmsServer(args[0], profile)
+		} else {
+			log.Fatal("Provide KMS server name or use --all")
+		}
+	},
+}
+
+func exportSingleKmsServer(name string, profile models.Profile) {
+	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
+
+	var found *models.VbrKmsServerGet
+	for i := range kmsList.Data {
+		if kmsList.Data[i].Name == name {
+			found = &kmsList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("KMS server '%s' not found in VBR.", name)
+	}
+
+	kBytes, err := json.Marshal(found)
+	if err != nil {
+		log.Fatalf("Failed to marshal KMS server data: %v", err)
+	}
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRKmsServer",
+		IgnoreFields: kmsIgnoreFields,
+		HeaderLines: []string{
+			"# VBR KMS Server Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	yamlContent, err := convertResourceToYAML(name, json.RawMessage(kBytes), cfg)
+	if err != nil {
+		log.Fatalf("Failed to convert KMS server to YAML: %v", err)
+	}
+
+	writeExportOutput(yamlContent, kmsExportOutput, name)
+}
+
+func exportAllKmsServers(profile models.Profile) {
+	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
+
+	if len(kmsList.Data) == 0 {
+		fmt.Println("No KMS servers found.")
+		return
+	}
+
+	outputDir := kmsExportOutput
+	if outputDir == "" {
+		outputDir = "."
+	}
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+
+	fmt.Printf("Exporting %d KMS servers...\n", len(kmsList.Data))
+
+	successCount := 0
+	failedCount := 0
+
+	cfg := ResourceExportConfig{
+		Kind:         "VBRKmsServer",
+		IgnoreFields: kmsIgnoreFields,
+		HeaderLines: []string{
+			"# VBR KMS Server Configuration (Full Export)",
+			"# Exported from VBR",
+		},
+	}
+
+	for i, k := range kmsList.Data {
+		kBytes, err := json.Marshal(k)
+		if err != nil {
+			fmt.Printf("Warning: Failed to marshal KMS server '%s': %v\n", k.Name, err)
+			failedCount++
+			continue
+		}
+
+		yamlContent, err := convertResourceToYAML(k.Name, json.RawMessage(kBytes), cfg)
+		if err != nil {
+			fmt.Printf("Warning: Failed to convert KMS server %s: %v\n", k.Name, err)
+			failedCount++
+			continue
+		}
+
+		if err := writeExportAllOutput(yamlContent, outputDir, k.Name, i, len(kmsList.Data)); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+			failedCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
+}
+
 // --- KMS Server commands ---
 
 var kmsSnapshotCmd = &cobra.Command{
@@ -704,13 +991,20 @@ func init() {
 	encSnapshotCmd.Flags().BoolVar(&encSnapshotAll, "all", false, "Snapshot all encryption passwords")
 	encDiffCmd.Flags().BoolVar(&encDiffAll, "all", false, "Check drift for all encryption passwords in state")
 	addSeverityFlags(encDiffCmd)
+	encExportCmd.Flags().BoolVar(&encExportAll, "all", false, "Export all encryption passwords")
+	encExportCmd.Flags().StringVarP(&encExportOutput, "output", "o", "", "Output file or directory (default: stdout)")
+
 	kmsSnapshotCmd.Flags().BoolVar(&kmsSnapshotAll, "all", false, "Snapshot all KMS servers")
 	kmsDiffCmd.Flags().BoolVar(&kmsDiffAll, "all", false, "Check drift for all KMS servers in state")
 	addSeverityFlags(kmsDiffCmd)
+	kmsExportCmd.Flags().BoolVar(&kmsExportAll, "all", false, "Export all KMS servers")
+	kmsExportCmd.Flags().StringVarP(&kmsExportOutput, "output", "o", "", "Output file or directory (default: stdout)")
 
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)
+	encryptionCmd.AddCommand(encExportCmd)
 	encryptionCmd.AddCommand(kmsSnapshotCmd)
 	encryptionCmd.AddCommand(kmsDiffCmd)
+	encryptionCmd.AddCommand(kmsExportCmd)
 	rootCmd.AddCommand(encryptionCmd)
 }

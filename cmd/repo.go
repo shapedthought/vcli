@@ -794,6 +794,88 @@ func exportAllSobrs(profile models.Profile) {
 	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
 }
 
+// --- Repository Adopt commands ---
+
+var repoAdoptCmd = &cobra.Command{
+	Use:   "adopt [spec-file]",
+	Short: "Adopt a repository spec into state without modifying VBR",
+	Long: `Adopt loads a YAML spec, fetches the matching repository from VBR, compares them,
+saves to state with origin "applied", and reports any mismatches.
+
+This is a read-only operation — VBR is not modified.
+
+Examples:
+  # Adopt a repository spec
+  vcli repo adopt repos/default-repo.yaml
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		adoptResource(args[0], "VBRRepository", fetchCurrentRepo, repoIgnoreFields, repoSeverityMap)
+	},
+}
+
+// fetchCurrentRepo fetches the current repository from VBR by name and returns raw JSON, ID, and error
+func fetchCurrentRepo(name string, profile models.Profile) (json.RawMessage, string, error) {
+	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
+
+	var found *models.VbrRepoGet
+	for i := range repoList.Data {
+		if repoList.Data[i].Name == name {
+			found = &repoList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		return nil, "", fmt.Errorf("repository '%s' not found in VBR", name)
+	}
+
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", found.ID)
+	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	return rawData, found.ID, nil
+}
+
+var sobrAdoptCmd = &cobra.Command{
+	Use:   "sobr-adopt [spec-file]",
+	Short: "Adopt a scale-out repository spec into state without modifying VBR",
+	Long: `Adopt loads a YAML spec, fetches the matching scale-out repository from VBR,
+compares them, saves to state with origin "applied", and reports any mismatches.
+
+This is a read-only operation — VBR is not modified.
+
+Examples:
+  # Adopt a SOBR spec
+  vcli repo sobr-adopt sobrs/sobr1.yaml
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		adoptResource(args[0], "VBRScaleOutRepository", fetchCurrentSobr, sobrIgnoreFields, sobrSeverityMap)
+	},
+}
+
+// fetchCurrentSobr fetches the current SOBR from VBR by name and returns raw JSON, ID, and error
+func fetchCurrentSobr(name string, profile models.Profile) (json.RawMessage, string, error) {
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	var found *models.VbrSobrGet
+	for i := range sobrList.Data {
+		if sobrList.Data[i].Name == name {
+			found = &sobrList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		return nil, "", fmt.Errorf("scale-out repository '%s' not found in VBR", name)
+	}
+
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	return rawData, found.ID, nil
+}
+
 // saveResourceToState is a shared helper for saving any resource type to state
 func saveResourceToState(resourceType, name, id string, rawData json.RawMessage) error {
 	var spec map[string]interface{}
@@ -841,8 +923,10 @@ func init() {
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)
 	repoCmd.AddCommand(repoExportCmd)
+	repoCmd.AddCommand(repoAdoptCmd)
 	repoCmd.AddCommand(sobrSnapshotCmd)
 	repoCmd.AddCommand(sobrDiffCmd)
 	repoCmd.AddCommand(sobrExportCmd)
+	repoCmd.AddCommand(sobrAdoptCmd)
 	rootCmd.AddCommand(repoCmd)
 }

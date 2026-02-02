@@ -987,6 +987,96 @@ func diffAllKmsServers() {
 	os.Exit(0)
 }
 
+// --- Encryption Password Adopt command ---
+
+var encAdoptCmd = &cobra.Command{
+	Use:   "adopt [spec-file]",
+	Short: "Adopt an encryption password spec into state without modifying VBR",
+	Long: `Adopt loads a YAML spec, fetches the matching encryption password from VBR,
+compares them, saves to state with origin "applied", and reports any mismatches.
+
+This is a read-only operation — VBR is not modified.
+Only metadata (ID, hint) is compared — never actual password values.
+
+Examples:
+  # Adopt an encryption password spec
+  vcli encryption adopt encryption/my-password.yaml
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		adoptResource(args[0], "VBREncryptionPassword", fetchCurrentEncryptionPassword, encryptionIgnoreFields, encryptionSeverityMap)
+	},
+}
+
+// fetchCurrentEncryptionPassword fetches the current encryption password from VBR by hint
+// (using metadata.name as hint) and returns raw JSON, ID, and error
+func fetchCurrentEncryptionPassword(name string, profile models.Profile) (json.RawMessage, string, error) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	var found *models.VbrEncryptionPasswordGet
+	for i := range passwordList.Data {
+		if passwordList.Data[i].Hint == name {
+			found = &passwordList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		return nil, "", fmt.Errorf("encryption password with hint '%s' not found in VBR", name)
+	}
+
+	pBytes, err := json.Marshal(found)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal encryption password data: %w", err)
+	}
+
+	return json.RawMessage(pBytes), found.ID, nil
+}
+
+// --- KMS Server Adopt command ---
+
+var kmsAdoptCmd = &cobra.Command{
+	Use:   "kms-adopt [spec-file]",
+	Short: "Adopt a KMS server spec into state without modifying VBR",
+	Long: `Adopt loads a YAML spec, fetches the matching KMS server from VBR,
+compares them, saves to state with origin "applied", and reports any mismatches.
+
+This is a read-only operation — VBR is not modified.
+
+Examples:
+  # Adopt a KMS server spec
+  vcli encryption kms-adopt kms/my-kms.yaml
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		adoptResource(args[0], "VBRKmsServer", fetchCurrentKmsServer, kmsIgnoreFields, kmsSeverityMap)
+	},
+}
+
+// fetchCurrentKmsServer fetches the current KMS server from VBR by name and returns raw JSON, ID, and error
+func fetchCurrentKmsServer(name string, profile models.Profile) (json.RawMessage, string, error) {
+	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
+
+	var found *models.VbrKmsServerGet
+	for i := range kmsList.Data {
+		if kmsList.Data[i].Name == name {
+			found = &kmsList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		return nil, "", fmt.Errorf("KMS server '%s' not found in VBR", name)
+	}
+
+	kBytes, err := json.Marshal(found)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal KMS server data: %w", err)
+	}
+
+	return json.RawMessage(kBytes), found.ID, nil
+}
+
 func init() {
 	encSnapshotCmd.Flags().BoolVar(&encSnapshotAll, "all", false, "Snapshot all encryption passwords")
 	encDiffCmd.Flags().BoolVar(&encDiffAll, "all", false, "Check drift for all encryption passwords in state")
@@ -1003,8 +1093,10 @@ func init() {
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)
 	encryptionCmd.AddCommand(encExportCmd)
+	encryptionCmd.AddCommand(encAdoptCmd)
 	encryptionCmd.AddCommand(kmsSnapshotCmd)
 	encryptionCmd.AddCommand(kmsDiffCmd)
 	encryptionCmd.AddCommand(kmsExportCmd)
+	encryptionCmd.AddCommand(kmsAdoptCmd)
 	rootCmd.AddCommand(encryptionCmd)
 }

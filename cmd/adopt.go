@@ -169,16 +169,16 @@ Examples:
 
 // fetchCurrentJob fetches the current job from VBR by name and returns raw JSON, job ID, and error
 func fetchCurrentJob(name string, profile models.Profile) (json.RawMessage, string, error) {
-	job, found := findJobByName(name, profile)
-	if !found {
-		return nil, "", fmt.Errorf("job '%s' not found in VBR", name)
+	_, id, err := findResourceInList("jobs", "name", name, profile)
+	if err != nil {
+		return nil, "", err
 	}
 
 	// Fetch full job details as raw JSON
-	endpoint := fmt.Sprintf("jobs/%s", job.ID)
+	endpoint := fmt.Sprintf("jobs/%s", id)
 	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	return rawData, job.ID, nil
+	return rawData, id, nil
 }
 
 func init() {

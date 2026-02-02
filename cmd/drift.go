@@ -418,6 +418,33 @@ func valuesEqual(a, b interface{}) bool {
 		return len(bMap) == 0
 	}
 
+	// Normalize numeric types: YAML unmarshals integers as int,
+	// JSON unmarshals them as float64. Compare as float64 if both are numeric.
+	aFloat, aIsNum := toFloat64Value(a)
+	bFloat, bIsNum := toFloat64Value(b)
+	if aIsNum && bIsNum {
+		return aFloat == bFloat
+	}
+
 	// Fall back to reflect.DeepEqual for other types
 	return reflect.DeepEqual(a, b)
+}
+
+// toFloat64Value attempts to convert a value to float64.
+// Returns the float64 value and true if the value is numeric (int, float32, float64).
+func toFloat64Value(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	default:
+		return 0, false
+	}
 }

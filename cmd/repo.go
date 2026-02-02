@@ -116,26 +116,16 @@ func snapshotSingleRepo(repoName string) {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	// Fetch all repositories and find by name
-	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
-
-	var found *models.VbrRepoGet
-	for i := range repoList.Data {
-		if repoList.Data[i].Name == repoName {
-			found = &repoList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	_, id, err := findResourceInList("backupInfrastructure/repositories", "name", repoName, profile)
+	if err != nil {
 		log.Fatalf("Repository '%s' not found in VBR.", repoName)
 	}
 
 	// Fetch the individual repository for full details
-	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", id)
 	repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	if err := saveRepoToState(repoName, found.ID, repoData); err != nil {
+	if err := saveRepoToState(repoName, id, repoData); err != nil {
 		log.Fatalf("Failed to save repository state: %v", err)
 	}
 
@@ -367,24 +357,15 @@ func snapshotSingleSobr(sobrName string) {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
-
-	var found *models.VbrSobrGet
-	for i := range sobrList.Data {
-		if sobrList.Data[i].Name == sobrName {
-			found = &sobrList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	_, id, err := findResourceInList("backupInfrastructure/scaleOutRepositories", "name", sobrName, profile)
+	if err != nil {
 		log.Fatalf("Scale-out repository '%s' not found in VBR.", sobrName)
 	}
 
-	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", id)
 	sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	if err := saveResourceToState("VBRScaleOutRepository", sobrName, found.ID, sobrData); err != nil {
+	if err := saveResourceToState("VBRScaleOutRepository", sobrName, id, sobrData); err != nil {
 		log.Fatalf("Failed to save SOBR state: %v", err)
 	}
 
@@ -583,21 +564,12 @@ Examples:
 }
 
 func exportSingleRepo(repoName string, profile models.Profile) {
-	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
-
-	var found *models.VbrRepoGet
-	for i := range repoList.Data {
-		if repoList.Data[i].Name == repoName {
-			found = &repoList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	_, id, err := findResourceInList("backupInfrastructure/repositories", "name", repoName, profile)
+	if err != nil {
 		log.Fatalf("Repository '%s' not found in VBR.", repoName)
 	}
 
-	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", id)
 	repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
 	cfg := ResourceExportConfig{
@@ -707,21 +679,12 @@ Examples:
 }
 
 func exportSingleSobr(sobrName string, profile models.Profile) {
-	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
-
-	var found *models.VbrSobrGet
-	for i := range sobrList.Data {
-		if sobrList.Data[i].Name == sobrName {
-			found = &sobrList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	_, id, err := findResourceInList("backupInfrastructure/scaleOutRepositories", "name", sobrName, profile)
+	if err != nil {
 		log.Fatalf("Scale-out repository '%s' not found in VBR.", sobrName)
 	}
 
-	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", id)
 	sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
 	cfg := ResourceExportConfig{
@@ -816,24 +779,15 @@ Examples:
 
 // fetchCurrentRepo fetches the current repository from VBR by name and returns raw JSON, ID, and error
 func fetchCurrentRepo(name string, profile models.Profile) (json.RawMessage, string, error) {
-	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
-
-	var found *models.VbrRepoGet
-	for i := range repoList.Data {
-		if repoList.Data[i].Name == name {
-			found = &repoList.Data[i]
-			break
-		}
+	_, id, err := findResourceInList("backupInfrastructure/repositories", "name", name, profile)
+	if err != nil {
+		return nil, "", err
 	}
 
-	if found == nil {
-		return nil, "", fmt.Errorf("repository '%s' not found in VBR", name)
-	}
-
-	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", id)
 	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	return rawData, found.ID, nil
+	return rawData, id, nil
 }
 
 var sobrAdoptCmd = &cobra.Command{
@@ -856,24 +810,15 @@ Examples:
 
 // fetchCurrentSobr fetches the current SOBR from VBR by name and returns raw JSON, ID, and error
 func fetchCurrentSobr(name string, profile models.Profile) (json.RawMessage, string, error) {
-	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
-
-	var found *models.VbrSobrGet
-	for i := range sobrList.Data {
-		if sobrList.Data[i].Name == name {
-			found = &sobrList.Data[i]
-			break
-		}
+	_, id, err := findResourceInList("backupInfrastructure/scaleOutRepositories", "name", name, profile)
+	if err != nil {
+		return nil, "", err
 	}
 
-	if found == nil {
-		return nil, "", fmt.Errorf("scale-out repository '%s' not found in VBR", name)
-	}
-
-	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", found.ID)
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", id)
 	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	return rawData, found.ID, nil
+	return rawData, id, nil
 }
 
 // saveResourceToState is a shared helper for saving any resource type to state

@@ -124,22 +124,17 @@ func snapshotSingleEncryptionPassword(hint string) {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	// Fetch all passwords and find by hint
-	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
-
-	var found *models.VbrEncryptionPasswordGet
-	for i := range passwordList.Data {
-		if passwordList.Data[i].Hint == hint {
-			found = &passwordList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	rawData, id, err := findResourceInList("encryptionPasswords", "hint", hint, profile)
+	if err != nil {
 		log.Fatalf("Encryption password with hint '%s' not found in VBR.", hint)
 	}
 
-	if err := saveEncryptionPasswordToState(found, nil); err != nil {
+	name := hint
+	if name == "" {
+		name = id
+	}
+
+	if err := saveResourceToState("VBREncryptionPassword", name, id, rawData); err != nil {
 		log.Fatalf("Failed to save encryption password state: %v", err)
 	}
 
@@ -430,23 +425,9 @@ Examples:
 }
 
 func exportSingleEncryptionPassword(hint string, profile models.Profile) {
-	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
-
-	var found *models.VbrEncryptionPasswordGet
-	for i := range passwordList.Data {
-		if passwordList.Data[i].Hint == hint {
-			found = &passwordList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
-		log.Fatalf("Encryption password with hint '%s' not found in VBR.", hint)
-	}
-
-	pBytes, err := json.Marshal(found)
+	rawData, _, err := findResourceInList("encryptionPasswords", "hint", hint, profile)
 	if err != nil {
-		log.Fatalf("Failed to marshal encryption password data: %v", err)
+		log.Fatalf("Encryption password with hint '%s' not found in VBR.", hint)
 	}
 
 	cfg := ResourceExportConfig{
@@ -459,7 +440,7 @@ func exportSingleEncryptionPassword(hint string, profile models.Profile) {
 		},
 	}
 
-	yamlContent, err := convertResourceToYAML(hint, json.RawMessage(pBytes), cfg)
+	yamlContent, err := convertResourceToYAML(hint, rawData, cfg)
 	if err != nil {
 		log.Fatalf("Failed to convert encryption password to YAML: %v", err)
 	}
@@ -576,23 +557,9 @@ Examples:
 }
 
 func exportSingleKmsServer(name string, profile models.Profile) {
-	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
-
-	var found *models.VbrKmsServerGet
-	for i := range kmsList.Data {
-		if kmsList.Data[i].Name == name {
-			found = &kmsList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
-		log.Fatalf("KMS server '%s' not found in VBR.", name)
-	}
-
-	kBytes, err := json.Marshal(found)
+	rawData, _, err := findResourceInList("kmsServers", "name", name, profile)
 	if err != nil {
-		log.Fatalf("Failed to marshal KMS server data: %v", err)
+		log.Fatalf("KMS server '%s' not found in VBR.", name)
 	}
 
 	cfg := ResourceExportConfig{
@@ -604,7 +571,7 @@ func exportSingleKmsServer(name string, profile models.Profile) {
 		},
 	}
 
-	yamlContent, err := convertResourceToYAML(name, json.RawMessage(kBytes), cfg)
+	yamlContent, err := convertResourceToYAML(name, rawData, cfg)
 	if err != nil {
 		log.Fatalf("Failed to convert KMS server to YAML: %v", err)
 	}
@@ -730,26 +697,12 @@ func snapshotSingleKmsServer(name string) {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
-
-	var found *models.VbrKmsServerGet
-	for i := range kmsList.Data {
-		if kmsList.Data[i].Name == name {
-			found = &kmsList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
+	rawData, id, err := findResourceInList("kmsServers", "name", name, profile)
+	if err != nil {
 		log.Fatalf("KMS server '%s' not found in VBR.", name)
 	}
 
-	kBytes, err := json.Marshal(found)
-	if err != nil {
-		log.Fatalf("Failed to marshal KMS server data: %v", err)
-	}
-
-	if err := saveResourceToState("VBRKmsServer", found.Name, found.ID, json.RawMessage(kBytes)); err != nil {
+	if err := saveResourceToState("VBRKmsServer", name, id, rawData); err != nil {
 		log.Fatalf("Failed to save KMS server state: %v", err)
 	}
 
@@ -1011,26 +964,8 @@ Examples:
 // fetchCurrentEncryptionPassword fetches the current encryption password from VBR by hint
 // (using metadata.name as hint) and returns raw JSON, ID, and error
 func fetchCurrentEncryptionPassword(name string, profile models.Profile) (json.RawMessage, string, error) {
-	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
-
-	var found *models.VbrEncryptionPasswordGet
-	for i := range passwordList.Data {
-		if passwordList.Data[i].Hint == name {
-			found = &passwordList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
-		return nil, "", fmt.Errorf("encryption password with hint '%s' not found in VBR", name)
-	}
-
-	pBytes, err := json.Marshal(found)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to marshal encryption password data: %w", err)
-	}
-
-	return json.RawMessage(pBytes), found.ID, nil
+	// Encryption passwords use "hint" as the display name, not "name"
+	return findResourceInList("encryptionPasswords", "hint", name, profile)
 }
 
 // --- KMS Server Adopt command ---
@@ -1055,26 +990,7 @@ Examples:
 
 // fetchCurrentKmsServer fetches the current KMS server from VBR by name and returns raw JSON, ID, and error
 func fetchCurrentKmsServer(name string, profile models.Profile) (json.RawMessage, string, error) {
-	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
-
-	var found *models.VbrKmsServerGet
-	for i := range kmsList.Data {
-		if kmsList.Data[i].Name == name {
-			found = &kmsList.Data[i]
-			break
-		}
-	}
-
-	if found == nil {
-		return nil, "", fmt.Errorf("KMS server '%s' not found in VBR", name)
-	}
-
-	kBytes, err := json.Marshal(found)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to marshal KMS server data: %w", err)
-	}
-
-	return json.RawMessage(kBytes), found.ID, nil
+	return findResourceInList("kmsServers", "name", name, profile)
 }
 
 func init() {

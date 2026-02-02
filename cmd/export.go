@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -69,47 +69,60 @@ Examples:
 }
 
 func exportSingleJob(jobID string, profile models.Profile) {
-	// Fetch job from VBR
 	endpoint := fmt.Sprintf("jobs/%s", jobID)
-	vbrJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
 
-	// Convert to declarative YAML
-	yamlContent, err := convertJobToYAML(&vbrJob)
+	var yamlContent []byte
+	var err error
+
+	if exportSimplified || exportAsOverlay {
+		// Simplified and overlay modes use typed struct (VSphere-specific fields)
+		vbrJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+		if exportAsOverlay {
+			yamlContent, err = convertJobToYAMLOverlay(&vbrJob, exportBasePath)
+		} else {
+			yamlContent, err = convertJobToYAMLSimplified(&vbrJob)
+		}
+	} else {
+		// Full mode: use raw JSON to preserve all fields regardless of job type
+		rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		var meta struct {
+			Name string `json:"name"`
+			ID   string `json:"id"`
+		}
+		if jsonErr := json.Unmarshal(rawData, &meta); jsonErr != nil {
+			log.Fatalf("Failed to parse job data: %v", jsonErr)
+		}
+
+		yamlContent, err = convertResourceToYAML(meta.Name, rawData, ResourceExportConfig{
+			Kind:         "VBRJob",
+			IgnoreFields: jobIgnoreFields,
+			HeaderLines: []string{
+				"# VBR Job Configuration (Full Export)",
+				"# Exported from VBR",
+				fmt.Sprintf("# Job ID: %s", meta.ID),
+				"# API Version: 1.3-rev1",
+				"#",
+				"# This export contains the complete job configuration.",
+				"# All fields from the VBR API are preserved.",
+			},
+		})
+	}
+
 	if err != nil {
 		log.Fatalf("Failed to convert job to YAML: %v", err)
 	}
 
-	// Output to file or stdout
-	if exportOutput != "" {
-		if err := os.WriteFile(exportOutput, yamlContent, 0644); err != nil {
-			log.Fatalf("Failed to write to file: %v", err)
-		}
-		fmt.Printf("Exported job to %s\n", exportOutput)
-	} else {
-		fmt.Println(string(yamlContent))
-	}
+	writeExportOutput(yamlContent, exportOutput, "job")
 }
 
 func exportAllJobs(profile models.Profile) {
-	// Fetch all jobs
-	type JobList struct {
-		Data []models.VbrJobGet `json:"data"`
-	}
-
-	jobs := vhttp.GetData[JobList]("jobs", profile)
-
-	if len(jobs.Data) == 0 {
-		fmt.Println("No jobs found")
-		return
-	}
-
 	// Determine output directory
 	outputDir := exportDirectory
 	if outputDir == "" {
 		outputDir = "."
 	}
 
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		log.Fatalf("Failed to create directory: %v", err)
 	}
@@ -117,86 +130,102 @@ func exportAllJobs(profile models.Profile) {
 	successCount := 0
 	failedCount := 0
 
-	fmt.Printf("Exporting %d jobs...\n", len(jobs.Data))
+	if exportSimplified || exportAsOverlay {
+		// Simplified and overlay modes use typed struct (VSphere-specific fields)
+		type JobList struct {
+			Data []models.VbrJobGet `json:"data"`
+		}
+		jobs := vhttp.GetData[JobList]("jobs", profile)
 
-	for i, job := range jobs.Data {
-		// Fetch full job details
-		endpoint := fmt.Sprintf("jobs/%s", job.ID)
-		fullJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
-
-		// Convert to YAML
-		yamlContent, err := convertJobToYAML(&fullJob)
-		if err != nil {
-			fmt.Printf("Warning: Failed to convert job %s: %v\n", job.Name, err)
-			failedCount++
-			continue
+		if len(jobs.Data) == 0 {
+			fmt.Println("No jobs found")
+			return
 		}
 
-		// Sanitize job name for filename
-		filename := sanitizeFilename(job.Name) + ".yaml"
-		filepath := filepath.Join(outputDir, filename)
+		fmt.Printf("Exporting %d jobs...\n", len(jobs.Data))
 
-		// Write to file
-		if err := os.WriteFile(filepath, yamlContent, 0644); err != nil {
-			fmt.Printf("Warning: Failed to write %s: %v\n", filename, err)
-			failedCount++
-			continue
+		for i, job := range jobs.Data {
+			endpoint := fmt.Sprintf("jobs/%s", job.ID)
+			fullJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+
+			var yamlContent []byte
+			var err error
+			if exportAsOverlay {
+				yamlContent, err = convertJobToYAMLOverlay(&fullJob, exportBasePath)
+			} else {
+				yamlContent, err = convertJobToYAMLSimplified(&fullJob)
+			}
+			if err != nil {
+				fmt.Printf("Warning: Failed to convert job %s: %v\n", job.Name, err)
+				failedCount++
+				continue
+			}
+
+			if writeErr := writeExportAllOutput(yamlContent, outputDir, job.Name, i, len(jobs.Data)); writeErr != nil {
+				fmt.Printf("Warning: %v\n", writeErr)
+				failedCount++
+				continue
+			}
+			successCount++
+		}
+	} else {
+		// Full mode: use raw JSON to preserve all fields regardless of job type
+		type JobList struct {
+			Data []json.RawMessage `json:"data"`
+		}
+		jobs := vhttp.GetData[JobList]("jobs", profile)
+
+		if len(jobs.Data) == 0 {
+			fmt.Println("No jobs found")
+			return
 		}
 
-		successCount++
-		fmt.Printf("  [%d/%d] Exported %s\n", i+1, len(jobs.Data), filename)
+		fmt.Printf("Exporting %d jobs...\n", len(jobs.Data))
+
+		for i, rawJob := range jobs.Data {
+			var meta struct {
+				Name string `json:"name"`
+				ID   string `json:"id"`
+			}
+			if err := json.Unmarshal(rawJob, &meta); err != nil {
+				fmt.Printf("Warning: Failed to parse job %d: %v\n", i, err)
+				failedCount++
+				continue
+			}
+
+			// Fetch full job details as raw JSON
+			endpoint := fmt.Sprintf("jobs/%s", meta.ID)
+			fullRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+			yamlContent, err := convertResourceToYAML(meta.Name, fullRaw, ResourceExportConfig{
+				Kind:         "VBRJob",
+				IgnoreFields: jobIgnoreFields,
+				HeaderLines: []string{
+					"# VBR Job Configuration (Full Export)",
+					"# Exported from VBR",
+					fmt.Sprintf("# Job ID: %s", meta.ID),
+					"# API Version: 1.3-rev1",
+					"#",
+					"# This export contains the complete job configuration.",
+					"# All fields from the VBR API are preserved.",
+				},
+			})
+			if err != nil {
+				fmt.Printf("Warning: Failed to convert job %s: %v\n", meta.Name, err)
+				failedCount++
+				continue
+			}
+
+			if writeErr := writeExportAllOutput(yamlContent, outputDir, meta.Name, i, len(jobs.Data)); writeErr != nil {
+				fmt.Printf("Warning: %v\n", writeErr)
+				failedCount++
+				continue
+			}
+			successCount++
+		}
 	}
 
 	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
-}
-
-func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
-	if exportAsOverlay {
-		return convertJobToYAMLOverlay(vbrJob, exportBasePath)
-	}
-	if exportSimplified {
-		return convertJobToYAMLSimplified(vbrJob)
-	}
-	return convertJobToYAMLFull(vbrJob)
-}
-
-func convertJobToYAMLFull(vbrJob *models.VbrJobGet) ([]byte, error) {
-	// Create full resource spec with complete job object
-	resourceSpec := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
-		Kind:       "VBRJob",
-		Metadata: resources.Metadata{
-			Name: vbrJob.Name,
-		},
-		Spec: make(map[string]interface{}),
-	}
-
-	// Marshal the entire job to preserve all fields
-	jobBytes, err := yaml.Marshal(vbrJob)
-	if err != nil {
-		return nil, err
-	}
-
-	var jobMap map[string]interface{}
-	if err := yaml.Unmarshal(jobBytes, &jobMap); err != nil {
-		return nil, err
-	}
-	resourceSpec.Spec = jobMap
-
-	// Add header comment
-	header := fmt.Sprintf("# VBR Job Configuration (Full Export)\n# Exported from VBR\n# Job ID: %s\n# API Version: 1.3-rev1\n#\n# This export contains the complete job configuration.\n# All ~300 fields from the VBR API are preserved.\n\n", vbrJob.ID)
-
-	// Marshal to YAML
-	yamlBytes, err := yaml.Marshal(resourceSpec)
-	if err != nil {
-		return nil, err
-	}
-
-	// Combine header and YAML
-	result := []byte(header)
-	result = append(result, yamlBytes...)
-
-	return result, nil
 }
 
 func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {

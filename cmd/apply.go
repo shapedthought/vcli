@@ -285,6 +285,7 @@ func updateState(spec resources.ResourceSpec, jobID string) error {
 		Name:          spec.Metadata.Name,
 		LastApplied:   time.Now(),
 		LastAppliedBy: currentUser,
+		Origin:        "applied",
 		Spec:          spec.Spec,
 	}
 

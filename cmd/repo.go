@@ -556,6 +556,7 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 		Name:          name,
 		LastApplied:   time.Now(),
 		LastAppliedBy: currentUser,
+		Origin:        "observed",
 		Spec:          spec,
 	}
 

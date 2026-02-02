@@ -63,7 +63,31 @@ func (m *Manager) Load() (*State, error) {
 		state.Resources = make(map[string]*Resource)
 	}
 
+	// Migrate old state versions forward
+	if state.Version < CurrentStateVersion {
+		migrateState(&state)
+	}
+
 	return &state, nil
+}
+
+// migrateState upgrades an older state to CurrentStateVersion in-memory.
+// The migrated state is persisted on the next Save() call.
+func migrateState(s *State) {
+	// v1 → v2: populate Origin field
+	if s.Version < 2 {
+		for _, r := range s.Resources {
+			if r.Origin == "" {
+				if r.Type == "VBRJob" {
+					r.Origin = "applied"
+				} else {
+					r.Origin = "observed"
+				}
+			}
+		}
+	}
+
+	s.Version = CurrentStateVersion
 }
 
 // Save writes the state to disk atomically using temp file + rename

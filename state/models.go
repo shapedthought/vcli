@@ -2,6 +2,10 @@ package state
 
 import "time"
 
+// CurrentStateVersion is the latest state file format version.
+// Increment when changing the Resource schema and add a migration in manager.go.
+const CurrentStateVersion = 2
+
 // State represents the vcli state file structure
 //
 // WARNING: State files are mutable and NOT suitable for compliance or audit.
@@ -19,13 +23,14 @@ type Resource struct {
 	Name          string                 `json:"name"`           // Resource name
 	LastApplied   time.Time              `json:"lastApplied"`    // When it was last applied
 	LastAppliedBy string                 `json:"lastAppliedBy"`  // User who applied it
+	Origin        string                 `json:"origin"`         // "applied" (declarative) or "observed" (snapshot)
 	Spec          map[string]interface{} `json:"spec"`           // The applied configuration
 }
 
 // NewState creates a new empty state
 func NewState() *State {
 	return &State{
-		Version:   1,
+		Version:   CurrentStateVersion,
 		Resources: make(map[string]*Resource),
 	}
 }

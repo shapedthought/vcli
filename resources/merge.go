@@ -166,6 +166,21 @@ func mergeSlices(base, overlay interface{}, opts MergeOptions) (interface{}, err
 	return result.Interface(), nil
 }
 
+// DeepMergeMaps performs a deep merge of two map[string]interface{} values.
+// Values from overlay override values in base. Nested maps are merged recursively.
+// This is useful for merging spec configurations.
+func DeepMergeMaps(base, overlay map[string]interface{}) (map[string]interface{}, error) {
+	opts := DefaultMergeOptions()
+	result, err := mergeMapsInterface(base, overlay, opts)
+	if err != nil {
+		return nil, err
+	}
+	if resultMap, ok := result.(map[string]interface{}); ok {
+		return resultMap, nil
+	}
+	return nil, fmt.Errorf("merge result is not a map: %T", result)
+}
+
 // mergeMaps is a simple helper for string maps (labels, annotations)
 func mergeMaps(base, overlay map[string]string) map[string]string {
 	result := make(map[string]string)

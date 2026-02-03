@@ -60,6 +60,7 @@ type ApplyResult struct {
 	ResourceName string
 	ResourceID   string
 	Action       string // "created", "updated"
+	NotFound     bool   // True if resource not found in update-only mode
 	Error        error
 }
 
@@ -96,6 +97,7 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		// Resource doesn't exist
 		if cfg.Mode == ApplyUpdateOnly {
 			// Update-only mode: error on missing resource
+			result.NotFound = true
 			result.Error = fmt.Errorf("resource '%s' not found in VBR (update-only mode)", spec.Metadata.Name)
 			return result
 		}
@@ -143,8 +145,12 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 			return result
 		}
 
-		// Merge spec into existing (spec values override existing)
-		mergedSpec := mergeSpecs(existingMap, spec.Spec)
+		// Deep merge spec into existing (spec values override existing)
+		mergedSpec, err := resources.DeepMergeMaps(existingMap, spec.Spec)
+		if err != nil {
+			result.Error = fmt.Errorf("failed to merge specs: %w", err)
+			return result
+		}
 
 		// Remove ignored fields
 		mergedSpec = cleanSpec(mergedSpec, cfg.IgnoreFields)
@@ -191,33 +197,22 @@ func cleanSpec(spec map[string]interface{}, ignoreFields map[string]bool) map[st
 	return cleaned
 }
 
-// mergeSpecs merges the new spec into the existing spec.
-// Values from newSpec override values in existing.
-// This is a shallow merge at the top level.
-func mergeSpecs(existing, newSpec map[string]interface{}) map[string]interface{} {
-	merged := make(map[string]interface{})
-
-	// Copy existing values
-	for k, v := range existing {
-		merged[k] = v
-	}
-
-	// Override with new spec values
-	for k, v := range newSpec {
-		merged[k] = v
-	}
-
-	return merged
-}
-
 // defaultPostCreate creates a new resource via POST and extracts the ID from the response
 func defaultPostCreate(spec map[string]interface{}, profile models.Profile, endpoint string) (string, error) {
-	// Use the typed PostData which returns the response
-	type IDResponse struct {
-		ID string `json:"id"`
+	// Use PostDataWithError to get proper error handling instead of log.Fatal
+	responseBytes, err := vhttp.PostDataWithError(endpoint, spec, profile)
+	if err != nil {
+		return "", err
 	}
 
-	response := vhttp.PostData[IDResponse](endpoint, spec, profile)
+	// Extract ID from response
+	var response struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(responseBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
 	if response.ID == "" {
 		return "", fmt.Errorf("no ID in response")
 	}

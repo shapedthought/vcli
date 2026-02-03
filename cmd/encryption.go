@@ -439,8 +439,7 @@ Exit Codes:
 
 		result := applyResource(args[0], kmsApplyConfig, profile)
 		if result.Error != nil {
-			// Check if it's a "not found" error for update-only resources
-			if result.ResourceName != "" && result.ResourceID == "" && result.Action == "" {
+			if result.NotFound {
 				fmt.Printf("Error: %v\n", result.Error)
 				os.Exit(6) // Resource not found exit code
 			}

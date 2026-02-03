@@ -30,6 +30,13 @@ func PutDataWithError(url string, data interface{}, profile models.Profile) ([]b
 	return sendRequestWithError("PUT", url, data, profile)
 }
 
+// PostDataWithError sends a POST request with data and returns the response body and any error.
+// Unlike PostData, this function returns errors instead of calling log.Fatal(),
+// allowing callers to handle failures gracefully.
+func PostDataWithError(url string, data interface{}, profile models.Profile) ([]byte, error) {
+	return sendRequestWithError("POST", url, data, profile)
+}
+
 // sendRequestWithError is like sendRequest but returns errors instead of calling log.Fatal()
 func sendRequestWithError(method string, url string, data interface{}, profile models.Profile) ([]byte, error) {
 	settings := utils.ReadSettings()
@@ -53,7 +60,7 @@ func sendRequestWithError(method string, url string, data interface{}, profile m
 
 	apibit := "/api/"
 
-	if profile.Name == "vb365" && profile.Name != "ent_man" {
+	if profile.Name == "vb365" {
 		apibit = "/"
 	} else if profile.Name == "ent_man" {
 		apibit = "/api"

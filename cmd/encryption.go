@@ -439,11 +439,9 @@ Exit Codes:
 
 		result := applyResource(args[0], kmsApplyConfig, profile)
 		if result.Error != nil {
-			if result.NotFound {
-				fmt.Printf("Error: %v\n", result.Error)
-				os.Exit(6) // Resource not found exit code
-			}
-			log.Fatalf("Failed to apply KMS server: %v", result.Error)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
+			outcome := DetermineApplyOutcome([]ApplyResult{result})
+			os.Exit(ExitCodeForOutcome(outcome))
 		}
 
 		fmt.Printf("\nSuccessfully %s KMS server: %s\n", result.Action, result.ResourceName)

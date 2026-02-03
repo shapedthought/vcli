@@ -28,6 +28,20 @@ A cross-platform CLI tool for managing Veeam infrastructure through APIs. Works 
 
 Perfect for automating Veeam products without native CLIs (AWS/Azure/GCP) or adding GitOps workflows to VBR.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Detailed Documentation](#detailed-documentation)
+  - [Declarative Job Management](#declarative-job-management-vbr)
+  - [State Management & Drift Detection](#state-management--drift-detection)
+- [Installing](#installing-)
+- [Compiling from Source](#compiling-from-source)
+- [Docker](#docker-)
+- [Why Go?](#why-go)
+- [Contribution](#contribution-)
+- [Issues and Comments](#issues-and-comments-)
+- [Change Log](#change-log-)
+
 ## Quick Start
 
 ### 1. Install

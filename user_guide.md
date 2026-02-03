@@ -1,5 +1,40 @@
 # User Guide
 
+## Table of Contents
+
+- [API Versions](#api-versions)
+- [Init](#init)
+- [Profiles](#profiles)
+- [Log in](#log-in)
+  - [Environmental mode](#environmental-mode)
+  - [Creds file mode](#creds-file-mode)
+  - [Logging in](#logging-in)
+  - [Change Modes](#change-modes)
+- [API Commands overview](#api-commands-overview)
+- [Get](#get)
+- [Post / Put](#post--put)
+- [Job](#job)
+- [Utils](#utils)
+  - [VBR Job JSON Converter](#vbr-job-json-converter)
+  - [Check Version](#check-version)
+- [Using with jq](#using-with-jq)
+- [Using with Nushell](#using-with-nushell)
+  - [Nu Modules](#nu-modules)
+- [Drift Detection & Security Alerting (VBR)](#drift-detection--security-alerting-vbr)
+- [Declarative Job Management (VBR)](#declarative-job-management-vbr)
+  - [Overview](#overview)
+  - [Key Concepts](#key-concepts)
+  - [Export Command](#export-command)
+  - [Creating Overlays](#creating-overlays)
+  - [Job Plan Command](#job-plan-command)
+  - [Job Apply Command](#job-apply-command)
+  - [Environment Configuration (vcli.yaml)](#environment-configuration-vcliyaml)
+  - [Strategic Merge Behavior](#strategic-merge-behavior)
+  - [Complete Multi-Environment Example](#complete-multi-environment-example)
+  - [Best Practices](#best-practices)
+  - [Troubleshooting](#troubleshooting)
+- [Tips and Tricks](#tips-and-tricks)
+
 ## API Versions
 
 The default API versions are as follows:

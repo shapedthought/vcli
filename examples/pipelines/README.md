@@ -49,19 +49,21 @@ infrastructure/
 Bootstrap from existing VBR configuration:
 
 ```bash
-# Export current configuration
+# Export current configuration as YAML specs
 vcli job export --all -o infrastructure/jobs/
 vcli repo export --all -o infrastructure/repos/
 vcli repo sobr-export --all -o infrastructure/sobrs/
 vcli encryption kms-export --all -o infrastructure/kms/
 
-# Adopt as desired state
-for spec in infrastructure/**/*.yaml; do
-  vcli adopt "$spec"
-done
+# Snapshot current state (records baseline in state.json)
+vcli job diff --all  # Creates state entries for jobs
+vcli repo snapshot --all
+vcli repo sobr-snapshot --all
+vcli encryption snapshot --all
+vcli encryption kms-snapshot --all
 
-# Commit to Git
-git add infrastructure/
+# Commit specs and state to Git
+git add infrastructure/ state.json
 git commit -m "Bootstrap VBR declarative management"
 ```
 
@@ -207,13 +209,26 @@ Error: resource 'X' not found in VBR (update-only mode)
 
 ### TLS Certificate Errors
 
-For self-signed certificates, the pipelines trust all certificates by default. If needed, add:
+For self-signed certificates, configure the build agent to trust the VBR server certificate rather than disabling TLS verification:
+
+**Option 1: Install CA certificate on agent (recommended)**
+
+Install the VBR server's CA certificate in the agent's trust store.
+
+**Option 2: Use SSL_CERT_FILE environment variable**
 
 ```yaml
+- task: DownloadSecureFile@1
+  name: vbrCaCert
+  inputs:
+    secureFile: 'vbr-ca.crt'
+
 - script: |
-    export VCLI_SKIP_TLS_VERIFY=true
+    export SSL_CERT_FILE=$(vbrCaCert.secureFilePath)
     ./vcli login
 ```
+
+**Note:** Avoid disabling TLS verification (`VCLI_SKIP_TLS_VERIFY=true`) in production as this exposes credentials to man-in-the-middle attacks.
 
 ### Pipeline Permissions
 

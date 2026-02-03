@@ -41,7 +41,7 @@ stages:
           - checkout: self
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -131,7 +131,7 @@ stages:
                 - checkout: self
 
                 - script: |
-                    curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+                    curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
                     chmod +x vcli
                     ./vcli init && ./vcli login
                   displayName: 'Install and authenticate vcli'
@@ -236,7 +236,7 @@ stages:
         displayName: 'Verify configuration applied'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -246,32 +246,37 @@ stages:
               VCLI_URL: $(VCLI_URL)
 
           - script: |
+              set +e  # Don't exit on error - we handle exit codes manually
               DRIFT=0
 
               echo "=== Post-Deploy Verification ==="
               echo "Checking that applied configuration matches VBR state..."
               echo ""
 
-              ./vcli job diff --all 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+              ./vcli job diff --all 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]Job drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli repo diff --all 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+              ./vcli repo diff --all 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]Repository drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli repo sobr-diff --all 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+              ./vcli repo sobr-diff --all 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]SOBR drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli encryption kms-diff --all 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+              ./vcli encryption kms-diff --all 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]KMS drift detected after deployment"
                 DRIFT=1
               fi

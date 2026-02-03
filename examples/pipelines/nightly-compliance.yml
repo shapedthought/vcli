@@ -40,7 +40,7 @@ jobs:
     displayName: 'Generate Compliance Report'
     steps:
       - script: |
-          curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+          curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
           chmod +x vcli
           ./vcli init && ./vcli login
         displayName: 'Install and authenticate vcli'
@@ -50,6 +50,8 @@ jobs:
           VCLI_URL: $(VCLI_URL)
 
       - script: |
+          set +e  # Don't exit on error - we handle exit codes manually
+
           # Initialize counters
           TOTAL_RESOURCES=0
           TOTAL_DRIFTS=0
@@ -76,7 +78,7 @@ jobs:
             echo "## Backup Jobs"
             echo ""
             echo '```'
-            ./vcli job diff --all 2>&1 || true
+            ./vcli job diff --all 2>&1
             JOB_EXIT=$?
             echo '```'
             echo ""
@@ -97,7 +99,7 @@ jobs:
             echo "## Repositories"
             echo ""
             echo '```'
-            ./vcli repo diff --all 2>&1 || true
+            ./vcli repo diff --all 2>&1
             REPO_EXIT=$?
             echo '```'
             echo ""
@@ -118,7 +120,7 @@ jobs:
             echo "## Scale-Out Backup Repositories"
             echo ""
             echo '```'
-            ./vcli repo sobr-diff --all 2>&1 || true
+            ./vcli repo sobr-diff --all 2>&1
             SOBR_EXIT=$?
             echo '```'
             echo ""
@@ -139,7 +141,7 @@ jobs:
             echo "## Encryption Passwords"
             echo ""
             echo '```'
-            ./vcli encryption diff --all 2>&1 || true
+            ./vcli encryption diff --all 2>&1
             ENC_EXIT=$?
             echo '```'
             echo ""
@@ -160,7 +162,7 @@ jobs:
             echo "## KMS Servers"
             echo ""
             echo '```'
-            ./vcli encryption kms-diff --all 2>&1 || true
+            ./vcli encryption kms-diff --all 2>&1
             KMS_EXIT=$?
             echo '```'
             echo ""

@@ -41,7 +41,7 @@ stages:
         displayName: 'Scan all resources'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -51,39 +51,40 @@ stages:
               VCLI_URL: $(VCLI_URL)
 
           - script: |
+              set +e  # Don't exit on error - we handle exit codes manually
               CRITICAL=0
               WARNING=0
 
               echo "=== Scanning Jobs ==="
-              ./vcli job diff --all --security-only 2>&1 || true
+              ./vcli job diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Repositories ==="
-              ./vcli repo diff --all --security-only 2>&1 || true
+              ./vcli repo diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Scale-Out Repositories ==="
-              ./vcli repo sobr-diff --all --security-only 2>&1 || true
+              ./vcli repo sobr-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Encryption ==="
-              ./vcli encryption diff --all --security-only 2>&1 || true
+              ./vcli encryption diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning KMS Servers ==="
-              ./vcli encryption kms-diff --all --security-only 2>&1 || true
+              ./vcli encryption kms-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
@@ -122,7 +123,7 @@ stages:
           - checkout: self
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -229,7 +230,7 @@ stages:
         displayName: 'Verify no remaining drift'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -239,24 +240,30 @@ stages:
               VCLI_URL: $(VCLI_URL)
 
           - script: |
+              set +e  # Don't exit on error - we handle exit codes manually
               REMAINING=0
 
               echo "=== Post-Remediation Verification ==="
 
-              ./vcli job diff --all --security-only 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+              ./vcli job diff --all --security-only 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli repo diff --all --security-only 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+              ./vcli repo diff --all --security-only 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli repo sobr-diff --all --security-only 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+              ./vcli repo sobr-diff --all --security-only 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli encryption diff --all --security-only 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+              ./vcli encryption diff --all --security-only 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli encryption kms-diff --all --security-only 2>&1 || true
-              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+              ./vcli encryption kms-diff --all --security-only 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
               if [ $REMAINING -eq 1 ]; then
                 echo "##vso[task.logissue type=warning]Drift remains after remediation - manual intervention may be required"

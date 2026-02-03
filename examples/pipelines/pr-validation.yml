@@ -45,7 +45,7 @@ stages:
             fetchDepth: 0  # Full history for git diff
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -131,7 +131,7 @@ stages:
         displayName: 'Verify no unexpected drift'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli login
             displayName: 'Install and authenticate vcli'
@@ -141,6 +141,7 @@ stages:
               VCLI_URL: $(VCLI_URL)
 
           - script: |
+              set +e  # Don't exit on error - we handle exit codes manually
               CRITICAL=0
 
               echo "=== Checking for Unexpected Drift ==="
@@ -149,20 +150,23 @@ stages:
               echo ""
 
               # Check critical drift only - warnings are informational
-              ./vcli job diff --all --severity critical 2>&1 || true
-              if [ $? -eq 4 ]; then
+              ./vcli job diff --all --severity critical 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical job drift detected - review before merge"
                 CRITICAL=1
               fi
 
-              ./vcli repo diff --all --severity critical 2>&1 || true
-              if [ $? -eq 4 ]; then
+              ./vcli repo diff --all --severity critical 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical repository drift detected - review before merge"
                 CRITICAL=1
               fi
 
-              ./vcli repo sobr-diff --all --severity critical 2>&1 || true
-              if [ $? -eq 4 ]; then
+              ./vcli repo sobr-diff --all --severity critical 2>&1
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical SOBR drift detected - review before merge"
                 CRITICAL=1
               fi

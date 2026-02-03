@@ -199,13 +199,24 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 
 	// Update state with origin: "applied" (skip in dry-run mode)
 	if !dryRun {
-		if err := updateResourceState(spec, result.ResourceID, cfg.Kind); err != nil {
+		// Extract field names from changes for audit trail
+		changedFields := extractFieldNames(result.Changes)
+		if err := updateResourceState(spec, result.ResourceID, cfg.Kind, changedFields); err != nil {
 			// Log warning but don't fail the apply
 			fmt.Printf("Warning: Failed to update state: %v\n", err)
 		}
 	}
 
 	return result
+}
+
+// extractFieldNames returns just the field paths from a list of changes
+func extractFieldNames(changes []FieldChange) []string {
+	fields := make([]string, len(changes))
+	for i, c := range changes {
+		fields[i] = c.Path
+	}
+	return fields
 }
 
 // cleanSpec removes ignored fields from a spec
@@ -243,13 +254,19 @@ func defaultPostCreate(spec map[string]interface{}, profile models.Profile, endp
 }
 
 // updateResourceState saves the applied configuration to state
-func updateResourceState(spec resources.ResourceSpec, resourceID, resourceType string) error {
+func updateResourceState(spec resources.ResourceSpec, resourceID, resourceType string, changedFields []string) error {
 	stateMgr := state.NewManager()
 
 	// Get current user
 	currentUser := "unknown"
 	if usr, err := user.Current(); err == nil {
 		currentUser = usr.Username
+	}
+
+	// Try to load existing resource to preserve history
+	var existingHistory []state.ResourceEvent
+	if existing, err := stateMgr.GetResource(spec.Metadata.Name); err == nil {
+		existingHistory = existing.History
 	}
 
 	// Create state resource
@@ -261,7 +278,11 @@ func updateResourceState(spec resources.ResourceSpec, resourceID, resourceType s
 		LastAppliedBy: currentUser,
 		Origin:        "applied",
 		Spec:          spec.Spec,
+		History:       existingHistory,
 	}
+
+	// Record apply event with changed fields
+	resource.AddEvent(state.NewEventWithFields("applied", currentUser, changedFields, false))
 
 	// Update state
 	if err := stateMgr.UpdateResource(resource); err != nil {

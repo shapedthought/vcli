@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/shapedthought/vcli/models"
@@ -100,7 +101,10 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 	resourceExists := existingRaw != nil && existingID != ""
 
 	// Load remediation config for filtering
-	remediationCfg, _ := remediation.LoadConfig()
+	remediationCfg, remediationErr := remediation.LoadConfig()
+	if remediationErr != nil {
+		fmt.Printf("Warning: Failed to load remediation config: %v (using defaults)\n", remediationErr)
+	}
 
 	if !resourceExists {
 		// Resource doesn't exist
@@ -308,7 +312,7 @@ func restoreSkippedFields(merged, existing map[string]interface{}, skipped []Ski
 // restoreFieldValue restores a single field's value from existing to merged.
 // Handles dotted paths like "storage.retentionPolicy.type".
 func restoreFieldValue(merged, existing map[string]interface{}, path string) {
-	parts := splitFieldPath(path)
+	parts := strings.Split(path, ".")
 	if len(parts) == 0 {
 		return
 	}
@@ -321,12 +325,14 @@ func restoreFieldValue(merged, existing map[string]interface{}, path string) {
 		if m, ok := mergedParent[part].(map[string]interface{}); ok {
 			mergedParent = m
 		} else {
-			return // Path doesn't exist in merged
+			fmt.Printf("Warning: Skipped field path '%s' not found in merged spec\n", path)
+			return
 		}
 		if e, ok := existingParent[part].(map[string]interface{}); ok {
 			existingParent = e
 		} else {
-			return // Path doesn't exist in existing
+			fmt.Printf("Warning: Skipped field path '%s' not found in existing resource\n", path)
+			return
 		}
 	}
 
@@ -334,31 +340,11 @@ func restoreFieldValue(merged, existing map[string]interface{}, path string) {
 	lastPart := parts[len(parts)-1]
 	if existingVal, ok := existingParent[lastPart]; ok {
 		mergedParent[lastPart] = existingVal
+	} else {
+		fmt.Printf("Warning: Skipped field '%s' not found in existing resource\n", path)
 	}
 }
 
-// splitFieldPath splits a dotted path into parts (e.g., "storage.retention.type" -> ["storage", "retention", "type"])
-func splitFieldPath(path string) []string {
-	if path == "" {
-		return nil
-	}
-	var parts []string
-	current := ""
-	for _, c := range path {
-		if c == '.' {
-			if current != "" {
-				parts = append(parts, current)
-				current = ""
-			}
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-	return parts
-}
 
 // defaultPostCreate creates a new resource via POST and extracts the ID from the response
 func defaultPostCreate(spec map[string]interface{}, profile models.Profile, endpoint string) (string, error) {

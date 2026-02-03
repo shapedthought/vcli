@@ -1,6 +1,7 @@
 package remediation
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -51,10 +52,7 @@ var KnownImmutableFields = map[string]map[string]KnownImmutableField{
 		},
 	},
 	"VBRJob": {
-		// Jobs are generally more flexible, but some fields require recreation
-		"virtualMachines.includes": {
-			Reason: "VM includes may require recreation if structure changes significantly.",
-		},
+		// Jobs are generally more flexible; no fields are currently treated as known-immutable here.
 	},
 	"VBRKmsServer": {
 		"type": {
@@ -65,6 +63,7 @@ var KnownImmutableFields = map[string]map[string]KnownImmutableField{
 
 // LoadConfig loads remediation config from the standard locations.
 // Returns an empty config (all fields remediable) if no config file exists.
+// Returns an error if a config file exists but fails to parse.
 // Locations checked (in order):
 //  1. $VCLI_SETTINGS_PATH/remediation-config.yaml
 //  2. ~/.vcli/remediation-config.yaml
@@ -72,16 +71,26 @@ func LoadConfig() (*Config, error) {
 	// Check VCLI_SETTINGS_PATH first
 	if settingsPath := os.Getenv("VCLI_SETTINGS_PATH"); settingsPath != "" {
 		configPath := filepath.Join(settingsPath, "remediation-config.yaml")
-		if cfg, err := loadConfigFile(configPath); err == nil {
+		cfg, err := loadConfigFile(configPath)
+		if err == nil {
 			return cfg, nil
+		}
+		// If file exists but failed to parse, return error
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to load %s: %w", configPath, err)
 		}
 	}
 
 	// Check ~/.vcli/
 	if usr, err := user.Current(); err == nil {
 		configPath := filepath.Join(usr.HomeDir, ".vcli", "remediation-config.yaml")
-		if cfg, err := loadConfigFile(configPath); err == nil {
+		cfg, err := loadConfigFile(configPath)
+		if err == nil {
 			return cfg, nil
+		}
+		// If file exists but failed to parse, return error
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to load %s: %w", configPath, err)
 		}
 	}
 

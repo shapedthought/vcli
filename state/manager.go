@@ -87,6 +87,9 @@ func migrateState(s *State) {
 		}
 	}
 
+	// v2 → v3: History field added (no migration needed - omitempty handles it)
+	// Existing resources will have empty history, which is fine
+
 	s.Version = CurrentStateVersion
 }
 

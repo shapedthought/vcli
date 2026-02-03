@@ -257,7 +257,8 @@ func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
 	}
 
 	// Update state after successful apply (using shared helper)
-	if err := updateResourceState(spec, jobID, "VBRJob"); err != nil {
+	// Note: Legacy job apply doesn't track field changes like generic applyResource
+	if err := updateResourceState(spec, jobID, "VBRJob", nil); err != nil {
 		// Log warning but don't fail the apply
 		fmt.Printf("Warning: Failed to update state: %v\n", err)
 	}

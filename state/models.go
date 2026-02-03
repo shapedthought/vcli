@@ -4,7 +4,10 @@ import "time"
 
 // CurrentStateVersion is the latest state file format version.
 // Increment when changing the Resource schema and add a migration in manager.go.
-const CurrentStateVersion = 2
+const CurrentStateVersion = 3
+
+// DefaultMaxHistoryEvents is the maximum number of history events to keep per resource
+const DefaultMaxHistoryEvents = 20
 
 // State represents the vcli state file structure
 //
@@ -16,15 +19,25 @@ type State struct {
 	Resources map[string]*Resource `json:"resources"`
 }
 
+// ResourceEvent represents an action taken on a resource
+type ResourceEvent struct {
+	Action    string    `json:"action"`              // "snapshotted", "adopted", "applied", "created"
+	Timestamp time.Time `json:"timestamp"`           // When the action occurred
+	User      string    `json:"user"`                // Who performed the action
+	Fields    []string  `json:"fields,omitempty"`    // Fields that were changed (for apply/created)
+	Partial   bool      `json:"partial,omitempty"`   // Reserved for future partial-apply support; currently always false
+}
+
 // Resource represents a managed resource in state
 type Resource struct {
-	Type          string                 `json:"type"`           // e.g., "VBRJob"
-	ID            string                 `json:"id"`             // VBR resource ID
-	Name          string                 `json:"name"`           // Resource name
-	LastApplied   time.Time              `json:"lastApplied"`    // When it was last applied
-	LastAppliedBy string                 `json:"lastAppliedBy"`  // User who applied it
-	Origin        string                 `json:"origin"`         // "applied" (declarative) or "observed" (snapshot)
-	Spec          map[string]interface{} `json:"spec"`           // The applied configuration
+	Type          string                 `json:"type"`                    // e.g., "VBRJob"
+	ID            string                 `json:"id"`                      // VBR resource ID
+	Name          string                 `json:"name"`                    // Resource name
+	LastApplied   time.Time              `json:"lastApplied"`             // When it was last applied
+	LastAppliedBy string                 `json:"lastAppliedBy"`           // User who applied it
+	Origin        string                 `json:"origin"`                  // "applied" (declarative) or "observed" (snapshot)
+	Spec          map[string]interface{} `json:"spec"`                    // The applied configuration
+	History       []ResourceEvent        `json:"history,omitempty"`       // Audit trail of actions
 }
 
 // NewState creates a new empty state
@@ -60,4 +73,35 @@ func (s *State) ListResources(resourceType string) []*Resource {
 		}
 	}
 	return resources
+}
+
+// AddEvent records a new event to the resource's history and prunes old events
+func (r *Resource) AddEvent(event ResourceEvent) {
+	// Prepend new event (most recent first)
+	r.History = append([]ResourceEvent{event}, r.History...)
+
+	// Prune to max length
+	if len(r.History) > DefaultMaxHistoryEvents {
+		r.History = r.History[:DefaultMaxHistoryEvents]
+	}
+}
+
+// NewEvent creates a new ResourceEvent with the current timestamp and user
+func NewEvent(action string, user string) ResourceEvent {
+	return ResourceEvent{
+		Action:    action,
+		Timestamp: time.Now(),
+		User:      user,
+	}
+}
+
+// NewEventWithFields creates a new ResourceEvent with changed fields
+func NewEventWithFields(action string, user string, fields []string, partial bool) ResourceEvent {
+	return ResourceEvent{
+		Action:    action,
+		Timestamp: time.Now(),
+		User:      user,
+		Fields:    fields,
+		Partial:   partial,
+	}
 }

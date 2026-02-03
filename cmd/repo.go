@@ -746,6 +746,12 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 		currentUser = usr.Username
 	}
 
+	// Try to load existing resource to preserve history
+	var existingHistory []state.ResourceEvent
+	if existing, err := stateMgr.GetResource(name); err == nil {
+		existingHistory = existing.History
+	}
+
 	resource := &state.Resource{
 		Type:          resourceType,
 		ID:            id,
@@ -754,7 +760,11 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 		LastAppliedBy: currentUser,
 		Origin:        "observed",
 		Spec:          spec,
+		History:       existingHistory,
 	}
+
+	// Record snapshot event
+	resource.AddEvent(state.NewEvent("snapshotted", currentUser))
 
 	if err := stateMgr.UpdateResource(resource); err != nil {
 		return fmt.Errorf("failed to update state: %w", err)

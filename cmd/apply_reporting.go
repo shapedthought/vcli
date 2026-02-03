@@ -29,9 +29,12 @@ func computeFieldChanges(existing, desired map[string]interface{}, ignoreFields 
 	return changes
 }
 
-// computeChangesRecursive recursively compares maps and collects differences
+// computeChangesRecursive recursively compares maps and collects differences.
+// Note: This only reports fields present in 'desired' that differ from 'existing'.
+// Fields in 'existing' but not in 'desired' are intentionally not reported as changes
+// because the apply operation uses deep merge, which preserves such fields from VBR.
 func computeChangesRecursive(prefix string, existing, desired map[string]interface{}, ignoreFields map[string]bool, changes *[]FieldChange) {
-	// Check all keys in desired
+	// Check all keys in desired (fields being set by the spec)
 	for key, newVal := range desired {
 		path := key
 		if prefix != "" {
@@ -172,35 +175,41 @@ type RemediationGuidance struct {
 func printRemediationGuidance(g RemediationGuidance) {
 	switch g.Origin {
 	case "applied":
-		fmt.Printf("\nTo remediate, run:\n")
-		fmt.Printf("  %s\n", g.ApplyCmd)
+		// Check if this is a read-only resource type
+		if strings.HasPrefix(g.ApplyCmd, "# ") || g.ApplyCmd == "" {
+			// Read-only resource (e.g., encryption passwords)
+			fmt.Printf("\nThis %s cannot be modified via API. Manual remediation required in VBR console.\n", g.ResourceType)
+		} else {
+			fmt.Printf("\nTo remediate, run:\n")
+			fmt.Printf("  %s\n", g.ApplyCmd)
+		}
 	case "observed":
 		fmt.Printf("\nThis resource is monitored only. To enable remediation:\n")
-		fmt.Printf("  %s\n", g.ExportCmd)
-		fmt.Printf("  %s\n", g.AdoptCmd)
+		fmt.Printf("  1. Export: %s\n", g.ExportCmd)
+		fmt.Printf("  2. Adopt:  %s\n", g.AdoptCmd)
 	default:
 		// Legacy resource without origin - show snapshot command
 		fmt.Printf("\nThe %s has drifted from the snapshot configuration.\n", g.ResourceType)
 		fmt.Printf("\nTo update the snapshot, run:\n")
-		fmt.Printf("  vcli %s snapshot \"%s\"\n", getResourceCmdName(g.ResourceType), g.ResourceName)
+		fmt.Printf("  %s\n", getSnapshotCommand(g.ResourceType, g.ResourceName))
 	}
 }
 
-// getResourceCmdName maps resource types to CLI command names
-func getResourceCmdName(resourceType string) string {
+// getSnapshotCommand returns the full snapshot command for a resource type
+func getSnapshotCommand(resourceType, resourceName string) string {
 	switch resourceType {
-	case "VBRRepository":
-		return "repo"
-	case "VBRScaleOutRepository":
-		return "repo"
-	case "VBRJob":
-		return "job"
-	case "VBREncryptionPassword":
-		return "encryption"
-	case "VBRKmsServer":
-		return "encryption"
+	case "VBRRepository", "repository":
+		return fmt.Sprintf("vcli repo snapshot \"%s\"", resourceName)
+	case "VBRScaleOutRepository", "scale-out repository":
+		return fmt.Sprintf("vcli repo sobr-snapshot \"%s\"", resourceName)
+	case "VBRJob", "job":
+		return fmt.Sprintf("vcli job snapshot \"%s\"", resourceName)
+	case "VBREncryptionPassword", "encryption password":
+		return fmt.Sprintf("vcli encryption snapshot \"%s\"", resourceName)
+	case "VBRKmsServer", "KMS server":
+		return fmt.Sprintf("vcli encryption kms-snapshot \"%s\"", resourceName)
 	default:
-		return strings.ToLower(resourceType)
+		return fmt.Sprintf("vcli %s snapshot \"%s\"", strings.ToLower(resourceType), resourceName)
 	}
 }
 
@@ -246,8 +255,8 @@ func BuildEncryptionGuidance(resourceName, origin string) RemediationGuidance {
 		Origin:       origin,
 		ResourceType: "encryption password",
 		ResourceName: resourceName,
-		// Encryption passwords are read-only in VBR API
-		ApplyCmd:  "# Encryption passwords cannot be modified via API",
+		// Encryption passwords are read-only in VBR API - empty ApplyCmd triggers read-only message
+		ApplyCmd:  "",
 		ExportCmd: fmt.Sprintf("vcli encryption export \"%s\" -o encryption/%s.yaml", resourceName, sanitizeFileName(resourceName)),
 		AdoptCmd:  fmt.Sprintf("vcli encryption adopt encryption/%s.yaml", sanitizeFileName(resourceName)),
 	}
@@ -265,12 +274,39 @@ func BuildKmsGuidance(resourceName, origin string) RemediationGuidance {
 	}
 }
 
-// sanitizeFileName converts a resource name to a safe filename
+// sanitizeFileName converts a resource name to a safe filename.
+// Handles spaces, special characters, and avoids common problematic patterns.
 func sanitizeFileName(name string) string {
-	// Replace spaces and special characters with hyphens
-	result := strings.ToLower(name)
-	result = strings.ReplaceAll(result, " ", "-")
-	result = strings.ReplaceAll(result, "/", "-")
-	result = strings.ReplaceAll(result, "\\", "-")
+	// Normalize case and trim whitespace
+	result := strings.ToLower(strings.TrimSpace(name))
+
+	// Replace problematic characters with hyphens
+	replacer := strings.NewReplacer(
+		" ", "-",
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		"*", "-",
+		"?", "-",
+		"\"", "-",
+		"<", "-",
+		">", "-",
+		"|", "-",
+	)
+	result = replacer.Replace(result)
+
+	// Collapse multiple consecutive hyphens into one
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+
+	// Trim leading/trailing hyphens
+	result = strings.Trim(result, "-")
+
+	// Ensure non-empty result
+	if result == "" {
+		result = "resource"
+	}
+
 	return result
 }

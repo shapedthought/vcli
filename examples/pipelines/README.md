@@ -209,26 +209,41 @@ Error: resource 'X' not found in VBR (update-only mode)
 
 ### TLS Certificate Errors
 
-For self-signed certificates, configure the build agent to trust the VBR server certificate rather than disabling TLS verification:
+For self-signed certificates, you have two options:
 
 **Option 1: Install CA certificate on agent (recommended)**
 
-Install the VBR server's CA certificate in the agent's trust store.
+Install the VBR server's CA certificate in the agent's system trust store. vcli will automatically trust certificates validated by the system trust store.
 
-**Option 2: Use SSL_CERT_FILE environment variable**
+**Linux agent:**
+```bash
+# Ubuntu/Debian
+sudo cp vbr-ca.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates
 
-```yaml
-- task: DownloadSecureFile@1
-  name: vbrCaCert
-  inputs:
-    secureFile: 'vbr-ca.crt'
-
-- script: |
-    export SSL_CERT_FILE=$(vbrCaCert.secureFilePath)
-    ./vcli login
+# RHEL/CentOS
+sudo cp vbr-ca.crt /etc/pki/ca-trust/source/anchors/
+sudo update-ca-trust
 ```
 
-**Note:** Avoid disabling TLS verification (`VCLI_SKIP_TLS_VERIFY=true`) in production as this exposes credentials to man-in-the-middle attacks.
+**Windows agent:**
+```powershell
+# Import to Trusted Root Certification Authorities
+Import-Certificate -FilePath vbr-ca.crt -CertStoreLocation Cert:\LocalMachine\Root
+```
+
+**Option 2: Skip TLS verification (not recommended for production)**
+
+Set `skipTLSVerify: true` in settings.json. This bypasses certificate validation entirely and should only be used for testing.
+
+```json
+{
+  "skipTLSVerify": true,
+  "credsFileMode": false
+}
+```
+
+**Warning:** Disabling TLS verification exposes credentials to man-in-the-middle attacks and should never be used in production environments.
 
 ### Pipeline Permissions
 

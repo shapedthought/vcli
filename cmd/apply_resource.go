@@ -68,7 +68,8 @@ type ApplyResult struct {
 
 // applyResource applies a resource spec to VBR using the provided config.
 // It handles loading specs, fetching existing resources, merging, and state updates.
-// If dryRun is true, it computes and displays changes without making API calls or updating state.
+// If dryRun is true, it fetches current state (read-only) and displays what would change,
+// but makes no modifications to VBR and does not update state.
 func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
 	result := ApplyResult{DryRun: dryRun}
 

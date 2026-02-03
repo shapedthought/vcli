@@ -328,7 +328,7 @@ stages:
 
 ### Dry-Run Behavior
 
-- **No API modifications**: Dry-run fetches current state from VBR (read-only) but makes no changes
+- **Read-only API calls**: Dry-run fetches current state from VBR to compute changes, but makes no modifications (no PUT/POST)
 - **No state updates**: State file is not modified in dry-run mode
 - **Same exit codes**: Returns the same exit codes as regular apply (e.g., `6` if resource not found)
 - **Full change preview**: Shows exactly what would change if applied

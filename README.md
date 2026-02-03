@@ -10,72 +10,76 @@ NOTE:
 - This is not an official Veeam tool and is provided under the MIT license.
 - This tool is still in development so there maybe breaking changes in the future.
 
-## What is it?
+## What is vcli?
 
-The vcli is a powerful CLI tool for interacting with Veeam APIs, featuring both imperative API operations and declarative infrastructure management.
+A cross-platform CLI tool for managing Veeam infrastructure through APIs. Works with VBR, Enterprise Manager, VB365, VONE, and VB for AWS/Azure/GCP.
 
-**Supported Products:**
-- VBR (Veeam Backup & Replication)
-- Enterprise Manager
-- VB365 (Veeam Backup for Microsoft 365)
-- VONE (Veeam ONE)
-- VB for Azure
-- VB for AWS
-- VB for GCP
+**Two modes:**
+- **Imperative** - Direct API operations (GET/POST/PUT) for all Veeam products
+- **Declarative** - Infrastructure-as-code with drift detection for VBR (jobs, repositories, SOBRs, encryption, KMS)
 
-**Key Features:**
-- **Imperative Mode**: Direct API interactions (GET, POST, PUT)
-- **Declarative Mode**: Terraform-style infrastructure management for VBR jobs
-- **Configuration Overlays**: Multi-environment deployments with strategic merge
-- **State Management**: Tracks applied configurations for drift detection
-- **Drift Detection**: Detects manual changes and configuration drift
-- **GitOps Ready**: Version control, CI/CD automation, auto-remediation
-- **Overlay Export**: Create minimal configuration patches from existing jobs
+## Why vcli?
 
-You can also add new endpoints by updating the profiles.json file.
+- **Simple setup** - Single binary, no dependencies, works anywhere
+- **Handles authentication** - OAuth, Basic Auth, session management built-in
+- **GitOps ready** - Export configs to YAML, track in Git, detect drift, auto-remediate
+- **Multi-environment** - Configuration overlays for dev/staging/prod
+- **Security-focused** - Drift detection with CRITICAL/WARNING/INFO severity classification
 
-## Why?
+Perfect for automating Veeam products without native CLIs (AWS/Azure/GCP) or adding GitOps workflows to VBR.
 
-The main aim here is to make using Veeam APIs more accessible by handling many of the barriers to entry such as authentication.
+## Quick Start
 
-If you are already a power API user with your own tools, then fantastic, please carry on with what you are doing!
+### 1. Install
 
-The benefits include:
+Download the binary for your platform from [Releases](https://github.com/shapedthought/vcli/releases) and verify the checksum:
 
-- simple to install
-- simple syntax
-- run anywhere
-- run on anything
+```bash
+# Windows
+Get-FileHash -Path vcli.exe -Algorithm SHA256
 
-VBR and VB365 have powerful PowerShell cmdlets which I encourage you to use if that is your preference. vcli is not designed as a replacement, just a compliment.
+# macOS/Linux
+shasum -a 256 vcli  # or: sha256sum vcli
+```
 
-However, products such as VB for AWS/Azure/GCP do not have a command line interface, this is where the vcli can really help.
+### 2. Initialize and Login
 
-## Commands
+```bash
+# Create config files
+./vcli init
 
-### Imperative Commands
-- `login` - Authenticate with Veeam APIs
-- `get` - Retrieve information from the API
-- `post` - Send POST requests with optional data payload
-- `put` - Send PUT requests with data payload
-- `profile` - Manage API profiles (get, list, set)
-- `utils` - Additional tools for working with Veeam APIs
-- `job` - Create jobs using templates (legacy)
+# Set credentials
+export VCLI_USERNAME="administrator"
+export VCLI_PASSWORD="your-password"
+export VCLI_URL="vbr.example.com"
 
-### Declarative Commands (VBR Only)
-- `export` - Export existing jobs to declarative YAML format (full 300+ field export)
-- `export --as-overlay` - Export minimal overlay with only changed fields
-- `job apply` - Create or update jobs from YAML configuration with overlay support
-- `job plan` - Preview merged configurations and changes
-- `job diff` - Detect job configuration drift with security severity classification
-- `repo snapshot` / `repo diff` - Snapshot and detect drift in backup repositories
-- `repo sobr-snapshot` / `repo sobr-diff` - Snapshot and detect drift in scale-out repositories
-- `encryption snapshot` / `encryption diff` - Track encryption password inventory
-- `encryption kms-snapshot` / `encryption kms-diff` - Track KMS server configuration
+# Authenticate
+./vcli login
+```
 
-## How to use
+### 3. Choose Your Workflow
 
-Please see the [user guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information on imperative commands.
+**Imperative Mode** (quick API operations):
+```bash
+./vcli get jobs
+./vcli post jobs/<id>/start
+```
+
+**Declarative Mode** (infrastructure-as-code for VBR):
+```bash
+# Export existing configuration
+./vcli export <job-id> -o my-job.yaml
+
+# Apply configuration
+./vcli job apply my-job.yaml --dry-run
+
+# Detect drift
+./vcli job diff --all --security-only
+```
+
+📖 **Next steps:** [User Guide](user_guide.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
+
+## Detailed Documentation
 
 ### Declarative Job Management (VBR)
 

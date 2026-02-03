@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/vcli/remediation"
 	"github.com/shapedthought/vcli/resources"
 	"github.com/shapedthought/vcli/state"
 	"github.com/shapedthought/vcli/vhttp"
@@ -59,10 +61,11 @@ type ResourceApplyConfig struct {
 type ApplyResult struct {
 	ResourceName string
 	ResourceID   string
-	Action       string        // "created", "updated", "would-create", "would-update"
-	NotFound     bool          // True if resource not found in update-only mode
-	Changes      []FieldChange // Fields that were changed
-	DryRun       bool          // True if this was a dry-run (no changes made)
+	Action       string         // "created", "updated", "would-create", "would-update"
+	NotFound     bool           // True if resource not found in update-only mode
+	Changes      []FieldChange  // Fields that were changed
+	Skipped      []SkippedField // Fields that were skipped due to policy/known immutability
+	DryRun       bool           // True if this was a dry-run (no changes made)
 	Error        error
 }
 
@@ -96,6 +99,12 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 	}
 
 	resourceExists := existingRaw != nil && existingID != ""
+
+	// Load remediation config for filtering
+	remediationCfg, remediationErr := remediation.LoadConfig()
+	if remediationErr != nil {
+		fmt.Printf("Warning: Failed to load remediation config: %v (using defaults)\n", remediationErr)
+	}
 
 	if !resourceExists {
 		// Resource doesn't exist
@@ -165,7 +174,15 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		mergedSpec = cleanSpec(mergedSpec, cfg.IgnoreFields)
 
 		// Compute field changes for reporting
-		result.Changes = computeFieldChanges(existingMap, mergedSpec, cfg.IgnoreFields)
+		allChanges := computeFieldChanges(existingMap, mergedSpec, cfg.IgnoreFields)
+
+		// Filter changes based on remediation policy
+		toApply, toSkip := filterChangesWithRemediation(remediationCfg, cfg.Kind, allChanges)
+		result.Changes = toApply
+		result.Skipped = toSkip
+
+		// Restore existing values for skipped fields (don't change them)
+		mergedSpec = restoreSkippedFields(mergedSpec, existingMap, toSkip)
 
 		// Apply payload transformation if defined
 		if cfg.PreparePayload != nil {
@@ -177,14 +194,15 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		}
 
 		if dryRun {
-			// Dry-run mode: show what would change
-			printDryRunUpdate(spec.Metadata.Name, cfg.Kind, result.Changes)
+			// Dry-run mode: show what would change (including skipped)
+			printDryRunUpdateWithSkipped(spec.Metadata.Name, cfg.Kind, result.Changes, result.Skipped)
 			result.Action = "would-update"
 			return result
 		}
 
-		// Print changes being applied
+		// Print changes being applied and skipped
 		printApplyChanges(result.Changes, spec.Metadata.Name, true)
+		printSkippedFields(result.Skipped)
 
 		// PUT the updated resource
 		endpoint := fmt.Sprintf("%s/%s", cfg.Endpoint, existingID)
@@ -235,6 +253,98 @@ func cleanSpec(spec map[string]interface{}, ignoreFields map[string]bool) map[st
 	}
 	return cleaned
 }
+
+// filterChangesWithRemediation applies remediation policy to filter changes
+func filterChangesWithRemediation(cfg *remediation.Config, resourceKind string, changes []FieldChange) ([]FieldChange, []SkippedField) {
+	if cfg == nil {
+		// No config loaded - apply all changes
+		return changes, nil
+	}
+
+	// Convert to remediation.FieldChange for filtering
+	remChanges := make([]remediation.FieldChange, len(changes))
+	for i, c := range changes {
+		remChanges[i] = remediation.FieldChange{
+			Path:     c.Path,
+			OldValue: c.OldValue,
+			NewValue: c.NewValue,
+		}
+	}
+
+	toApply, toSkip := cfg.FilterChanges(resourceKind, remChanges)
+
+	// Convert back to cmd types
+	appliedChanges := make([]FieldChange, len(toApply))
+	for i, c := range toApply {
+		appliedChanges[i] = FieldChange{
+			Path:     c.Path,
+			OldValue: c.OldValue,
+			NewValue: c.NewValue,
+		}
+	}
+
+	skippedFields := make([]SkippedField, len(toSkip))
+	for i, s := range toSkip {
+		skippedFields[i] = SkippedField{
+			Path:   s.Path,
+			Reason: s.Reason,
+		}
+	}
+
+	return appliedChanges, skippedFields
+}
+
+// restoreSkippedFields restores existing values for fields that should not be changed.
+// This ensures skipped fields retain their current VBR values rather than being overwritten.
+func restoreSkippedFields(merged, existing map[string]interface{}, skipped []SkippedField) map[string]interface{} {
+	if len(skipped) == 0 {
+		return merged
+	}
+
+	// Build a map of skipped paths to their existing values
+	for _, s := range skipped {
+		restoreFieldValue(merged, existing, s.Path)
+	}
+
+	return merged
+}
+
+// restoreFieldValue restores a single field's value from existing to merged.
+// Handles dotted paths like "storage.retentionPolicy.type".
+func restoreFieldValue(merged, existing map[string]interface{}, path string) {
+	parts := strings.Split(path, ".")
+	if len(parts) == 0 {
+		return
+	}
+
+	// Navigate to the parent in both maps
+	mergedParent := merged
+	existingParent := existing
+	for i := 0; i < len(parts)-1; i++ {
+		part := parts[i]
+		if m, ok := mergedParent[part].(map[string]interface{}); ok {
+			mergedParent = m
+		} else {
+			fmt.Printf("Warning: Skipped field path '%s' not found in merged spec\n", path)
+			return
+		}
+		if e, ok := existingParent[part].(map[string]interface{}); ok {
+			existingParent = e
+		} else {
+			fmt.Printf("Warning: Skipped field path '%s' not found in existing resource\n", path)
+			return
+		}
+	}
+
+	// Restore the final field
+	lastPart := parts[len(parts)-1]
+	if existingVal, ok := existingParent[lastPart]; ok {
+		mergedParent[lastPart] = existingVal
+	} else {
+		fmt.Printf("Warning: Skipped field '%s' not found in existing resource\n", path)
+	}
+}
+
 
 // defaultPostCreate creates a new resource via POST and extracts the ID from the response
 func defaultPostCreate(spec map[string]interface{}, profile models.Profile, endpoint string) (string, error) {

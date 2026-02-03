@@ -201,7 +201,12 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 	if !dryRun {
 		// Extract field names from changes for audit trail
 		changedFields := extractFieldNames(result.Changes)
-		if err := updateResourceState(spec, result.ResourceID, cfg.Kind, changedFields); err != nil {
+		// Use "created" action for new resources, "applied" for updates
+		action := "applied"
+		if result.Action == "created" {
+			action = "created"
+		}
+		if err := updateResourceStateWithAction(spec, result.ResourceID, cfg.Kind, changedFields, action); err != nil {
 			// Log warning but don't fail the apply
 			fmt.Printf("Warning: Failed to update state: %v\n", err)
 		}
@@ -253,8 +258,13 @@ func defaultPostCreate(spec map[string]interface{}, profile models.Profile, endp
 	return response.ID, nil
 }
 
-// updateResourceState saves the applied configuration to state
+// updateResourceState saves the applied configuration to state (wrapper for backward compatibility)
 func updateResourceState(spec resources.ResourceSpec, resourceID, resourceType string, changedFields []string) error {
+	return updateResourceStateWithAction(spec, resourceID, resourceType, changedFields, "applied")
+}
+
+// updateResourceStateWithAction saves the applied configuration to state with a specific action type
+func updateResourceStateWithAction(spec resources.ResourceSpec, resourceID, resourceType string, changedFields []string, action string) error {
 	stateMgr := state.NewManager()
 
 	// Get current user
@@ -281,8 +291,8 @@ func updateResourceState(spec resources.ResourceSpec, resourceID, resourceType s
 		History:       existingHistory,
 	}
 
-	// Record apply event with changed fields
-	resource.AddEvent(state.NewEventWithFields("applied", currentUser, changedFields, false))
+	// Record event with changed fields
+	resource.AddEvent(state.NewEventWithFields(action, currentUser, changedFields, false))
 
 	// Update state
 	if err := stateMgr.UpdateResource(resource); err != nil {

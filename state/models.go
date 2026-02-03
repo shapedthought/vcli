@@ -21,11 +21,11 @@ type State struct {
 
 // ResourceEvent represents an action taken on a resource
 type ResourceEvent struct {
-	Action    string    `json:"action"`              // "snapshotted", "adopted", "applied"
+	Action    string    `json:"action"`              // "snapshotted", "adopted", "applied", "created"
 	Timestamp time.Time `json:"timestamp"`           // When the action occurred
 	User      string    `json:"user"`                // Who performed the action
-	Fields    []string  `json:"fields,omitempty"`    // Fields that were changed (for apply)
-	Partial   bool      `json:"partial,omitempty"`   // True if some fields failed
+	Fields    []string  `json:"fields,omitempty"`    // Fields that were changed (for apply/created)
+	Partial   bool      `json:"partial,omitempty"`   // Reserved for future partial-apply support; currently always false
 }
 
 // Resource represents a managed resource in state

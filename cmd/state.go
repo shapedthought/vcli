@@ -23,10 +23,10 @@ var stateHistoryCmd = &cobra.Command{
 	Long: `Display the audit trail of actions taken on a resource.
 
 Each entry shows:
-- Action type (snapshotted, adopted, applied)
+- Action type (snapshotted, created, applied)
 - Timestamp
 - User who performed the action
-- Fields changed (for apply actions)
+- Fields changed (for apply/create actions)
 
 Examples:
   # Show history for a repository

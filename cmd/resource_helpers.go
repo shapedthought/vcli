@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/shapedthought/vcli/models"
 	"github.com/shapedthought/vcli/vhttp"
@@ -21,6 +22,7 @@ func findResourceInList(listEndpoint, matchField, matchValue string, profile mod
 	for _, raw := range list.Data {
 		var m map[string]interface{}
 		if err := json.Unmarshal(raw, &m); err != nil {
+			log.Printf("Warning: failed to unmarshal resource entry from %s: %v", listEndpoint, err)
 			continue
 		}
 		if fmt.Sprintf("%v", m[matchField]) == matchValue {

@@ -1,6 +1,31 @@
 # vcli Configuration System
 
-The vcli configuration system enables environment-aware overlay management through a `vcli.yaml` configuration file.
+> **⚠️ Status: Planned Feature - Not Yet Implemented**
+>
+> The environment configuration system described in this document is **designed but not yet implemented**. This document serves as a specification for future development.
+>
+> **What works today:**
+> ```bash
+> # ✅ Explicit overlay specification works
+> vcli job apply base.yaml -o prod-overlay.yaml
+> vcli repo apply base.yaml -o prod-overlay.yaml
+> ```
+>
+> **What doesn't work yet:**
+> ```bash
+> # ❌ Environment-based overlay resolution not implemented
+> vcli job apply base.yaml --env production
+>
+> # ❌ Config commands don't exist yet
+> vcli config set-env production
+> vcli config show
+> ```
+>
+> **Current workaround:** Use the `-o/--overlay` flag to explicitly specify overlay files for each command.
+
+---
+
+The vcli configuration system will enable environment-aware overlay management through a `vcli.yaml` configuration file.
 
 ## Configuration File Format
 
@@ -41,9 +66,11 @@ environments:
       env: development
 ```
 
-## Usage Patterns
+## Planned Usage Patterns
 
-### 1. Environment-Based Workflows
+When implemented, the following workflows will be available:
+
+### 1. Environment-Based Workflows (Planned)
 
 ```bash
 # Set current environment
@@ -59,21 +86,21 @@ vcli config set-env development
 vcli job apply base-job.yaml
 ```
 
-### 2. Explicit Environment Override
+### 2. Explicit Environment Override (Planned)
 
 ```bash
 # Apply with specific environment (ignores currentEnvironment)
 vcli job apply base-job.yaml --env staging
 ```
 
-### 3. Custom Overlay Override
+### 3. Custom Overlay Override (Works Today)
 
 ```bash
 # Override configured overlay with custom file
 vcli job apply base-job.yaml -o custom-overlay.yaml
 ```
 
-### 4. View Configuration
+### 4. View Configuration (Planned)
 
 ```bash
 # Show current configuration
@@ -143,10 +170,19 @@ environments:
       env: staging
 ```
 
-## Implementation Notes
+## Implementation Status
 
-- Overlay paths can be absolute or relative
-- Relative paths are resolved from `defaultOverlayDir`
-- Configuration is optional (vcli works without vcli.yaml)
-- Environment labels are NOT automatically applied (future feature)
-- Profile switching based on environment is NOT implemented yet (future feature)
+**Not Yet Implemented:**
+- `vcli.yaml` configuration file parsing
+- `vcli config` command and subcommands
+- `--env` flag for automatic overlay resolution
+- `currentEnvironment` awareness
+- Automatic profile switching based on environment
+- Automatic label application from environment config
+
+**Currently Available:**
+- Manual overlay specification via `-o/--overlay` flag
+- Overlay merge functionality (works when explicitly specified)
+- All resource types support overlays when using `-o` flag
+
+**Tracking:** This feature is planned for a future release. Follow the project roadmap for updates.

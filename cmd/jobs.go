@@ -395,12 +395,16 @@ func diffSingleJob(jobName string) {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
 	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
-	fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
+	if resource.Origin == "applied" {
+		fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
+	} else {
+		fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+	}
 
-	fmt.Println("\nThe job has drifted from the applied configuration.")
-	fmt.Printf("\nTo reapply the desired state, run:\n")
-	fmt.Printf("  vcli job apply <your-job-file>.yaml\n")
+	// Show guidance based on origin
+	printRemediationGuidance(BuildJobGuidance(jobName, resource.Origin))
 
 	os.Exit(exitCodeForDrifts(drifts))
 }

@@ -59,8 +59,9 @@ type ResourceApplyConfig struct {
 type ApplyResult struct {
 	ResourceName string
 	ResourceID   string
-	Action       string // "created", "updated"
-	NotFound     bool   // True if resource not found in update-only mode
+	Action       string        // "created", "updated"
+	NotFound     bool          // True if resource not found in update-only mode
+	Changes      []FieldChange // Fields that were changed
 	Error        error
 }
 
@@ -135,7 +136,6 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 
 	} else {
 		// Resource exists: update it
-		fmt.Printf("Updating %s: %s (ID: %s)\n", cfg.Kind, spec.Metadata.Name, existingID)
 		result.ResourceID = existingID
 
 		// Parse existing resource into map
@@ -155,6 +155,9 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		// Remove ignored fields
 		mergedSpec = cleanSpec(mergedSpec, cfg.IgnoreFields)
 
+		// Compute field changes for reporting
+		result.Changes = computeFieldChanges(existingMap, mergedSpec, cfg.IgnoreFields)
+
 		// Apply payload transformation if defined
 		if cfg.PreparePayload != nil {
 			mergedSpec, err = cfg.PreparePayload(mergedSpec, existingMap)
@@ -163,6 +166,9 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 				return result
 			}
 		}
+
+		// Print changes being applied
+		printApplyChanges(result.Changes, spec.Metadata.Name, true)
 
 		// PUT the updated resource
 		endpoint := fmt.Sprintf("%s/%s", cfg.Endpoint, existingID)
@@ -173,7 +179,6 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		}
 
 		result.Action = "updated"
-		fmt.Printf("Updated %s: %s\n", cfg.Kind, spec.Metadata.Name)
 	}
 
 	// Update state with origin: "applied"

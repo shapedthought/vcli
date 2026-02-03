@@ -262,12 +262,16 @@ func diffSingleEncryptionPassword(hint string) {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
 	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
-	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+	if resource.Origin == "applied" {
+		fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
+	} else {
+		fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+	}
 
-	fmt.Println("\nThe encryption password has drifted from the snapshot.")
-	fmt.Printf("\nTo update the snapshot, run:\n")
-	fmt.Printf("  vcli encryption snapshot \"%s\"\n", hint)
+	// Show guidance based on origin
+	printRemediationGuidance(BuildEncryptionGuidance(hint, resource.Origin))
 
 	os.Exit(exitCodeForDrifts(drifts))
 }
@@ -643,12 +647,16 @@ func diffSingleKmsServer(name string) {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d drifts detected\n", len(drifts))
 	fmt.Printf("  - Highest severity: %s\n", getMaxSeverity(drifts))
-	fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
-	fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+	if resource.Origin == "applied" {
+		fmt.Printf("  - Last applied: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last applied by: %s\n", resource.LastAppliedBy)
+	} else {
+		fmt.Printf("  - Last snapshot: %s\n", resource.LastApplied.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  - Last snapshot by: %s\n", resource.LastAppliedBy)
+	}
 
-	fmt.Println("\nThe KMS server has drifted from the snapshot configuration.")
-	fmt.Printf("\nTo update the snapshot, run:\n")
-	fmt.Printf("  vcli encryption kms-snapshot \"%s\"\n", name)
+	// Show guidance based on origin
+	printRemediationGuidance(BuildKmsGuidance(name, resource.Origin))
 
 	os.Exit(exitCodeForDrifts(drifts))
 }

@@ -150,6 +150,78 @@ func printApplyChanges(changes []FieldChange, resourceName string, success bool)
 	}
 }
 
+// printDryRunUpdate prints what would change in dry-run mode for an update
+func printDryRunUpdate(resourceName, resourceKind string, changes []FieldChange) {
+	fmt.Println("\n=== Dry Run Mode ===")
+	fmt.Printf("Resource: %s (%s)\n", resourceName, resourceKind)
+	fmt.Println("Action: Would UPDATE existing resource")
+	fmt.Println()
+
+	if len(changes) == 0 {
+		fmt.Println("No changes detected. Resource is already in desired state.")
+	} else {
+		fmt.Println("Changes that would be applied:")
+		for _, change := range changes {
+			oldStr := applyFormatValue(change.OldValue)
+			newStr := applyFormatValue(change.NewValue)
+			fmt.Printf("  ~ %s: %s -> %s\n", change.Path, oldStr, newStr)
+		}
+		fmt.Printf("\n%d field(s) would be changed.\n", len(changes))
+	}
+
+	fmt.Println("\n=== End Dry Run ===")
+	fmt.Println("No changes made. Remove --dry-run flag to apply.")
+}
+
+// printDryRunCreate prints what would be created in dry-run mode
+func printDryRunCreate(resourceName, resourceKind string, spec map[string]interface{}) {
+	fmt.Println("\n=== Dry Run Mode ===")
+	fmt.Printf("Resource: %s (%s)\n", resourceName, resourceKind)
+	fmt.Println("Action: Would CREATE new resource")
+	fmt.Println()
+
+	// Show key fields from the spec
+	fmt.Println("Configuration to be created:")
+	printSpecSummary(spec, "  ")
+
+	fmt.Println("\n=== End Dry Run ===")
+	fmt.Println("No changes made. Remove --dry-run flag to apply.")
+}
+
+// printSpecSummary prints a summary of key fields in a spec
+func printSpecSummary(spec map[string]interface{}, indent string) {
+	// List of key fields to display (in order)
+	keyFields := []string{"name", "description", "type", "isEnabled", "isDisabled"}
+
+	for _, field := range keyFields {
+		if val, ok := spec[field]; ok {
+			fmt.Printf("%s%s: %s\n", indent, field, applyFormatValue(val))
+		}
+	}
+
+	// Show nested object summaries
+	for key, val := range spec {
+		// Skip already printed fields
+		isKeyField := false
+		for _, kf := range keyFields {
+			if key == kf {
+				isKeyField = true
+				break
+			}
+		}
+		if isKeyField {
+			continue
+		}
+
+		switch v := val.(type) {
+		case map[string]interface{}:
+			fmt.Printf("%s%s: {%d fields}\n", indent, key, len(v))
+		case []interface{}:
+			fmt.Printf("%s%s: [%d items]\n", indent, key, len(v))
+		}
+	}
+}
+
 // printNotFoundGuidance prints guidance when a resource is not found
 func printNotFoundGuidance(resourceType, resourceName, adoptCmd string) {
 	fmt.Fprintf(

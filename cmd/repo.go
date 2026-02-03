@@ -18,8 +18,10 @@ import (
 var (
 	repoSnapshotAll bool
 	repoDiffAll     bool
+	repoApplyDryRun bool
 	sobrSnapshotAll bool
 	sobrDiffAll     bool
+	sobrApplyDryRun bool
 )
 
 var repoCmd = &cobra.Command{
@@ -365,6 +367,9 @@ Examples:
   # Apply a repository configuration
   vcli repo apply repos/default-repo.yaml
 
+  # Preview changes without applying (dry-run)
+  vcli repo apply repos/default-repo.yaml --dry-run
+
 Exit Codes:
   0 - Success
   1 - Error (API failure, invalid spec)
@@ -378,11 +383,15 @@ Exit Codes:
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
-		result := applyResource(args[0], repoApplyConfig, profile)
+		result := applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
 		if result.Error != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 			outcome := DetermineApplyOutcome([]ApplyResult{result})
 			os.Exit(ExitCodeForOutcome(outcome))
+		}
+
+		if result.DryRun {
+			return // Dry-run output already printed
 		}
 
 		fmt.Printf("\nSuccessfully %s repository: %s\n", result.Action, result.ResourceName)
@@ -428,6 +437,9 @@ Examples:
   # Apply a SOBR configuration
   vcli repo sobr-apply sobrs/sobr1.yaml
 
+  # Preview changes without applying (dry-run)
+  vcli repo sobr-apply sobrs/sobr1.yaml --dry-run
+
 Exit Codes:
   0 - Success
   1 - Error (API failure, invalid spec)
@@ -441,11 +453,15 @@ Exit Codes:
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
-		result := applyResource(args[0], sobrApplyConfig, profile)
+		result := applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
 		if result.Error != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 			outcome := DetermineApplyOutcome([]ApplyResult{result})
 			os.Exit(ExitCodeForOutcome(outcome))
+		}
+
+		if result.DryRun {
+			return // Dry-run output already printed
 		}
 
 		fmt.Printf("\nSuccessfully %s scale-out repository: %s\n", result.Action, result.ResourceName)
@@ -751,9 +767,12 @@ func init() {
 	repoSnapshotCmd.Flags().BoolVar(&repoSnapshotAll, "all", false, "Snapshot all repositories")
 	repoDiffCmd.Flags().BoolVar(&repoDiffAll, "all", false, "Check drift for all repositories in state")
 	addSeverityFlags(repoDiffCmd)
+	repoApplyCmd.Flags().BoolVar(&repoApplyDryRun, "dry-run", false, "Preview changes without applying them")
+
 	sobrSnapshotCmd.Flags().BoolVar(&sobrSnapshotAll, "all", false, "Snapshot all scale-out repositories")
 	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
 	addSeverityFlags(sobrDiffCmd)
+	sobrApplyCmd.Flags().BoolVar(&sobrApplyDryRun, "dry-run", false, "Preview changes without applying them")
 
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)

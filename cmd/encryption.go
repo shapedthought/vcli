@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	encSnapshotAll bool
-	encDiffAll     bool
-	kmsSnapshotAll bool
-	kmsDiffAll     bool
+	encSnapshotAll  bool
+	encDiffAll      bool
+	kmsSnapshotAll  bool
+	kmsDiffAll      bool
+	kmsApplyDryRun  bool
 )
 
 var encryptionCmd = &cobra.Command{
@@ -457,6 +458,9 @@ Examples:
   # Apply a KMS server configuration
   vcli encryption kms-apply kms/my-kms.yaml
 
+  # Preview changes without applying (dry-run)
+  vcli encryption kms-apply kms/my-kms.yaml --dry-run
+
 Exit Codes:
   0 - Success
   1 - Error (API failure, invalid spec)
@@ -470,11 +474,15 @@ Exit Codes:
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
-		result := applyResource(args[0], kmsApplyConfig, profile)
+		result := applyResource(args[0], kmsApplyConfig, profile, kmsApplyDryRun)
 		if result.Error != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 			outcome := DetermineApplyOutcome([]ApplyResult{result})
 			os.Exit(ExitCodeForOutcome(outcome))
+		}
+
+		if result.DryRun {
+			return // Dry-run output already printed
 		}
 
 		fmt.Printf("\nSuccessfully %s KMS server: %s\n", result.Action, result.ResourceName)
@@ -836,6 +844,7 @@ func init() {
 	kmsSnapshotCmd.Flags().BoolVar(&kmsSnapshotAll, "all", false, "Snapshot all KMS servers")
 	kmsDiffCmd.Flags().BoolVar(&kmsDiffAll, "all", false, "Check drift for all KMS servers in state")
 	addSeverityFlags(kmsDiffCmd)
+	kmsApplyCmd.Flags().BoolVar(&kmsApplyDryRun, "dry-run", false, "Preview changes without applying them")
 
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)

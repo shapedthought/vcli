@@ -356,7 +356,12 @@ func diffSingleJob(jobName string) {
 		log.Fatalf("Job '%s' not found in state. Has it been applied?\n", jobName)
 	}
 
-	fmt.Printf("Checking drift for job: %s\n\n", jobName)
+	// Show (observed) label for monitored-only resources
+	originLabel := ""
+	if resource.Origin == "observed" {
+		originLabel = " (observed)"
+	}
+	fmt.Printf("Checking drift for job: %s%s\n\n", jobName, originLabel)
 
 	// Fetch current from VBR
 	endpoint := fmt.Sprintf("jobs/%s", resource.ID)
@@ -431,8 +436,9 @@ func diffAllJobs() {
 	fmt.Printf("Checking %d jobs for drift...\n\n", len(resources))
 
 	minSev := parseSeverityFlag()
-	driftedCount := 0
 	cleanCount := 0
+	driftedApplied := 0
+	driftedObserved := 0
 	var allDrifts []Drift
 
 	for _, resource := range resources {
@@ -459,27 +465,43 @@ func diffAllJobs() {
 		drifts = checkRepoHardeningDrift(drifts, resource.Spec)
 		drifts = filterDriftsBySeverity(drifts, minSev)
 
+		// Show origin label for observed resources
+		originLabel := ""
+		if resource.Origin == "observed" {
+			originLabel = " (observed)"
+		}
+
 		if len(drifts) > 0 {
 			maxSev := getMaxSeverity(drifts)
-			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			fmt.Printf("  %s %s%s: %d drifts detected\n", maxSev, resource.Name, originLabel, len(drifts))
 			allDrifts = append(allDrifts, drifts...)
-			driftedCount++
+			if resource.Origin == "observed" {
+				driftedObserved++
+			} else {
+				driftedApplied++
+			}
 		} else {
-			fmt.Printf("  %s: No drift\n", resource.Name)
+			fmt.Printf("  %s%s: No drift\n", resource.Name, originLabel)
 			cleanCount++
 		}
 	}
 
-	if driftedCount > 0 {
+	totalDrifted := driftedApplied + driftedObserved
+	if totalDrifted > 0 {
 		fmt.Println()
 		printSecuritySummary(allDrifts)
 	}
 
 	fmt.Printf("Summary:\n")
 	fmt.Printf("  - %d jobs clean\n", cleanCount)
-	fmt.Printf("  - %d jobs drifted\n", driftedCount)
+	if driftedApplied > 0 {
+		fmt.Printf("  - %d jobs drifted — remediate with: vcli job apply <spec>.yaml\n", driftedApplied)
+	}
+	if driftedObserved > 0 {
+		fmt.Printf("  - %d jobs drifted (observed) — adopt to enable remediation\n", driftedObserved)
+	}
 
-	if driftedCount > 0 {
+	if totalDrifted > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)

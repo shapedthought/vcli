@@ -1,0 +1,57 @@
+# Backup Repository Example
+# This example demonstrates a Linux-based backup repository configuration
+# with immutability enabled for ransomware protection.
+#
+# IMPORTANT: Repositories must be created in VBR console first.
+# This configuration is for updates only (apply cannot create new repositories).
+#
+# Usage:
+#   # 1. Create repository in VBR console first
+#   # 2. Snapshot existing repository:
+#   vcli repo snapshot "Production Backup Repository"
+#   # 3. Export to YAML:
+#   vcli repo export "Production Backup Repository" -o backup-repository.yaml
+#   # 4. Edit YAML as needed
+#   # 5. Apply updates:
+#   vcli repo apply backup-repository.yaml --dry-run
+#   vcli repo apply backup-repository.yaml
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRRepository
+metadata:
+  name: Production Backup Repository
+  labels:
+    environment: production
+    location: datacenter-primary
+    managed-by: vcli
+spec:
+  description: Primary production backup repository with immutability
+
+  # Repository type (determined at creation, cannot be changed)
+  type: LinuxLocal
+
+  # Path to backup storage
+  path: /backup/veeam
+
+  # Concurrent task limit
+  maxTaskCount: 8
+
+  # Immutability for ransomware protection
+  # Prevents backup deletion for specified days
+  makeRecentBackupsImmutableDays: 14
+
+  # Advanced repository settings
+  advancedSettings:
+    # Deduplication and compression
+    decompressionCacheSize: 4096  # MB
+
+    # Veeam ONE integration
+    vOneIntegration: true
+
+    # Per-VM backup files
+    usePerVMBackupFiles: true
+
+    # Parallel processing
+    parallelProcessing:
+      enabled: true
+      streams: 4

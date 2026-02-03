@@ -1,5 +1,6 @@
 *.yaml
 !examples/*.yaml
+!examples/**/*.yaml
 !test-demo/*.yaml
 !test-demo/**/*.yaml
 *.exe

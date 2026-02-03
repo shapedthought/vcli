@@ -1,0 +1,85 @@
+# Database Backup Job Example
+# This example demonstrates a typical database server backup configuration
+# with standard settings for production workloads.
+#
+# Usage:
+#   vcli job apply database-backup.yaml
+#   vcli job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+#   vcli job apply database-backup.yaml --dry-run
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Database Backup
+  labels:
+    app: database
+    team: infrastructure
+    managed-by: vcli
+spec:
+  type: VSphereBackup
+  description: Production database server backup with 30-day retention
+
+  # Target repository
+  repository: Default Backup Repository
+
+  # Storage settings
+  storage:
+    compression: Optimal
+    deduplication: true
+    encryption:
+      enabled: false
+    retention:
+      type: Days
+      quantity: 30
+
+    # Advanced storage options
+    advancedOptions:
+      enableInlineDedup: true
+      excludeSwapFileBlocks: true
+      compactFullBackup: false
+
+  # Schedule configuration
+  schedule:
+    enabled: true
+    type: Daily
+    daily: "02:00"
+    retry:
+      enabled: true
+      times: 3
+      wait: 10
+
+  # Backup objects (VMs to backup)
+  objects:
+    - type: VirtualMachine
+      name: db-server-01
+      hostName: esxi-host-01.company.local
+
+    - type: VirtualMachine
+      name: db-server-02
+      hostName: esxi-host-02.company.local
+
+  # Guest processing settings
+  guestProcessing:
+    enabled: true
+    appAwareProcessing:
+      enabled: true
+      vssOptions:
+        enabled: true
+        ignoreBadBackupState: false
+
+    # Transaction log handling
+    sqlSettings:
+      enabled: true
+      backupLogs: true
+      truncateLogs: true
+
+  # Notification settings (optional)
+  notifications:
+    sendSNMP: false
+    sendEmailNotification: true
+    emailSettings:
+      recipients:
+        - backups@company.com
+      notifyOnSuccess: false
+      notifyOnWarning: true
+      notifyOnError: true

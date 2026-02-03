@@ -1,0 +1,60 @@
+# Production Overlay - Database Backup
+# This overlay extends the base database backup configuration
+# with production-specific settings.
+#
+# Usage:
+#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml
+#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml --dry-run
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Database Backup
+  labels:
+    environment: production
+    sla: tier-1
+spec:
+  description: Production database server backup - 60-day retention for compliance
+
+  # Production repository
+  repository: Production Backup Repository
+
+  # Extended retention for production compliance
+  storage:
+    encryption:
+      enabled: true
+      encryptionKey: "Production Encryption Key"
+    retention:
+      type: Days
+      quantity: 60
+
+  # Earlier schedule to complete before business hours
+  schedule:
+    daily: "01:00"
+    retry:
+      times: 5
+      wait: 15
+
+  # Additional production database servers
+  objects:
+    - type: VirtualMachine
+      name: db-server-01-prod
+      hostName: esxi-host-01.prod.company.local
+
+    - type: VirtualMachine
+      name: db-server-02-prod
+      hostName: esxi-host-02.prod.company.local
+
+    - type: VirtualMachine
+      name: db-server-03-prod
+      hostName: esxi-host-03.prod.company.local
+
+  # Enhanced notification for production
+  notifications:
+    emailSettings:
+      recipients:
+        - production-alerts@company.com
+        - dba-team@company.com
+      notifyOnSuccess: false
+      notifyOnWarning: true
+      notifyOnError: true

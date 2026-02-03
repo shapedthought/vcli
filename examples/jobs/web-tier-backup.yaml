@@ -1,0 +1,73 @@
+# Web Tier Backup Job Example
+# This example demonstrates a web tier backup configuration
+# with shorter retention and image-level backup only.
+#
+# Usage:
+#   vcli job apply web-tier-backup.yaml
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Web Tier Backup
+  labels:
+    app: web
+    tier: frontend
+    team: platform
+    managed-by: vcli
+spec:
+  type: VSphereBackup
+  description: Web server tier backup with 14-day retention
+
+  # Target repository
+  repository: Default Backup Repository
+
+  # Storage settings
+  storage:
+    compression: Optimal
+    deduplication: true
+    encryption:
+      enabled: false
+    retention:
+      type: Days
+      quantity: 14
+
+  # Schedule configuration - nightly backups
+  schedule:
+    enabled: true
+    type: Daily
+    daily: "01:00"
+    retry:
+      enabled: true
+      times: 2
+      wait: 5
+
+  # Backup objects (web servers)
+  objects:
+    - type: VirtualMachine
+      name: web-server-01
+      hostName: esxi-host-01.company.local
+
+    - type: VirtualMachine
+      name: web-server-02
+      hostName: esxi-host-02.company.local
+
+    - type: VirtualMachine
+      name: web-server-03
+      hostName: esxi-host-03.company.local
+
+  # Guest processing - image level only for stateless web servers
+  guestProcessing:
+    enabled: false
+    appAwareProcessing:
+      enabled: false
+
+  # Notification settings
+  notifications:
+    sendSNMP: false
+    sendEmailNotification: true
+    emailSettings:
+      recipients:
+        - platform-team@company.com
+      notifyOnSuccess: false
+      notifyOnWarning: true
+      notifyOnError: true

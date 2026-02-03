@@ -1,0 +1,78 @@
+# Scale-Out Backup Repository (SOBR) Example
+# This example demonstrates a SOBR configuration with capacity tier
+# for long-term retention and cost optimization.
+#
+# IMPORTANT: SOBRs must be created in VBR console first.
+# This configuration is for updates only (apply cannot create new SOBRs).
+#
+# Usage:
+#   # 1. Create SOBR and add extents in VBR console first
+#   # 2. Snapshot existing SOBR:
+#   vcli repo sobr-snapshot "Production Scale-Out Repository"
+#   # 3. Export to YAML:
+#   vcli repo sobr-export "Production Scale-Out Repository" -o scale-out-repository.yaml
+#   # 4. Edit YAML as needed
+#   # 5. Apply updates:
+#   vcli repo sobr-apply scale-out-repository.yaml --dry-run
+#   vcli repo sobr-apply scale-out-repository.yaml
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRSOBR
+metadata:
+  name: Production Scale-Out Repository
+  labels:
+    environment: production
+    tier: performance+capacity
+    managed-by: vcli
+spec:
+  description: Production SOBR with S3 capacity tier for long-term retention
+
+  # Policy type determines backup placement behavior
+  # Options: PerformanceTier, DataLocality
+  policyType: PerformanceTier
+
+  # Use per-VM backup chains (recommended)
+  usePerVMBackupFiles: true
+
+  # Capacity tier configuration (cloud/object storage)
+  capacityTier:
+    enabled: true
+
+    # Move backups to capacity tier after specified days
+    daysToMove: 30
+
+    # Operational restore window (days backups remain on performance tier)
+    operationalRestoreWindowDays: 7
+
+    # Copy mode: Move or Copy
+    # Move: Removes from performance tier after move
+    # Copy: Keeps copy on performance tier
+    copyMode: Move
+
+    # Encryption for cloud storage
+    encryption:
+      enabled: true
+      encryptionKey: "Cloud Encryption Key"
+
+    # S3 compatible storage settings (example)
+    cloudStorage:
+      type: AmazonS3
+      bucketName: veeam-capacity-tier-prod
+      folder: /backups/
+      storageClass: STANDARD_IA
+
+  # Performance tier configuration
+  # (Extent configuration managed in VBR console)
+  performanceTier:
+    # Placement policy
+    dataPlacement: PerformanceTier
+
+    # Backup per VM backup file setting
+    perVMBackupFiles: true
+
+  # Archive tier (optional - for compliance/long-term retention)
+  archiveTier:
+    enabled: false
+    # Uncomment to enable archive tier
+    # daysToArchive: 365
+    # costOptimizedArchiveMode: true

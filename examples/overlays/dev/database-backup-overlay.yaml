@@ -1,0 +1,63 @@
+# Development Overlay - Database Backup
+# This overlay extends the base database backup configuration
+# with development-specific settings.
+#
+# Usage:
+#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml
+#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml --dry-run
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: Database Backup
+  labels:
+    environment: development
+    sla: tier-3
+spec:
+  description: Development database server backup - 7-day retention
+
+  # Development repository
+  repository: Development Backup Repository
+
+  # Shorter retention for development
+  storage:
+    encryption:
+      enabled: false  # No encryption needed for dev
+    retention:
+      type: Days
+      quantity: 7
+
+  # Later schedule (less critical)
+  schedule:
+    daily: "23:00"
+    retry:
+      times: 2
+      wait: 10
+
+  # Development database servers
+  objects:
+    - type: VirtualMachine
+      name: db-server-01-dev
+      hostName: esxi-host-01.dev.company.local
+
+    - type: VirtualMachine
+      name: db-server-02-dev
+      hostName: esxi-host-02.dev.company.local
+
+  # Simplified guest processing for dev
+  guestProcessing:
+    appAwareProcessing:
+      vssOptions:
+        ignoreBadBackupState: true
+
+    sqlSettings:
+      truncateLogs: false  # Keep logs for development testing
+
+  # Reduced notifications for development
+  notifications:
+    emailSettings:
+      recipients:
+        - dev-team@company.com
+      notifyOnSuccess: false
+      notifyOnWarning: false
+      notifyOnError: true

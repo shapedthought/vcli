@@ -1,0 +1,54 @@
+# KMS Server Example - Azure Key Vault
+# This example demonstrates Azure Key Vault integration for
+# enterprise key management and encryption at rest.
+#
+# IMPORTANT: KMS servers must be created in VBR console first.
+# This configuration is for updates only (apply cannot create new KMS servers).
+#
+# Usage:
+#   # 1. Configure KMS server in VBR console first
+#   # 2. Snapshot existing KMS server:
+#   vcli encryption kms-snapshot "Azure Key Vault Production"
+#   # 3. Export to YAML:
+#   vcli encryption kms-export "Azure Key Vault Production" -o azure-key-vault.yaml
+#   # 4. Edit YAML as needed (typically just description)
+#   # 5. Apply updates:
+#   vcli encryption kms-apply azure-key-vault.yaml --dry-run
+#   vcli encryption kms-apply azure-key-vault.yaml
+
+apiVersion: vcli.veeam.com/v1
+kind: VBRKmsServer
+metadata:
+  name: Azure Key Vault Production
+  labels:
+    environment: production
+    kms-provider: azure
+    compliance: pci-dss
+    managed-by: vcli
+spec:
+  description: Production Azure Key Vault for backup encryption - 24x7 monitoring enabled
+
+  # KMS server type (determined at creation, cannot be changed)
+  type: AzureKeyVault
+
+  # Connection settings (managed in VBR console)
+  # These are typically not updateable via API
+  connectionSettings:
+    endpoint: https://prod-vault.vault.azure.net/
+    tenantId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  # Certificate settings (if applicable)
+  certificateSettings:
+    certificateThumbprint: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+  # Monitoring and alerting
+  monitoring:
+    enabled: true
+    alertOnFailure: true
+    healthCheckInterval: 300  # seconds
+
+  # Usage notes (comments are stripped during processing)
+  # - Ensure Azure Key Vault firewall allows VBR server IP
+  # - Service principal must have get/list permissions on keys
+  # - Certificate must be valid and trusted by VBR server
+  # - Test connection after any Azure Key Vault configuration changes

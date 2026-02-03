@@ -225,20 +225,39 @@ fi
 
 ```bash
 #!/bin/bash
+# Single resource apply
 vcli repo apply repos/default-repo.yaml
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
     echo "Repository applied successfully"
-elif [ $EXIT_CODE -eq 5 ]; then
-    echo "Partial apply - some resources need manual intervention"
-    # Create work item or notify team
-    exit 0  # Pipeline continues but flags for review
 elif [ $EXIT_CODE -eq 6 ]; then
     echo "Resource not found - must be created in VBR console first"
     exit 1
 else
     echo "Apply failed with error"
+    exit 1
+fi
+```
+
+```bash
+#!/bin/bash
+# Batch apply (multiple files) - exit code 5 possible
+for spec in repos/*.yaml; do
+    vcli repo apply "$spec"
+    RESULT=$?
+    if [ $RESULT -ne 0 ]; then
+        FAILED=$((FAILED + 1))
+    else
+        SUCCESS=$((SUCCESS + 1))
+    fi
+done
+
+if [ $FAILED -gt 0 ] && [ $SUCCESS -gt 0 ]; then
+    echo "Partial success: $SUCCESS applied, $FAILED failed"
+    exit 5  # Partial apply
+elif [ $FAILED -gt 0 ]; then
+    echo "All applies failed"
     exit 1
 fi
 ```

@@ -22,7 +22,10 @@ const (
 
 	// ExitPartialApply indicates partial success in batch apply operations.
 	// Some resources were applied successfully, but others failed.
-	// Individual failures may be due to API errors or immutable fields.
+	// This exit code is used when applying multiple spec files and some succeed
+	// while others fail. It is not used for single-resource operations.
+	// Note: VBR API uses all-or-nothing semantics per resource, so field-level
+	// partial success is not possible within a single resource.
 	ExitPartialApply = 5
 
 	// ExitResourceNotFound indicates the target resource does not exist in VBR.
@@ -61,10 +64,11 @@ func ExitCodeForOutcome(outcome ApplyOutcome) int {
 	}
 }
 
-// DetermineApplyOutcome analyzes a slice of ApplyResults and returns the overall outcome
+// DetermineApplyOutcome analyzes a slice of ApplyResults and returns the overall outcome.
+// An empty results slice returns OutcomeAllFailed as it likely indicates a programming error.
 func DetermineApplyOutcome(results []ApplyResult) ApplyOutcome {
 	if len(results) == 0 {
-		return OutcomeSuccess
+		return OutcomeAllFailed
 	}
 
 	successCount := 0

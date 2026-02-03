@@ -354,7 +354,7 @@ Exit Codes:
 
 		result := applyResource(args[0], repoApplyConfig, profile)
 		if result.Error != nil {
-			fmt.Printf("Error: %v\n", result.Error)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 			outcome := DetermineApplyOutcome([]ApplyResult{result})
 			os.Exit(ExitCodeForOutcome(outcome))
 		}
@@ -417,7 +417,7 @@ Exit Codes:
 
 		result := applyResource(args[0], sobrApplyConfig, profile)
 		if result.Error != nil {
-			fmt.Printf("Error: %v\n", result.Error)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 			outcome := DetermineApplyOutcome([]ApplyResult{result})
 			os.Exit(ExitCodeForOutcome(outcome))
 		}

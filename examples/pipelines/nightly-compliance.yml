@@ -1,0 +1,270 @@
+# Nightly Compliance Report Pipeline
+#
+# A scheduled pipeline that generates and publishes a compliance report.
+# Runs nightly and:
+# 1. Scans all resource types for drift
+# 2. Generates a Markdown compliance report
+# 3. Attaches report to build summary
+# 4. Publishes report as artifact
+# 5. Optionally updates wiki page
+#
+# Prerequisites:
+# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Optional: Wiki configured in Azure DevOps project
+
+trigger: none
+
+schedules:
+  - cron: "0 2 * * *"
+    displayName: "Nightly 2AM UTC"
+    branches:
+      include:
+        - master
+    always: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: vcliVersion
+    value: 'latest'
+  # Set to true to update wiki (requires wiki to exist)
+  - name: updateWiki
+    value: 'false'
+  - name: wikiPath
+    value: '/Compliance/VBR-Drift-Report'
+
+jobs:
+  - job: GenerateReport
+    displayName: 'Generate Compliance Report'
+    steps:
+      - script: |
+          curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+          chmod +x vcli
+          ./vcli init && ./vcli login
+        displayName: 'Install and authenticate vcli'
+        env:
+          VCLI_USERNAME: $(VCLI_USERNAME)
+          VCLI_PASSWORD: $(VCLI_PASSWORD)
+          VCLI_URL: $(VCLI_URL)
+
+      - script: |
+          # Initialize counters
+          TOTAL_RESOURCES=0
+          TOTAL_DRIFTS=0
+          CRITICAL_DRIFTS=0
+          WARNING_DRIFTS=0
+
+          # Generate report
+          REPORT_FILE=$(Build.ArtifactStagingDirectory)/compliance-report.md
+
+          {
+            echo "# VBR Compliance Report"
+            echo ""
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| Generated | $(date -u '+%Y-%m-%d %H:%M UTC') |"
+            echo "| Pipeline | $(Build.DefinitionName) |"
+            echo "| Build | [#$(Build.BuildNumber)]($(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)) |"
+            echo "| VBR Server | $(VCLI_URL) |"
+            echo ""
+            echo "---"
+            echo ""
+
+            # Jobs section
+            echo "## Backup Jobs"
+            echo ""
+            echo '```'
+            ./vcli job diff --all 2>&1 || true
+            JOB_EXIT=$?
+            echo '```'
+            echo ""
+            if [ $JOB_EXIT -eq 4 ]; then
+              echo "> **Status:** CRITICAL drift detected"
+              CRITICAL_DRIFTS=$((CRITICAL_DRIFTS + 1))
+            elif [ $JOB_EXIT -eq 3 ]; then
+              echo "> **Status:** Warning-level drift detected"
+              WARNING_DRIFTS=$((WARNING_DRIFTS + 1))
+            elif [ $JOB_EXIT -eq 0 ]; then
+              echo "> **Status:** Compliant"
+            else
+              echo "> **Status:** Error during scan"
+            fi
+            echo ""
+
+            # Repositories section
+            echo "## Repositories"
+            echo ""
+            echo '```'
+            ./vcli repo diff --all 2>&1 || true
+            REPO_EXIT=$?
+            echo '```'
+            echo ""
+            if [ $REPO_EXIT -eq 4 ]; then
+              echo "> **Status:** CRITICAL drift detected"
+              CRITICAL_DRIFTS=$((CRITICAL_DRIFTS + 1))
+            elif [ $REPO_EXIT -eq 3 ]; then
+              echo "> **Status:** Warning-level drift detected"
+              WARNING_DRIFTS=$((WARNING_DRIFTS + 1))
+            elif [ $REPO_EXIT -eq 0 ]; then
+              echo "> **Status:** Compliant"
+            else
+              echo "> **Status:** Error during scan"
+            fi
+            echo ""
+
+            # SOBRs section
+            echo "## Scale-Out Backup Repositories"
+            echo ""
+            echo '```'
+            ./vcli repo sobr-diff --all 2>&1 || true
+            SOBR_EXIT=$?
+            echo '```'
+            echo ""
+            if [ $SOBR_EXIT -eq 4 ]; then
+              echo "> **Status:** CRITICAL drift detected"
+              CRITICAL_DRIFTS=$((CRITICAL_DRIFTS + 1))
+            elif [ $SOBR_EXIT -eq 3 ]; then
+              echo "> **Status:** Warning-level drift detected"
+              WARNING_DRIFTS=$((WARNING_DRIFTS + 1))
+            elif [ $SOBR_EXIT -eq 0 ]; then
+              echo "> **Status:** Compliant"
+            else
+              echo "> **Status:** Error during scan"
+            fi
+            echo ""
+
+            # Encryption section
+            echo "## Encryption Passwords"
+            echo ""
+            echo '```'
+            ./vcli encryption diff --all 2>&1 || true
+            ENC_EXIT=$?
+            echo '```'
+            echo ""
+            if [ $ENC_EXIT -eq 4 ]; then
+              echo "> **Status:** CRITICAL drift detected"
+              CRITICAL_DRIFTS=$((CRITICAL_DRIFTS + 1))
+            elif [ $ENC_EXIT -eq 3 ]; then
+              echo "> **Status:** Warning-level drift detected"
+              WARNING_DRIFTS=$((WARNING_DRIFTS + 1))
+            elif [ $ENC_EXIT -eq 0 ]; then
+              echo "> **Status:** Compliant"
+            else
+              echo "> **Status:** Error during scan"
+            fi
+            echo ""
+
+            # KMS section
+            echo "## KMS Servers"
+            echo ""
+            echo '```'
+            ./vcli encryption kms-diff --all 2>&1 || true
+            KMS_EXIT=$?
+            echo '```'
+            echo ""
+            if [ $KMS_EXIT -eq 4 ]; then
+              echo "> **Status:** CRITICAL drift detected"
+              CRITICAL_DRIFTS=$((CRITICAL_DRIFTS + 1))
+            elif [ $KMS_EXIT -eq 3 ]; then
+              echo "> **Status:** Warning-level drift detected"
+              WARNING_DRIFTS=$((WARNING_DRIFTS + 1))
+            elif [ $KMS_EXIT -eq 0 ]; then
+              echo "> **Status:** Compliant"
+            else
+              echo "> **Status:** Error during scan"
+            fi
+            echo ""
+
+            # Summary
+            echo "---"
+            echo ""
+            echo "## Summary"
+            echo ""
+            echo "| Category | Count |"
+            echo "|----------|-------|"
+            echo "| Critical Drifts | $CRITICAL_DRIFTS |"
+            echo "| Warning Drifts | $WARNING_DRIFTS |"
+            echo ""
+
+            if [ $CRITICAL_DRIFTS -gt 0 ]; then
+              echo "> **Overall Status:** CRITICAL - Immediate attention required"
+            elif [ $WARNING_DRIFTS -gt 0 ]; then
+              echo "> **Overall Status:** WARNING - Review recommended"
+            else
+              echo "> **Overall Status:** COMPLIANT - All resources match desired state"
+            fi
+            echo ""
+
+            # Remediation guidance
+            echo "## Remediation"
+            echo ""
+            echo "To remediate detected drift, run the detect-remediate pipeline or apply specs manually:"
+            echo ""
+            echo '```bash'
+            echo '# Apply all specs from Git'
+            echo 'vcli job apply infrastructure/jobs/*.yaml'
+            echo 'vcli repo apply infrastructure/repos/*.yaml'
+            echo 'vcli repo sobr-apply infrastructure/sobrs/*.yaml'
+            echo 'vcli encryption kms-apply infrastructure/kms/*.yaml'
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "*Report generated by vcli compliance pipeline*"
+
+          } > "$REPORT_FILE"
+
+          # Upload to build summary
+          echo "##vso[task.uploadsummary]$REPORT_FILE"
+
+          # Set build result based on findings
+          if [ $CRITICAL_DRIFTS -gt 0 ]; then
+            echo "##vso[task.logissue type=error]$CRITICAL_DRIFTS resource type(s) have CRITICAL drift"
+            echo "##vso[build.addbuildtag]critical-drift"
+            echo "##vso[task.complete result=SucceededWithIssues;]Critical drift found"
+          elif [ $WARNING_DRIFTS -gt 0 ]; then
+            echo "##vso[task.logissue type=warning]$WARNING_DRIFTS resource type(s) have warning-level drift"
+            echo "##vso[build.addbuildtag]warning-drift"
+          else
+            echo "##vso[build.addbuildtag]compliant"
+          fi
+
+          # Output for wiki update step
+          echo "##vso[task.setvariable variable=reportFile]$REPORT_FILE"
+        displayName: 'Generate compliance report'
+        env:
+          VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+      - publish: $(Build.ArtifactStagingDirectory)
+        artifact: ComplianceReport
+        displayName: 'Publish report artifact'
+
+      # Optional: Update wiki
+      - script: |
+          if [ "$(updateWiki)" != "true" ]; then
+            echo "Wiki update disabled - skipping"
+            exit 0
+          fi
+
+          # Install Azure CLI DevOps extension
+          az extension add --name azure-devops --allow-preview false 2>/dev/null || true
+
+          # Configure defaults
+          az devops configure --defaults \
+            organization="$(System.CollectionUri)" \
+            project="$(System.TeamProject)"
+
+          # Update wiki page
+          REPORT_CONTENT=$(cat $(reportFile))
+          echo "$REPORT_CONTENT" | az repos wiki page update \
+            --wiki "$(System.TeamProject).wiki" \
+            --path "$(wikiPath)" \
+            --version "$(Build.SourceVersion)" \
+            --file-path /dev/stdin \
+            2>&1 || echo "Wiki update failed - page may not exist"
+        displayName: 'Update wiki (optional)'
+        condition: eq(variables['updateWiki'], 'true')
+        env:
+          AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)

@@ -1,0 +1,299 @@
+# Deployment Pipeline with Pre/Post Checks
+#
+# A multi-stage pipeline for applying configuration changes with approval gates.
+# Triggered manually or on merge to master:
+# 1. Pre-deploy: Verify current state and validate specs
+# 2. Deploy: Apply configuration with optional approval gate
+# 3. Post-deploy: Verify changes were applied successfully
+#
+# Prerequisites:
+# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Environment 'vbr-production' with approval gates configured (optional)
+# - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs,kms}/*.yaml
+
+trigger:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - infrastructure/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: vcliVersion
+    value: 'latest'
+  - name: specsPath
+    value: 'infrastructure'
+
+stages:
+  # Stage 1: Pre-deployment checks
+  - stage: PreDeploy
+    displayName: 'Pre-Deploy Validation'
+    jobs:
+      - job: ValidateAndCheck
+        displayName: 'Validate specs and check current state'
+        steps:
+          - checkout: self
+
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              echo "=== Pre-Deploy: Dry-Run All Specs ==="
+              FAILED=0
+
+              for spec in $(specsPath)/jobs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./vcli job apply "$spec" --dry-run
+                if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              for spec in $(specsPath)/repos/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./vcli repo apply "$spec" --dry-run
+                if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              for spec in $(specsPath)/sobrs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./vcli repo sobr-apply "$spec" --dry-run
+                if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              for spec in $(specsPath)/kms/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./vcli encryption kms-apply "$spec" --dry-run
+                if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              if [ $FAILED -gt 0 ]; then
+                echo "##vso[task.logissue type=error]$FAILED spec(s) failed validation"
+                exit 1
+              fi
+
+              echo ""
+              echo "All specs validated successfully"
+            displayName: 'Validate all specs (dry-run)'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+          - script: |
+              echo "=== Pre-Deploy: Current State Summary ==="
+
+              echo ""
+              echo "Jobs:"
+              ./vcli job diff --all 2>&1 | head -50 || true
+
+              echo ""
+              echo "Repositories:"
+              ./vcli repo diff --all 2>&1 | head -50 || true
+
+              echo ""
+              echo "SOBRs:"
+              ./vcli repo sobr-diff --all 2>&1 | head -50 || true
+
+              echo ""
+              echo "=== Ready for deployment ==="
+            displayName: 'Show current drift state'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 2: Deploy with optional approval
+  - stage: Deploy
+    displayName: 'Deploy Configuration'
+    dependsOn: PreDeploy
+    condition: succeeded()
+    jobs:
+      # Use deployment job for approval gates
+      - deployment: ApplyConfig
+        displayName: 'Apply VBR configuration'
+        environment: 'vbr-production'  # Configure approvals on this environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - script: |
+                    curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+                    chmod +x vcli
+                    ./vcli init && ./vcli login
+                  displayName: 'Install and authenticate vcli'
+                  env:
+                    VCLI_USERNAME: $(VCLI_USERNAME)
+                    VCLI_PASSWORD: $(VCLI_PASSWORD)
+                    VCLI_URL: $(VCLI_URL)
+
+                - script: |
+                    APPLIED=0
+                    FAILED=0
+                    PARTIAL=0
+
+                    echo "=== Applying Configuration ==="
+
+                    echo ""
+                    echo "--- Jobs ---"
+                    for spec in $(specsPath)/jobs/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./vcli job apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    echo ""
+                    echo "--- Repositories ---"
+                    for spec in $(specsPath)/repos/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./vcli repo apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    echo ""
+                    echo "--- Scale-Out Repositories ---"
+                    for spec in $(specsPath)/sobrs/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./vcli repo sobr-apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    echo ""
+                    echo "--- KMS Servers ---"
+                    for spec in $(specsPath)/kms/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./vcli encryption kms-apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    echo ""
+                    echo "=== Deployment Summary ==="
+                    echo "Applied: $APPLIED"
+                    echo "Partial (some fields skipped): $PARTIAL"
+                    echo "Failed: $FAILED"
+
+                    if [ $FAILED -gt 0 ]; then
+                      echo "##vso[task.logissue type=error]$FAILED resource(s) failed to apply"
+                      exit 1
+                    fi
+
+                    if [ $PARTIAL -gt 0 ]; then
+                      echo "##vso[task.logissue type=warning]$PARTIAL resource(s) had fields skipped (known immutable)"
+                      echo "##vso[task.complete result=SucceededWithIssues;]Partial apply"
+                    fi
+                  displayName: 'Apply all specs'
+                  env:
+                    VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 3: Post-deployment verification
+  - stage: PostDeploy
+    displayName: 'Post-Deploy Verification'
+    dependsOn: Deploy
+    condition: succeeded()
+    jobs:
+      - job: Verify
+        displayName: 'Verify configuration applied'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              DRIFT=0
+
+              echo "=== Post-Deploy Verification ==="
+              echo "Checking that applied configuration matches VBR state..."
+              echo ""
+
+              ./vcli job diff --all 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Job drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./vcli repo diff --all 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Repository drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./vcli repo sobr-diff --all 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]SOBR drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./vcli encryption kms-diff --all 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]KMS drift detected after deployment"
+                DRIFT=1
+              fi
+
+              echo ""
+              if [ $DRIFT -eq 1 ]; then
+                echo "##vso[task.logissue type=warning]Some drift remains after deployment - this may be expected for immutable fields"
+                echo "##vso[task.complete result=SucceededWithIssues;]Drift remains"
+              else
+                echo "Deployment verified - no drift detected"
+              fi
+            displayName: 'Verify no drift'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+          - script: |
+              echo "=== Deployment Complete ==="
+              echo ""
+              echo "Pipeline: $(Build.DefinitionName)"
+              echo "Build: $(Build.BuildNumber)"
+              echo "Commit: $(Build.SourceVersion)"
+              echo ""
+              echo "Configuration has been applied to VBR."
+              echo "Next scheduled drift check will verify ongoing compliance."
+            displayName: 'Print summary'

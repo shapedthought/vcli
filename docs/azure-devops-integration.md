@@ -2,6 +2,19 @@
 
 vcli integrates with Azure DevOps Pipelines to provide automated configuration assurance for Veeam Backup & Replication environments. This guide covers what works today, what the complete integration looks like, and what features are needed to get there.
 
+## Quick Start: Pipeline Templates
+
+Ready-to-use pipeline templates are available in [`examples/pipelines/`](../examples/pipelines/):
+
+| Template | Purpose |
+|----------|---------|
+| [detect-remediate.yml](../examples/pipelines/detect-remediate.yml) | Scheduled drift detection and auto-remediation |
+| [pr-validation.yml](../examples/pipelines/pr-validation.yml) | PR validation gate with dry-run |
+| [deployment.yml](../examples/pipelines/deployment.yml) | Multi-stage deployment with approval gates |
+| [nightly-compliance.yml](../examples/pipelines/nightly-compliance.yml) | Compliance report generation |
+
+See the [pipeline README](../examples/pipelines/README.md) for setup instructions.
+
 ## Current Integration (v0.10.0-beta1)
 
 ### What Works Today
@@ -836,6 +849,8 @@ vcli largely behaves this way already, but an explicit flag documents the intent
 ---
 
 ## Reference: Pipeline Templates
+
+Complete, ready-to-use pipeline templates are available in [`examples/pipelines/`](../examples/pipelines/). The templates below show reusable steps that can be embedded in your own pipelines.
 
 ### Template: Reusable Drift Scan Step
 

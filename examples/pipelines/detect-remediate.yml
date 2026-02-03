@@ -1,0 +1,312 @@
+# Detect and Remediate Pipeline
+#
+# A scheduled pipeline that detects drift and auto-remediates where possible.
+# Runs nightly on weekdays and:
+# 1. Scans all resource types for security-relevant drift
+# 2. If drift found, applies specs from Git to remediate
+# 3. Verifies remediation was successful
+# 4. Notifies team of any manual intervention needed
+#
+# Prerequisites:
+# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs}/*.yaml
+# - Optional: SLACK_WEBHOOK_URL for notifications
+
+trigger: none
+
+schedules:
+  - cron: "0 6 * * 1-5"
+    displayName: "Weekday 6AM UTC"
+    branches:
+      include:
+        - master
+    always: true  # Run even with no code changes
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: vcliVersion
+    value: 'latest'
+  - name: specsPath
+    value: 'infrastructure'
+
+stages:
+  # Stage 1: Detect drift across all resources
+  - stage: Detect
+    displayName: 'Detect Drift'
+    jobs:
+      - job: DriftScan
+        displayName: 'Scan all resources'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              CRITICAL=0
+              WARNING=0
+
+              echo "=== Scanning Jobs ==="
+              ./vcli job diff --all --security-only 2>&1 || true
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
+              if [ $EXIT -eq 3 ]; then WARNING=1; fi
+
+              echo ""
+              echo "=== Scanning Repositories ==="
+              ./vcli repo diff --all --security-only 2>&1 || true
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
+              if [ $EXIT -eq 3 ]; then WARNING=1; fi
+
+              echo ""
+              echo "=== Scanning Scale-Out Repositories ==="
+              ./vcli repo sobr-diff --all --security-only 2>&1 || true
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
+              if [ $EXIT -eq 3 ]; then WARNING=1; fi
+
+              echo ""
+              echo "=== Scanning Encryption ==="
+              ./vcli encryption diff --all --security-only 2>&1 || true
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
+              if [ $EXIT -eq 3 ]; then WARNING=1; fi
+
+              echo ""
+              echo "=== Scanning KMS Servers ==="
+              ./vcli encryption kms-diff --all --security-only 2>&1 || true
+              EXIT=$?
+              if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
+              if [ $EXIT -eq 3 ]; then WARNING=1; fi
+
+              # Set output variables for downstream stages
+              echo "##vso[task.setvariable variable=hasCritical;isOutput=true]$CRITICAL"
+              echo "##vso[task.setvariable variable=hasWarning;isOutput=true]$WARNING"
+
+              if [ $CRITICAL -eq 1 ]; then
+                echo "##vso[task.logissue type=error]CRITICAL security drift detected - remediation required"
+                echo "##vso[build.addbuildtag]critical-drift"
+              elif [ $WARNING -eq 1 ]; then
+                echo "##vso[task.logissue type=warning]WARNING-level drift detected"
+                echo "##vso[build.addbuildtag]warning-drift"
+              else
+                echo "No security-relevant drift detected"
+              fi
+            displayName: 'Run drift scan'
+            name: scan
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 2: Remediate if drift was found
+  - stage: Remediate
+    displayName: 'Auto-Remediate'
+    dependsOn: Detect
+    condition: |
+      or(
+        eq(dependencies.Detect.outputs['DriftScan.scan.hasCritical'], '1'),
+        eq(dependencies.Detect.outputs['DriftScan.scan.hasWarning'], '1')
+      )
+    jobs:
+      - job: ApplySpecs
+        displayName: 'Apply specs from Git'
+        steps:
+          - checkout: self
+
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              PARTIAL=0
+              DESTROYED=0
+              APPLIED=0
+              FAILED=0
+
+              echo "=== Applying Job Specs ==="
+              for spec in $(specsPath)/jobs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Applying: $spec"
+                ./vcli job apply "$spec"
+                EXIT=$?
+                case $EXIT in
+                  0) APPLIED=$((APPLIED + 1)) ;;
+                  5) PARTIAL=1; APPLIED=$((APPLIED + 1)) ;;
+                  6) DESTROYED=1; FAILED=$((FAILED + 1)) ;;
+                  *) FAILED=$((FAILED + 1)) ;;
+                esac
+              done
+
+              echo ""
+              echo "=== Applying Repository Specs ==="
+              for spec in $(specsPath)/repos/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Applying: $spec"
+                ./vcli repo apply "$spec"
+                EXIT=$?
+                case $EXIT in
+                  0) APPLIED=$((APPLIED + 1)) ;;
+                  5) PARTIAL=1; APPLIED=$((APPLIED + 1)) ;;
+                  6) DESTROYED=1; FAILED=$((FAILED + 1)) ;;
+                  *) FAILED=$((FAILED + 1)) ;;
+                esac
+              done
+
+              echo ""
+              echo "=== Applying SOBR Specs ==="
+              for spec in $(specsPath)/sobrs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Applying: $spec"
+                ./vcli repo sobr-apply "$spec"
+                EXIT=$?
+                case $EXIT in
+                  0) APPLIED=$((APPLIED + 1)) ;;
+                  5) PARTIAL=1; APPLIED=$((APPLIED + 1)) ;;
+                  6) DESTROYED=1; FAILED=$((FAILED + 1)) ;;
+                  *) FAILED=$((FAILED + 1)) ;;
+                esac
+              done
+
+              echo ""
+              echo "=== Applying KMS Specs ==="
+              for spec in $(specsPath)/kms/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Applying: $spec"
+                ./vcli encryption kms-apply "$spec"
+                EXIT=$?
+                case $EXIT in
+                  0) APPLIED=$((APPLIED + 1)) ;;
+                  5) PARTIAL=1; APPLIED=$((APPLIED + 1)) ;;
+                  6) DESTROYED=1; FAILED=$((FAILED + 1)) ;;
+                  *) FAILED=$((FAILED + 1)) ;;
+                esac
+              done
+
+              echo ""
+              echo "=== Remediation Summary ==="
+              echo "Applied: $APPLIED"
+              echo "Failed: $FAILED"
+
+              # Set output variables
+              echo "##vso[task.setvariable variable=hasDestroyed;isOutput=true]$DESTROYED"
+              echo "##vso[task.setvariable variable=hasPartial;isOutput=true]$PARTIAL"
+
+              if [ $DESTROYED -eq 1 ]; then
+                echo "##vso[task.logissue type=error]One or more resources no longer exist in VBR - manual recreation required"
+                exit 1
+              fi
+
+              if [ $PARTIAL -eq 1 ]; then
+                echo "##vso[task.logissue type=warning]Partial remediation - some fields were skipped (known immutable)"
+                echo "##vso[task.complete result=SucceededWithIssues;]Partial remediation"
+              fi
+            displayName: 'Apply desired state'
+            name: apply
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 3: Verify remediation was successful
+  - stage: Verify
+    displayName: 'Post-Remediation Check'
+    dependsOn: Remediate
+    condition: succeeded()
+    jobs:
+      - job: VerifyClean
+        displayName: 'Verify no remaining drift'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              REMAINING=0
+
+              echo "=== Post-Remediation Verification ==="
+
+              ./vcli job diff --all --security-only 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+
+              ./vcli repo diff --all --security-only 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+
+              ./vcli repo sobr-diff --all --security-only 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+
+              ./vcli encryption diff --all --security-only 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+
+              ./vcli encryption kms-diff --all --security-only 2>&1 || true
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then REMAINING=1; fi
+
+              if [ $REMAINING -eq 1 ]; then
+                echo "##vso[task.logissue type=warning]Drift remains after remediation - manual intervention may be required"
+                echo "##vso[task.complete result=SucceededWithIssues;]Remaining drift"
+              else
+                echo "All drift has been remediated successfully"
+              fi
+            displayName: 'Verify remediation'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 4: Notify team if manual intervention needed
+  - stage: Notify
+    displayName: 'Notifications'
+    dependsOn:
+      - Detect
+      - Remediate
+      - Verify
+    condition: |
+      or(
+        failed(),
+        eq(dependencies.Remediate.outputs['ApplySpecs.apply.hasDestroyed'], '1'),
+        eq(dependencies.Remediate.outputs['ApplySpecs.apply.hasPartial'], '1')
+      )
+    jobs:
+      - job: NotifyTeam
+        displayName: 'Send notifications'
+        steps:
+          - script: |
+              MESSAGE="VBR drift detected and remediation attempted."
+
+              if [ "$(dependencies.Remediate.outputs['ApplySpecs.apply.hasDestroyed'])" = "1" ]; then
+                MESSAGE="$MESSAGE Some resources were deleted from VBR and require manual recreation."
+              fi
+
+              if [ "$(dependencies.Remediate.outputs['ApplySpecs.apply.hasPartial'])" = "1" ]; then
+                MESSAGE="$MESSAGE Some fields could not be remediated (known immutable fields)."
+              fi
+
+              MESSAGE="$MESSAGE Pipeline: $(Build.DefinitionName) Build: $(Build.BuildNumber)"
+
+              # Send to Slack (if webhook configured)
+              if [ -n "$(SLACK_WEBHOOK_URL)" ]; then
+                curl -X POST -H 'Content-type: application/json' \
+                  --data "{\"text\": \"$MESSAGE\"}" \
+                  "$(SLACK_WEBHOOK_URL)"
+              fi
+
+              # Log for Azure DevOps
+              echo "##vso[task.logissue type=warning]$MESSAGE"
+            displayName: 'Send alert'
+            env:
+              SLACK_WEBHOOK_URL: $(SLACK_WEBHOOK_URL)

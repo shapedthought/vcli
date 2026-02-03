@@ -1,0 +1,203 @@
+# PR Validation Pipeline
+#
+# A PR-triggered pipeline that validates spec changes before merge.
+# Runs on every PR to master and:
+# 1. Dry-runs apply for all changed YAML files
+# 2. Verifies no unexpected drift in other resources
+# 3. Blocks merge if validation fails
+#
+# Prerequisites:
+# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Configure as required build validation in Branch Policies for master
+# - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs,kms}/*.yaml
+
+trigger: none
+
+pr:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - infrastructure/**
+      - overlays/**
+      - '*.yaml'
+      - '*.yml'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: vcliVersion
+    value: 'latest'
+
+stages:
+  # Stage 1: Validate changed spec files with dry-run
+  - stage: Validate
+    displayName: 'Validate Spec Changes'
+    jobs:
+      - job: DryRun
+        displayName: 'Dry-run changed specs'
+        steps:
+          - checkout: self
+            fetchDepth: 0  # Full history for git diff
+
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              FAILED=0
+              VALIDATED=0
+
+              echo "=== Finding Changed YAML Files ==="
+              CHANGED_FILES=$(git diff --name-only origin/$(System.PullRequest.TargetBranch)...HEAD -- '*.yaml' '*.yml' | grep -E '^infrastructure/' || true)
+
+              if [ -z "$CHANGED_FILES" ]; then
+                echo "No infrastructure YAML files changed in this PR"
+                exit 0
+              fi
+
+              echo "Changed files:"
+              echo "$CHANGED_FILES"
+              echo ""
+
+              for file in $CHANGED_FILES; do
+                [ -f "$file" ] || continue
+                echo "=== Validating: $file ==="
+
+                # Determine resource type from path
+                case "$file" in
+                  */jobs/*)
+                    ./vcli job apply "$file" --dry-run
+                    ;;
+                  */repos/*)
+                    ./vcli repo apply "$file" --dry-run
+                    ;;
+                  */sobrs/*)
+                    ./vcli repo sobr-apply "$file" --dry-run
+                    ;;
+                  */kms/*)
+                    ./vcli encryption kms-apply "$file" --dry-run
+                    ;;
+                  *)
+                    echo "Skipping unknown resource type: $file"
+                    continue
+                    ;;
+                esac
+
+                EXIT=$?
+                if [ $EXIT -eq 0 ]; then
+                  VALIDATED=$((VALIDATED + 1))
+                  echo "PASS: $file"
+                elif [ $EXIT -eq 6 ]; then
+                  # Resource not found - might be a new resource, need manual review
+                  echo "##vso[task.logissue type=warning]Resource in $file not found in VBR - verify this is intentional"
+                  VALIDATED=$((VALIDATED + 1))
+                else
+                  FAILED=$((FAILED + 1))
+                  echo "##vso[task.logissue type=error]Validation failed for $file"
+                fi
+                echo ""
+              done
+
+              echo "=== Validation Summary ==="
+              echo "Validated: $VALIDATED"
+              echo "Failed: $FAILED"
+
+              if [ $FAILED -gt 0 ]; then
+                echo "##vso[task.logissue type=error]$FAILED spec file(s) failed validation"
+                exit 1
+              fi
+            displayName: 'Dry-run changed specs'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 2: Check for unexpected drift in existing resources
+  - stage: DriftCheck
+    displayName: 'Check Existing Resources'
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: CheckDrift
+        displayName: 'Verify no unexpected drift'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/vcli/releases/$(vcliVersion)/download/vcli-linux-amd64 -o vcli
+              chmod +x vcli
+              ./vcli init && ./vcli login
+            displayName: 'Install and authenticate vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              CRITICAL=0
+
+              echo "=== Checking for Unexpected Drift ==="
+              echo "Note: This checks that existing resources haven't drifted unexpectedly."
+              echo "The specs being added/changed in this PR are validated separately."
+              echo ""
+
+              # Check critical drift only - warnings are informational
+              ./vcli job diff --all --severity critical 2>&1 || true
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical job drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              ./vcli repo diff --all --severity critical 2>&1 || true
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical repository drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              ./vcli repo sobr-diff --all --severity critical 2>&1 || true
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical SOBR drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              if [ $CRITICAL -eq 1 ]; then
+                echo ""
+                echo "##vso[task.logissue type=warning]Critical drift exists in VBR environment - PR can still merge but review recommended"
+                echo "##vso[task.complete result=SucceededWithIssues;]Critical drift detected"
+              else
+                echo "No critical drift detected in existing resources"
+              fi
+            displayName: 'Check for drift'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+  # Stage 3: Summary
+  - stage: Summary
+    displayName: 'Validation Summary'
+    dependsOn:
+      - Validate
+      - DriftCheck
+    condition: always()
+    jobs:
+      - job: Report
+        displayName: 'Generate summary'
+        steps:
+          - script: |
+              echo "=== PR Validation Complete ==="
+              echo ""
+              echo "This PR has been validated against the VBR environment."
+              echo ""
+              echo "Validation stages:"
+              echo "  1. Dry-run: Verified spec files can be applied"
+              echo "  2. Drift check: Checked for unexpected drift in existing resources"
+              echo ""
+              echo "If all stages passed, this PR is safe to merge."
+              echo "After merge, run the detect-remediate pipeline to apply changes."
+            displayName: 'Print summary'

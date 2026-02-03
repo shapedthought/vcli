@@ -346,6 +346,62 @@ func BuildKmsGuidance(resourceName, origin string) RemediationGuidance {
 	}
 }
 
+// SkippedField represents a field that was skipped during apply
+type SkippedField struct {
+	Path   string
+	Reason string
+}
+
+// printSkippedFields prints fields that were skipped due to policy or known immutability
+func printSkippedFields(skipped []SkippedField) {
+	if len(skipped) == 0 {
+		return
+	}
+
+	fmt.Println("\nSkipped fields (known immutable or policy-configured):")
+	for _, s := range skipped {
+		fmt.Printf("  - %s\n", s.Path)
+		if s.Reason != "" {
+			fmt.Printf("    %s\n", s.Reason)
+		}
+	}
+}
+
+// printDryRunUpdateWithSkipped prints dry-run output including skipped fields
+func printDryRunUpdateWithSkipped(resourceName, resourceKind string, changes []FieldChange, skipped []SkippedField) {
+	fmt.Println("\n=== Dry Run Mode ===")
+	fmt.Printf("Resource: %s (%s)\n", resourceName, resourceKind)
+	fmt.Println("Action: Would UPDATE existing resource")
+	fmt.Println()
+
+	if len(changes) == 0 && len(skipped) == 0 {
+		fmt.Println("No changes detected. Resource is already in desired state.")
+	} else {
+		if len(changes) > 0 {
+			fmt.Println("Changes that would be applied:")
+			for _, change := range changes {
+				oldStr := applyFormatValue(change.OldValue)
+				newStr := applyFormatValue(change.NewValue)
+				fmt.Printf("  ~ %s: %s -> %s\n", change.Path, oldStr, newStr)
+			}
+			fmt.Printf("\n%d field(s) would be changed.\n", len(changes))
+		}
+
+		if len(skipped) > 0 {
+			fmt.Println("\nSkipped (not sent to VBR):")
+			for _, s := range skipped {
+				fmt.Printf("  - %s\n", s.Path)
+				if s.Reason != "" {
+					fmt.Printf("    %s\n", s.Reason)
+				}
+			}
+		}
+	}
+
+	fmt.Println("\n=== End Dry Run ===")
+	fmt.Println("No changes made. Remove --dry-run flag to apply.")
+}
+
 // sanitizeFileName converts a resource name to a safe filename.
 // Handles spaces, special characters, and avoids common problematic patterns.
 func sanitizeFileName(name string) string {

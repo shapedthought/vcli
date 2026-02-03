@@ -336,3 +336,108 @@ stages:
 ## Ignored Fields
 
 Each resource type has fields that are excluded from drift detection because they are read-only or frequently changing (e.g., `lastRun`, `nextRun`, `statistics`, `id`). These are defined internally and cannot be overridden.
+
+## Known-Immutable Fields and Remediation Config
+
+vcli automatically detects and skips fields that are known to be rejected by the VBR API. Additionally, you can configure custom field policies using `remediation-config.yaml`.
+
+### Known-Immutable Fields
+
+Some VBR resource fields cannot be changed via the API after creation. vcli includes built-in hints for these fields:
+
+| Resource | Field | Reason |
+|----------|-------|--------|
+| Repository | `type` | Repository type cannot be changed after creation |
+| Repository | `path` | Changing path requires storage migration |
+| Repository | `host.id` | Host cannot be changed |
+| SOBR | `performanceTier.extents` | Extents must be managed in VBR console |
+| KMS Server | `type` | KMS server type cannot be changed after creation |
+
+When apply encounters drift in a known-immutable field, it skips sending that change and shows a human-readable explanation instead of a raw API error.
+
+### Custom remediation-config.yaml
+
+Create a `remediation-config.yaml` file to define custom field policies. See [examples/remediation-config.yaml](../examples/remediation-config.yaml) for a complete example.
+
+**Locations checked (in order):**
+1. `$VCLI_SETTINGS_PATH/remediation-config.yaml`
+2. `~/.vcli/remediation-config.yaml`
+
+```yaml
+# remediation-config.yaml
+repository:
+  maxTaskCount: remediable    # Normal field - attempt to apply (default)
+  description: remediable
+  path: skip                  # Skip - don't attempt, known to fail
+  type: skip                  # Skip - don't attempt, known to fail
+
+sobr:
+  performanceTier.extents: skip
+
+job:
+  storage.backupRepositoryId: skip  # Org policy: repo changes need manual review
+
+kms:
+  type: skip
+```
+
+### Field Policies
+
+| Policy | Behavior |
+|--------|----------|
+| `remediable` | Send change to VBR (default for all fields) |
+| `skip` | Don't send change to VBR; preserve existing value |
+
+### Policy Priority
+
+1. **User config** (`remediation-config.yaml`) - highest priority
+2. **Built-in known-immutable hints**
+3. **Default** (`remediable`) - lowest priority
+
+User config can override built-in hints. For example, if testing shows a field is actually mutable in your VBR version, set it to `remediable` to override the hint.
+
+### Example Output with Skipped Fields
+
+```
+Applying: Default Backup Repository
+
+  Applied: description: "Original" -> "Updated description"
+  Applied: repository.maxTaskCount: 4 -> 8
+
+Skipped fields (known immutable or policy-configured):
+  - type
+    Repository type cannot be changed after creation. Recreate the repository in VBR console.
+  - path
+    Changing path requires storage migration. Perform in VBR console.
+
+2 field(s) applied.
+```
+
+In dry-run mode, skipped fields are shown separately:
+
+```
+=== Dry Run Mode ===
+Resource: Default Backup Repository (VBRRepository)
+Action: Would UPDATE existing resource
+
+Changes that would be applied:
+  ~ description: "Original" -> "Updated description"
+  ~ repository.maxTaskCount: 4 -> 8
+
+2 field(s) would be changed.
+
+Skipped (not sent to VBR):
+  - type
+    Repository type cannot be changed after creation. Recreate the repository in VBR console.
+
+=== End Dry Run ===
+No changes made. Remove --dry-run flag to apply.
+```
+
+### Missing Config File
+
+If no `remediation-config.yaml` exists, vcli uses defaults:
+- Built-in known-immutable hints apply
+- All other fields are `remediable`
+
+This is not an error — remediation config is optional.

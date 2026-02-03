@@ -44,6 +44,7 @@ KMS server management
   vcli encryption kms-snapshot --all
   vcli encryption kms-diff "My KMS Server"
   vcli encryption kms-diff --all
+  vcli encryption kms-apply kms/my-kms.yaml
 `,
 }
 
@@ -384,6 +385,72 @@ func diffAllEncryptionPasswords() {
 
 // --- KMS Server commands ---
 
+// kmsApplyConfig defines how to apply KMS server configurations
+var kmsApplyConfig = ResourceApplyConfig{
+	Kind:         "VBRKmsServer",
+	Endpoint:     "kmsServers",
+	IgnoreFields: kmsIgnoreFields,
+	Mode:         ApplyUpdateOnly,
+	FetchCurrent: fetchCurrentKmsServer,
+}
+
+// fetchCurrentKmsServer retrieves a KMS server by name from VBR
+func fetchCurrentKmsServer(name string, profile models.Profile) (json.RawMessage, string, error) {
+	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
+
+	for _, kms := range kmsList.Data {
+		if kms.Name == name {
+			// Marshal the KMS server to JSON
+			kmsData, err := json.Marshal(kms)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to marshal KMS server: %w", err)
+			}
+			return json.RawMessage(kmsData), kms.ID, nil
+		}
+	}
+
+	return nil, "", nil // Not found (not an error)
+}
+
+var kmsApplyCmd = &cobra.Command{
+	Use:   "kms-apply [spec-file]",
+	Short: "Apply a KMS server configuration to VBR",
+	Long: `Apply a declarative KMS server configuration to VBR.
+
+This command updates an existing KMS server with the configuration from a YAML spec file.
+KMS servers cannot be created via the API - they must be created in the VBR console first.
+
+Examples:
+  # Apply a KMS server configuration
+  vcli encryption kms-apply kms/my-kms.yaml
+
+Exit Codes:
+  0 - Success
+  1 - Error (API failure, invalid spec)
+  6 - Resource not found (KMS server doesn't exist in VBR)
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		result := applyResource(args[0], kmsApplyConfig, profile)
+		if result.Error != nil {
+			// Check if it's a "not found" error for update-only resources
+			if result.ResourceName != "" && result.ResourceID == "" && result.Action == "" {
+				fmt.Printf("Error: %v\n", result.Error)
+				os.Exit(6) // Resource not found exit code
+			}
+			log.Fatalf("Failed to apply KMS server: %v", result.Error)
+		}
+
+		fmt.Printf("\nSuccessfully %s KMS server: %s\n", result.Action, result.ResourceName)
+	},
+}
+
 var kmsSnapshotCmd = &cobra.Command{
 	Use:   "kms-snapshot [kms-name]",
 	Short: "Snapshot KMS server configuration to state",
@@ -712,5 +779,6 @@ func init() {
 	encryptionCmd.AddCommand(encDiffCmd)
 	encryptionCmd.AddCommand(kmsSnapshotCmd)
 	encryptionCmd.AddCommand(kmsDiffCmd)
+	encryptionCmd.AddCommand(kmsApplyCmd)
 	rootCmd.AddCommand(encryptionCmd)
 }

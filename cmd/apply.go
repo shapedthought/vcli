@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
-	"time"
 
 	"github.com/shapedthought/vcli/config"
 	"github.com/shapedthought/vcli/models"
 	"github.com/shapedthought/vcli/resources"
-	"github.com/shapedthought/vcli/state"
 	"github.com/shapedthought/vcli/utils"
 	"github.com/shapedthought/vcli/vhttp"
 	"github.com/spf13/cobra"
@@ -259,42 +256,12 @@ func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
 		jobID = result.ID
 	}
 
-	// Update state after successful apply
-	if err := updateState(spec, jobID); err != nil {
+	// Update state after successful apply (using shared helper)
+	if err := updateResourceState(spec, jobID, "VBRJob"); err != nil {
 		// Log warning but don't fail the apply
 		fmt.Printf("Warning: Failed to update state: %v\n", err)
 	}
 
-	return nil
-}
-
-// updateState writes the applied configuration to state
-func updateState(spec resources.ResourceSpec, jobID string) error {
-	stateMgr := state.NewManager()
-
-	// Get current user
-	currentUser := "unknown"
-	if usr, err := user.Current(); err == nil {
-		currentUser = usr.Username
-	}
-
-	// Create state resource
-	resource := &state.Resource{
-		Type:          "VBRJob",
-		ID:            jobID,
-		Name:          spec.Metadata.Name,
-		LastApplied:   time.Now(),
-		LastAppliedBy: currentUser,
-		Origin:        "applied",
-		Spec:          spec.Spec,
-	}
-
-	// Update state
-	if err := stateMgr.UpdateResource(resource); err != nil {
-		return fmt.Errorf("failed to update state: %w", err)
-	}
-
-	fmt.Printf("State updated: %s\n", stateMgr.GetStatePath())
 	return nil
 }
 

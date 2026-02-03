@@ -39,11 +39,15 @@ Detect configuration drift
   vcli repo diff "Default Backup Repository"
   vcli repo diff --all
 
+Apply repository configuration
+  vcli repo apply repos/default-repo.yaml
+
 Scale-out backup repositories
   vcli repo sobr-snapshot "Scale-out Backup Repository 1"
   vcli repo sobr-snapshot --all
   vcli repo sobr-diff "Scale-out Backup Repository 1"
   vcli repo sobr-diff --all
+  vcli repo sobr-apply sobrs/sobr1.yaml
 `,
 }
 
@@ -296,7 +300,137 @@ func diffAllRepos() {
 	os.Exit(0)
 }
 
+// --- Repository Apply command ---
+
+// repoApplyConfig defines how to apply repository configurations
+var repoApplyConfig = ResourceApplyConfig{
+	Kind:         "VBRRepository",
+	Endpoint:     "backupInfrastructure/repositories",
+	IgnoreFields: repoIgnoreFields,
+	Mode:         ApplyUpdateOnly,
+	FetchCurrent: fetchCurrentRepo,
+}
+
+// fetchCurrentRepo retrieves a repository by name from VBR
+func fetchCurrentRepo(name string, profile models.Profile) (json.RawMessage, string, error) {
+	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
+
+	for _, repo := range repoList.Data {
+		if repo.Name == name {
+			// Fetch full details
+			endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", repo.ID)
+			repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
+			return repoData, repo.ID, nil
+		}
+	}
+
+	return nil, "", nil // Not found (not an error)
+}
+
+var repoApplyCmd = &cobra.Command{
+	Use:   "apply [spec-file]",
+	Short: "Apply a repository configuration to VBR",
+	Long: `Apply a declarative repository configuration to VBR.
+
+This command updates an existing repository with the configuration from a YAML spec file.
+Repositories cannot be created via the API - they must be created in the VBR console first.
+
+Examples:
+  # Apply a repository configuration
+  vcli repo apply repos/default-repo.yaml
+
+Exit Codes:
+  0 - Success
+  1 - Error (API failure, invalid spec)
+  6 - Resource not found (repository doesn't exist in VBR)
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		result := applyResource(args[0], repoApplyConfig, profile)
+		if result.Error != nil {
+			// Check if it's a "not found" error for update-only resources
+			if result.ResourceName != "" && result.ResourceID == "" && result.Action == "" {
+				fmt.Printf("Error: %v\n", result.Error)
+				os.Exit(6) // Resource not found exit code
+			}
+			log.Fatalf("Failed to apply repository: %v", result.Error)
+		}
+
+		fmt.Printf("\nSuccessfully %s repository: %s\n", result.Action, result.ResourceName)
+	},
+}
+
 // --- Scale-Out Backup Repository commands ---
+
+// sobrApplyConfig defines how to apply SOBR configurations
+var sobrApplyConfig = ResourceApplyConfig{
+	Kind:         "VBRScaleOutRepository",
+	Endpoint:     "backupInfrastructure/scaleOutRepositories",
+	IgnoreFields: sobrIgnoreFields,
+	Mode:         ApplyUpdateOnly,
+	FetchCurrent: fetchCurrentSobr,
+}
+
+// fetchCurrentSobr retrieves a SOBR by name from VBR
+func fetchCurrentSobr(name string, profile models.Profile) (json.RawMessage, string, error) {
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+
+	for _, sobr := range sobrList.Data {
+		if sobr.Name == name {
+			// Fetch full details
+			endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", sobr.ID)
+			sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+			return sobrData, sobr.ID, nil
+		}
+	}
+
+	return nil, "", nil // Not found (not an error)
+}
+
+var sobrApplyCmd = &cobra.Command{
+	Use:   "sobr-apply [spec-file]",
+	Short: "Apply a scale-out repository configuration to VBR",
+	Long: `Apply a declarative scale-out repository configuration to VBR.
+
+This command updates an existing SOBR with the configuration from a YAML spec file.
+SOBRs cannot be created via the API - they must be created in the VBR console first.
+
+Examples:
+  # Apply a SOBR configuration
+  vcli repo sobr-apply sobrs/sobr1.yaml
+
+Exit Codes:
+  0 - Success
+  1 - Error (API failure, invalid spec)
+  6 - Resource not found (SOBR doesn't exist in VBR)
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		profile := utils.GetProfile()
+
+		if profile.Name != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		result := applyResource(args[0], sobrApplyConfig, profile)
+		if result.Error != nil {
+			// Check if it's a "not found" error for update-only resources
+			if result.ResourceName != "" && result.ResourceID == "" && result.Action == "" {
+				fmt.Printf("Error: %v\n", result.Error)
+				os.Exit(6) // Resource not found exit code
+			}
+			log.Fatalf("Failed to apply scale-out repository: %v", result.Error)
+		}
+
+		fmt.Printf("\nSuccessfully %s scale-out repository: %s\n", result.Action, result.ResourceName)
+	},
+}
 
 var sobrSnapshotCmd = &cobra.Command{
 	Use:   "sobr-snapshot [sobr-name]",
@@ -577,7 +711,9 @@ func init() {
 
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)
+	repoCmd.AddCommand(repoApplyCmd)
 	repoCmd.AddCommand(sobrSnapshotCmd)
 	repoCmd.AddCommand(sobrDiffCmd)
+	repoCmd.AddCommand(sobrApplyCmd)
 	rootCmd.AddCommand(repoCmd)
 }

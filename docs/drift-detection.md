@@ -262,6 +262,77 @@ elif [ $FAILED -gt 0 ]; then
 fi
 ```
 
+## Dry-Run Mode
+
+All apply commands support `--dry-run` to preview changes without making any modifications:
+
+```bash
+# Preview repository changes
+vcli repo apply repos/default-repo.yaml --dry-run
+
+# Preview SOBR changes
+vcli repo sobr-apply sobrs/sobr1.yaml --dry-run
+
+# Preview KMS server changes
+vcli encryption kms-apply kms/my-kms.yaml --dry-run
+```
+
+### Example Output
+
+```
+=== Dry Run Mode ===
+Resource: Default Backup Repository (VBRRepository)
+Action: Would UPDATE existing resource
+
+Changes that would be applied:
+  ~ description: "Created by Veeam Backup" -> "Updated description"
+  ~ repository.maxTaskCount: 4 -> 8
+  ~ repository.makeRecentBackupsImmutableDays: 7 -> 14
+
+3 field(s) would be changed.
+
+=== End Dry Run ===
+No changes made. Remove --dry-run flag to apply.
+```
+
+### CI/CD Validation Stage
+
+Use dry-run for safe PR validation before applying changes:
+
+```yaml
+# Azure DevOps Pipeline Example
+stages:
+  - stage: Validate
+    jobs:
+      - job: DryRun
+        steps:
+          - script: |
+              for spec in repos/*.yaml; do
+                ./vcli repo apply "$spec" --dry-run
+                if [ $? -ne 0 ]; then
+                  echo "Validation failed for $spec"
+                  exit 1
+                fi
+              done
+            displayName: 'Preview Changes (Dry Run)'
+
+  - stage: Apply
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: ApplyChanges
+        steps:
+          - script: ./vcli repo apply repos/*.yaml
+            displayName: 'Apply Configuration'
+```
+
+### Dry-Run Behavior
+
+- **Read-only API calls**: Dry-run fetches current state from VBR to compute changes, but makes no modifications (no PUT/POST)
+- **No state updates**: State file is not modified in dry-run mode
+- **Same exit codes**: Returns the same exit codes as regular apply (e.g., `6` if resource not found)
+- **Full change preview**: Shows exactly what would change if applied
+
 ## Ignored Fields
 
 Each resource type has fields that are excluded from drift detection because they are read-only or frequently changing (e.g., `lastRun`, `nextRun`, `statistics`, `id`). These are defined internally and cannot be overridden.

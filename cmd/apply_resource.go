@@ -59,16 +59,19 @@ type ResourceApplyConfig struct {
 type ApplyResult struct {
 	ResourceName string
 	ResourceID   string
-	Action       string        // "created", "updated"
+	Action       string        // "created", "updated", "would-create", "would-update"
 	NotFound     bool          // True if resource not found in update-only mode
 	Changes      []FieldChange // Fields that were changed
+	DryRun       bool          // True if this was a dry-run (no changes made)
 	Error        error
 }
 
 // applyResource applies a resource spec to VBR using the provided config.
 // It handles loading specs, fetching existing resources, merging, and state updates.
-func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Profile) ApplyResult {
-	result := ApplyResult{}
+// If dryRun is true, it fetches current state (read-only) and displays what would change,
+// but makes no modifications to VBR and does not update state.
+func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
+	result := ApplyResult{DryRun: dryRun}
 
 	// Load the YAML spec
 	spec, err := resources.LoadResourceSpec(specFile)
@@ -104,8 +107,6 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		}
 
 		// ApplyCreateOrUpdate mode: create new resource
-		fmt.Printf("Creating new %s: %s\n", cfg.Kind, spec.Metadata.Name)
-
 		// Remove ignored fields from spec
 		cleanedSpec := cleanSpec(spec.Spec, cfg.IgnoreFields)
 
@@ -118,7 +119,15 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 			}
 		}
 
+		if dryRun {
+			// Dry-run mode: show what would be created
+			printDryRunCreate(spec.Metadata.Name, cfg.Kind, cleanedSpec)
+			result.Action = "would-create"
+			return result
+		}
+
 		// Create the resource
+		fmt.Printf("Creating new %s: %s\n", cfg.Kind, spec.Metadata.Name)
 		var newID string
 		if cfg.PostCreate != nil {
 			newID, err = cfg.PostCreate(cleanedSpec, profile, cfg.Endpoint)
@@ -167,6 +176,13 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 			}
 		}
 
+		if dryRun {
+			// Dry-run mode: show what would change
+			printDryRunUpdate(spec.Metadata.Name, cfg.Kind, result.Changes)
+			result.Action = "would-update"
+			return result
+		}
+
 		// Print changes being applied
 		printApplyChanges(result.Changes, spec.Metadata.Name, true)
 
@@ -181,10 +197,12 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 		result.Action = "updated"
 	}
 
-	// Update state with origin: "applied"
-	if err := updateResourceState(spec, result.ResourceID, cfg.Kind); err != nil {
-		// Log warning but don't fail the apply
-		fmt.Printf("Warning: Failed to update state: %v\n", err)
+	// Update state with origin: "applied" (skip in dry-run mode)
+	if !dryRun {
+		if err := updateResourceState(spec, result.ResourceID, cfg.Kind); err != nil {
+			// Log warning but don't fail the apply
+			fmt.Printf("Warning: Failed to update state: %v\n", err)
+		}
 	}
 
 	return result

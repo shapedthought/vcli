@@ -214,7 +214,12 @@ func diffSingleEncryptionPassword(hint string) {
 		log.Fatalf("Resource '%s' is not an encryption password (type: %s).\n", hint, resource.Type)
 	}
 
-	fmt.Printf("Checking drift for encryption password: %s\n\n", hint)
+	// Show (observed) label for monitored-only resources
+	originLabel := ""
+	if resource.Origin == "observed" {
+		originLabel = " (observed)"
+	}
+	fmt.Printf("Checking drift for encryption password: %s%s\n\n", hint, originLabel)
 
 	// Fetch current from VBR by ID
 	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
@@ -354,21 +359,34 @@ func diffAllEncryptionPasswords() {
 	}
 
 	// Check field-level drift on matching passwords
+	driftedApplied := 0
+	driftedObserved := 0
 	for id, stateRes := range stateByID {
 		if currentMap, exists := currentByID[id]; exists {
 			drifts := detectDrift(stateRes.Spec, currentMap, encryptionIgnoreFields)
 			drifts = classifyDrifts(drifts, encryptionSeverityMap)
 			drifts = filterDriftsBySeverity(drifts, minSev)
 
+			// Show origin label for observed resources
+			originLabel := ""
+			if stateRes.Origin == "observed" {
+				originLabel = " (observed)"
+			}
+
 			if len(drifts) > 0 {
-				fmt.Printf("  %s: %d drifts detected\n", stateRes.Name, len(drifts))
+				fmt.Printf("  %s%s: %d drifts detected\n", stateRes.Name, originLabel, len(drifts))
 				for _, d := range drifts {
 					printDriftWithSeverity(d)
 				}
 				allDrifts = append(allDrifts, drifts...)
+				if stateRes.Origin == "observed" {
+					driftedObserved++
+				} else {
+					driftedApplied++
+				}
 				driftedCount++
 			} else {
-				fmt.Printf("  %s: No drift\n", stateRes.Name)
+				fmt.Printf("  %s%s: No drift\n", stateRes.Name, originLabel)
 				cleanCount++
 			}
 		}
@@ -379,7 +397,18 @@ func diffAllEncryptionPasswords() {
 	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d passwords clean\n", cleanCount)
-	fmt.Printf("  - %d passwords drifted/changed\n", driftedCount)
+	if driftedApplied > 0 {
+		// Encryption passwords cannot be modified via API
+		fmt.Printf("  - %d passwords drifted — manual remediation required in VBR console\n", driftedApplied)
+	}
+	if driftedObserved > 0 {
+		fmt.Printf("  - %d passwords drifted (observed) — adopt to enable tracking\n", driftedObserved)
+	}
+	// Also count inventory changes (added/removed) which were counted earlier
+	inventoryChanges := driftedCount - driftedApplied - driftedObserved
+	if inventoryChanges > 0 {
+		fmt.Printf("  - %d inventory changes detected\n", inventoryChanges)
+	}
 
 	if driftedCount > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))
@@ -601,7 +630,12 @@ func diffSingleKmsServer(name string) {
 		log.Fatalf("Resource '%s' is not a KMS server (type: %s).\n", name, resource.Type)
 	}
 
-	fmt.Printf("Checking drift for KMS server: %s\n\n", name)
+	// Show (observed) label for monitored-only resources
+	originLabel := ""
+	if resource.Origin == "observed" {
+		originLabel = " (observed)"
+	}
+	fmt.Printf("Checking drift for KMS server: %s%s\n\n", name, originLabel)
 
 	// Fetch current from VBR
 	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
@@ -739,21 +773,34 @@ func diffAllKmsServers() {
 	}
 
 	// Check field-level drift on matching servers
+	driftedApplied := 0
+	driftedObserved := 0
 	for id, stateRes := range stateByID {
 		if currentMap, exists := currentByID[id]; exists {
 			drifts := detectDrift(stateRes.Spec, currentMap, kmsIgnoreFields)
 			drifts = classifyDrifts(drifts, kmsSeverityMap)
 			drifts = filterDriftsBySeverity(drifts, minSev)
 
+			// Show origin label for observed resources
+			originLabel := ""
+			if stateRes.Origin == "observed" {
+				originLabel = " (observed)"
+			}
+
 			if len(drifts) > 0 {
-				fmt.Printf("  %s: %d drifts detected\n", stateRes.Name, len(drifts))
+				fmt.Printf("  %s%s: %d drifts detected\n", stateRes.Name, originLabel, len(drifts))
 				for _, d := range drifts {
 					printDriftWithSeverity(d)
 				}
 				allDrifts = append(allDrifts, drifts...)
+				if stateRes.Origin == "observed" {
+					driftedObserved++
+				} else {
+					driftedApplied++
+				}
 				driftedCount++
 			} else {
-				fmt.Printf("  %s: No drift\n", stateRes.Name)
+				fmt.Printf("  %s%s: No drift\n", stateRes.Name, originLabel)
 				cleanCount++
 			}
 		}
@@ -764,7 +811,17 @@ func diffAllKmsServers() {
 	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d KMS servers clean\n", cleanCount)
-	fmt.Printf("  - %d KMS servers drifted/changed\n", driftedCount)
+	if driftedApplied > 0 {
+		fmt.Printf("  - %d KMS servers drifted — remediate with: vcli encryption kms-apply <spec>.yaml\n", driftedApplied)
+	}
+	if driftedObserved > 0 {
+		fmt.Printf("  - %d KMS servers drifted (observed) — adopt to enable remediation\n", driftedObserved)
+	}
+	// Also count inventory changes (added/removed) which were counted earlier
+	inventoryChanges := driftedCount - driftedApplied - driftedObserved
+	if inventoryChanges > 0 {
+		fmt.Printf("  - %d inventory changes detected\n", inventoryChanges)
+	}
 
 	if driftedCount > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))

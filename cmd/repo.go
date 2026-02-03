@@ -192,7 +192,12 @@ func diffSingleRepo(repoName string) {
 		log.Fatalf("Resource '%s' is not a repository (type: %s).\n", repoName, resource.Type)
 	}
 
-	fmt.Printf("Checking drift for repository: %s\n\n", repoName)
+	// Show (observed) label for monitored-only resources
+	originLabel := ""
+	if resource.Origin == "observed" {
+		originLabel = " (observed)"
+	}
+	fmt.Printf("Checking drift for repository: %s%s\n\n", repoName, originLabel)
 
 	// Fetch current from VBR
 	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", resource.ID)
@@ -260,8 +265,9 @@ func diffAllRepos() {
 	fmt.Printf("Checking %d repositories for drift...\n\n", len(resources))
 
 	minSev := parseSeverityFlag()
-	driftedCount := 0
 	cleanCount := 0
+	driftedApplied := 0
+	driftedObserved := 0
 	var allDrifts []Drift
 
 	for _, resource := range resources {
@@ -280,13 +286,23 @@ func diffAllRepos() {
 		drifts = classifyDrifts(drifts, repoSeverityMap)
 		drifts = filterDriftsBySeverity(drifts, minSev)
 
+		// Show origin label for observed resources
+		originLabel := ""
+		if resource.Origin == "observed" {
+			originLabel = " (observed)"
+		}
+
 		if len(drifts) > 0 {
 			maxSev := getMaxSeverity(drifts)
-			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			fmt.Printf("  %s %s%s: %d drifts detected\n", maxSev, resource.Name, originLabel, len(drifts))
 			allDrifts = append(allDrifts, drifts...)
-			driftedCount++
+			if resource.Origin == "observed" {
+				driftedObserved++
+			} else {
+				driftedApplied++
+			}
 		} else {
-			fmt.Printf("  %s: No drift\n", resource.Name)
+			fmt.Printf("  %s%s: No drift\n", resource.Name, originLabel)
 			cleanCount++
 		}
 	}
@@ -296,9 +312,15 @@ func diffAllRepos() {
 	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d repositories clean\n", cleanCount)
-	fmt.Printf("  - %d repositories drifted\n", driftedCount)
+	if driftedApplied > 0 {
+		fmt.Printf("  - %d repositories drifted — remediate with: vcli repo apply <spec>.yaml\n", driftedApplied)
+	}
+	if driftedObserved > 0 {
+		fmt.Printf("  - %d repositories drifted (observed) — adopt to enable remediation\n", driftedObserved)
+	}
 
-	if driftedCount > 0 {
+	totalDrifted := driftedApplied + driftedObserved
+	if totalDrifted > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)
@@ -563,7 +585,12 @@ func diffSingleSobr(sobrName string) {
 		log.Fatalf("Resource '%s' is not a scale-out repository (type: %s).\n", sobrName, resource.Type)
 	}
 
-	fmt.Printf("Checking drift for scale-out repository: %s\n\n", sobrName)
+	// Show (observed) label for monitored-only resources
+	originLabel := ""
+	if resource.Origin == "observed" {
+		originLabel = " (observed)"
+	}
+	fmt.Printf("Checking drift for scale-out repository: %s%s\n\n", sobrName, originLabel)
 
 	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", resource.ID)
 	currentRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
@@ -629,8 +656,9 @@ func diffAllSobrs() {
 	fmt.Printf("Checking %d scale-out repositories for drift...\n\n", len(resources))
 
 	minSev := parseSeverityFlag()
-	driftedCount := 0
 	cleanCount := 0
+	driftedApplied := 0
+	driftedObserved := 0
 	var allDrifts []Drift
 
 	for _, resource := range resources {
@@ -648,13 +676,23 @@ func diffAllSobrs() {
 		drifts = classifyDrifts(drifts, sobrSeverityMap)
 		drifts = filterDriftsBySeverity(drifts, minSev)
 
+		// Show origin label for observed resources
+		originLabel := ""
+		if resource.Origin == "observed" {
+			originLabel = " (observed)"
+		}
+
 		if len(drifts) > 0 {
 			maxSev := getMaxSeverity(drifts)
-			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, resource.Name, len(drifts))
+			fmt.Printf("  %s %s%s: %d drifts detected\n", maxSev, resource.Name, originLabel, len(drifts))
 			allDrifts = append(allDrifts, drifts...)
-			driftedCount++
+			if resource.Origin == "observed" {
+				driftedObserved++
+			} else {
+				driftedApplied++
+			}
 		} else {
-			fmt.Printf("  %s: No drift\n", resource.Name)
+			fmt.Printf("  %s%s: No drift\n", resource.Name, originLabel)
 			cleanCount++
 		}
 	}
@@ -664,9 +702,15 @@ func diffAllSobrs() {
 	}
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d scale-out repositories clean\n", cleanCount)
-	fmt.Printf("  - %d scale-out repositories drifted\n", driftedCount)
+	if driftedApplied > 0 {
+		fmt.Printf("  - %d scale-out repositories drifted — remediate with: vcli repo sobr-apply <spec>.yaml\n", driftedApplied)
+	}
+	if driftedObserved > 0 {
+		fmt.Printf("  - %d scale-out repositories drifted (observed) — adopt to enable remediation\n", driftedObserved)
+	}
 
-	if driftedCount > 0 {
+	totalDrifted := driftedApplied + driftedObserved
+	if totalDrifted > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))
 	}
 	os.Exit(0)

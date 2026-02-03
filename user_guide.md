@@ -542,7 +542,7 @@ vcli job apply base-backup.yaml -o dev-overlay.yaml
 vcli job apply base-backup.yaml --env production
 ```
 
-**Note:** In v0.9.0-beta1, the apply command operates in preview/dry-run mode. Actual job creation will be available in the next release.
+**Note:** Use `--dry-run` flag to preview changes before applying them to VBR.
 
 ### Environment Configuration (vcli.yaml)
 

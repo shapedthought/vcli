@@ -158,7 +158,7 @@ vcli job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
 # Preview what would be applied
 vcli job apply base-backup.yaml -o prod-overlay.yaml --dry-run
 
-# Apply when ready (note: actual job creation coming in next release)
+# Apply when ready
 vcli job apply base-backup.yaml -o prod-overlay.yaml
 ```
 

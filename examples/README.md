@@ -62,9 +62,7 @@ spec:
       quantity: 30        # Updated from overlay
 ```
 
-### Usage (Future)
-
-Once the `--overlay` flag is implemented:
+### Usage
 
 ```bash
 # Create production job

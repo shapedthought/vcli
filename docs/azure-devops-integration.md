@@ -31,7 +31,7 @@ vcli is already usable in Azure DevOps Pipelines with these capabilities:
 | State file in Git | Ready | `state.json` can be committed and tracked |
 | Human-readable output | Ready | Text output in pipeline logs |
 | Declarative job management | Ready | `job export` → `job apply` → `job diff` for backup jobs |
-| Declarative management (all resources) | Planned | Epic #42 — `export` → `adopt` → `apply` → `diff` for repos, SOBRs, encryption, KMS |
+| Declarative management (all resources) | Ready | `export` → `apply` → `diff` for repos, SOBRs, encryption, KMS (see [pipeline templates](../examples/pipelines/)) |
 | JSON output for diff commands | Not yet | Diff commands only output text |
 | Markdown report generation | Not yet | No `--format markdown` flag |
 | Webhook notifications | Not yet | Must use pipeline scripts for notifications |
@@ -345,19 +345,19 @@ Self-hosted agents are installed on a machine within your network. This avoids e
 
 ---
 
-## Complete Integration (Future State)
+## Complete Integration
 
-When all planned phases are complete, the integration expands from detection-only to full declarative management with automated remediation. This section describes the target state across two epics:
+Epic #42 is now complete, enabling full declarative management with automated remediation across all VBR resource types:
 
-- **Epic #23** — Configuration Assurance (detection and alerting for all VBR resource types)
-- **Epic #42** — Declarative Resource Management and Remediation (export, adopt, apply for all resource types)
+- **Epic #23** — Configuration Assurance (detection and alerting for all VBR resource types) ✅ Complete
+- **Epic #42** — Declarative Resource Management and Remediation (export, snapshot, apply for all resource types) ✅ Complete
 
 ### Declarative Management Workflow
 
-With Epic #42 complete, every VBR resource type supports the full lifecycle:
+Every VBR resource type now supports the full lifecycle:
 
 ```
-export → adopt → apply → diff
+export → snapshot → apply → diff
 ```
 
 **Day 1: Establish baseline**
@@ -370,10 +370,11 @@ steps:
       ./vcli encryption export --all -o infrastructure/encryption/
       ./vcli encryption kms-export --all -o infrastructure/kms/
 
-      # Adopt specs as desired state (no VBR changes)
-      for spec in infrastructure/**/*.yaml; do
-        ./vcli adopt "$spec"
-      done
+      # Snapshot resources as desired state (no VBR changes)
+      ./vcli repo snapshot --all
+      ./vcli repo sobr-snapshot --all
+      ./vcli encryption snapshot --all
+      ./vcli encryption kms-snapshot --all
     displayName: 'Bootstrap declarative management'
 ```
 
@@ -718,11 +719,9 @@ These vcli features would complete the Azure DevOps integration story. They are 
 
 ### 1. Declarative Management for All Resources (High Impact)
 
-**Status:** Planned as Epic #42
+**Status:** ✅ Complete (Epic #42)
 
-The `export` → `adopt` → `apply` → `diff` lifecycle for all resource types. This is the foundation for automated remediation pipelines. Without it, pipelines can detect drift but not fix it (except for jobs, which already have `apply`).
-
-Key issues: #43 (origin field), #47 (export), #48 (adopt), #50 (apply)
+The `export` → `snapshot` → `apply` → `diff` lifecycle is now implemented for all resource types (jobs, repositories, SOBRs, encryption passwords, KMS servers). This enables automated remediation pipelines. See [pipeline templates](../examples/pipelines/) for ready-to-use examples.
 
 ### 2. JSON Output for Diff Commands (High Impact)
 

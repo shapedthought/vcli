@@ -320,15 +320,17 @@ func getMaxSeverity(drifts []Drift) Severity {
 
 // exitCodeForDrifts returns the appropriate exit code:
 //
-//	0 = no drift, 3 = INFO/WARNING drift, 4 = CRITICAL drift
+//	ExitSuccess (0) = no drift
+//	ExitDriftWarning (3) = INFO/WARNING drift
+//	ExitDriftCritical (4) = CRITICAL drift
 func exitCodeForDrifts(drifts []Drift) int {
 	if len(drifts) == 0 {
-		return 0
+		return ExitSuccess
 	}
 	if getMaxSeverity(drifts) == SeverityCritical {
-		return 4
+		return ExitDriftCritical
 	}
-	return 3
+	return ExitDriftWarning
 }
 
 // noDriftMessage returns the appropriate "no drift" message, accounting for severity filtering

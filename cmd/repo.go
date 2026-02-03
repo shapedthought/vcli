@@ -354,11 +354,9 @@ Exit Codes:
 
 		result := applyResource(args[0], repoApplyConfig, profile)
 		if result.Error != nil {
-			if result.NotFound {
-				fmt.Printf("Error: %v\n", result.Error)
-				os.Exit(6) // Resource not found exit code
-			}
-			log.Fatalf("Failed to apply repository: %v", result.Error)
+			fmt.Printf("Error: %v\n", result.Error)
+			outcome := DetermineApplyOutcome([]ApplyResult{result})
+			os.Exit(ExitCodeForOutcome(outcome))
 		}
 
 		fmt.Printf("\nSuccessfully %s repository: %s\n", result.Action, result.ResourceName)
@@ -419,11 +417,9 @@ Exit Codes:
 
 		result := applyResource(args[0], sobrApplyConfig, profile)
 		if result.Error != nil {
-			if result.NotFound {
-				fmt.Printf("Error: %v\n", result.Error)
-				os.Exit(6) // Resource not found exit code
-			}
-			log.Fatalf("Failed to apply scale-out repository: %v", result.Error)
+			fmt.Printf("Error: %v\n", result.Error)
+			outcome := DetermineApplyOutcome([]ApplyResult{result})
+			os.Exit(ExitCodeForOutcome(outcome))
 		}
 
 		fmt.Printf("\nSuccessfully %s scale-out repository: %s\n", result.Action, result.ResourceName)

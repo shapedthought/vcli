@@ -183,7 +183,9 @@ Both short field names (`isDisabled`) and full dotted paths (`storage.retentionP
 
 ## Exit Codes
 
-All diff commands return structured exit codes for CI/CD integration:
+All commands return structured exit codes for CI/CD integration:
+
+### Diff Commands
 
 | Code | Meaning |
 |------|---------|
@@ -192,7 +194,16 @@ All diff commands return structured exit codes for CI/CD integration:
 | `4` | Critical drift detected |
 | `1` | Error occurred |
 
-### CI/CD Example
+### Apply Commands
+
+| Code | Meaning |
+|------|---------|
+| `0` | Applied successfully |
+| `1` | Error occurred (API failure, invalid spec) |
+| `5` | Partial apply — some resources succeeded, some failed (batch operations) |
+| `6` | Resource not found — cannot apply (update-only resources like repos, SOBRs, KMS) |
+
+### CI/CD Example (Diff)
 
 ```bash
 #!/bin/bash
@@ -207,6 +218,28 @@ if [ $EXIT_CODE -eq 4 ]; then
     exit 1
 elif [ $EXIT_CODE -eq 3 ]; then
     echo "WARNING: Security drift detected, review required."
+fi
+```
+
+### CI/CD Example (Apply)
+
+```bash
+#!/bin/bash
+vcli repo apply repos/default-repo.yaml
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "Repository applied successfully"
+elif [ $EXIT_CODE -eq 5 ]; then
+    echo "Partial apply - some resources need manual intervention"
+    # Create work item or notify team
+    exit 0  # Pipeline continues but flags for review
+elif [ $EXIT_CODE -eq 6 ]; then
+    echo "Resource not found - must be created in VBR console first"
+    exit 1
+else
+    echo "Apply failed with error"
+    exit 1
 fi
 ```
 

@@ -185,7 +185,8 @@ func writeLegacyHeadersFile(token string, expiresIn int, isBasicAuth bool) error
 		}
 	}
 
-	if err := os.WriteFile(headersFile, data, 0644); err != nil {
+	// Use restrictive permissions (0600) to protect tokens from other users
+	if err := os.WriteFile(headersFile, data, 0600); err != nil {
 		return fmt.Errorf("failed to write headers file: %w", err)
 	}
 

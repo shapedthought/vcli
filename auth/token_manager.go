@@ -35,12 +35,42 @@ type TokenInfo struct {
 func NewTokenManager(debug bool) (*TokenManager, error) {
 	// Try to open system keychain
 	// Use file backend as fallback for systems without keychain
+	// Get home directory for file backend
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "." // Fallback to current directory if home not available
+	}
+
 	kr, err := keyring.Open(keyring.Config{
-		ServiceName:      KeyringService,
-		KeychainName:     "vcli",
-		FileDir:          "~/.vcli",
+		ServiceName:  KeyringService,
+		KeychainName: "vcli",
+		FileDir:      homeDir + "/.vcli",
 		FilePasswordFunc: func(prompt string) (string, error) {
-			return "vcli-fallback-key", nil
+			// Check environment variable first (allows non-interactive configuration)
+			if pw := os.Getenv("VCLI_FILE_KEY"); pw != "" {
+				return pw, nil
+			}
+
+			// Prompt for password in interactive mode
+			if term.IsTerminal(int(os.Stdin.Fd())) {
+				if prompt == "" {
+					prompt = "Enter password for vcli file keyring: "
+				}
+				fmt.Fprint(os.Stderr, prompt)
+				pwBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+				fmt.Fprintln(os.Stderr)
+				if err != nil {
+					return "", fmt.Errorf("failed to read password: %w", err)
+				}
+				if len(pwBytes) == 0 {
+					return "", errors.New("empty password not allowed")
+				}
+				return string(pwBytes), nil
+			}
+
+			// Non-interactive mode without VCLI_FILE_KEY
+			// This shouldn't happen in CI/CD as keyring is not used there
+			return "", errors.New("VCLI_FILE_KEY environment variable required for file keyring in non-interactive mode")
 		},
 		AllowedBackends: []keyring.BackendType{
 			keyring.KeychainBackend,      // macOS

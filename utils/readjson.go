@@ -95,7 +95,8 @@ func SaveProfilesFile(profilesFile models.ProfilesFile) error {
 		return fmt.Errorf("failed to marshal profiles: %w", err)
 	}
 
-	if err := os.WriteFile(profileFile, data, 0644); err != nil {
+	// Use restrictive permissions (0600) to protect infrastructure information
+	if err := os.WriteFile(profileFile, data, 0600); err != nil {
 		return fmt.Errorf("failed to write profiles file: %w", err)
 	}
 

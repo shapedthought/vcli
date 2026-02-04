@@ -208,21 +208,6 @@ func (tm *TokenManager) DeleteToken(profileName string) error {
 	return tm.keyring.Remove(profileName)
 }
 
-// authenticate performs OAuth login and returns token
-func (tm *TokenManager) authenticate(profile models.Profile, username, password, apiURL string) (string, int, error) {
-	// Read settings to get insecure flag (would need to be passed in)
-	// For now, we'll create authenticator with insecure=false
-	// This will be refactored to accept settings as parameter
-	auth := NewAuthenticator(false, tm.debug)
-
-	result, err := auth.Authenticate(profile, username, password, apiURL)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return result.Token, result.ExpiresIn, nil
-}
-
 // AuthenticateWithSettings performs OAuth login with settings context
 func (tm *TokenManager) AuthenticateWithSettings(profile models.Profile, username, password, apiURL string, insecure bool) (string, int, error) {
 	auth := NewAuthenticator(insecure, tm.debug)
@@ -237,9 +222,19 @@ func (tm *TokenManager) AuthenticateWithSettings(profile models.Profile, usernam
 
 // isValidTokenFormat performs basic token format validation
 func isValidTokenFormat(token string) bool {
-	// JWT tokens start with "eyJ"
-	// Basic validation without full JWT parsing
-	return len(token) > 20 && (token[:3] == "eyJ" || len(token) > 50)
+	// Minimum length check
+	if len(token) < 20 {
+		return false
+	}
+
+	// JWT tokens start with "eyJ" (base64 encoded header)
+	if len(token) >= 3 && token[:3] == "eyJ" {
+		return true
+	}
+
+	// Session tokens (e.g., Enterprise Manager) are typically 32-64 chars
+	// Accept non-JWT tokens that are at least 32 chars
+	return len(token) >= 32
 }
 
 // isInteractiveSession detects if running in an interactive terminal

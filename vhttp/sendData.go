@@ -16,25 +16,6 @@ import (
 )
 
 func SendData(api_url string, filename string, endPoint string, method string, profile models.Profile, settings models.Settings) {
-
-		// profile := utils.GetProfile()
-		// settings := utils.ReadSettings()
-
-		// var api_url string
-
-		// if settings.CredsFileMode {
-		// 	if len(profile.Address) > 0 {
-		// 		api_url = profile.Address
-		// 	} else {
-		// 		log.Fatal("Profile Address not set")
-		// 	}
-		// } else {
-		// 	api_url = os.Getenv("VCLI_URL")
-		// 	if api_url == "" {
-		// 		log.Fatal("VCLI_URL environment variable not set")
-		// 	}
-		// }
-
 		var data interface{}
 
 		client := Client(settings.ApiNotSecure)

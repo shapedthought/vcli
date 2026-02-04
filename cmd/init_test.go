@@ -183,13 +183,11 @@ func TestInitAppNonInteractive(t *testing.T) {
 	// Save and restore original values
 	origOutputDir := outputDir
 	origInsecure := insecure
-	origCredsFile := credsFile
 	origStdout := os.Stdout
 
 	defer func() {
 		outputDir = origOutputDir
 		insecure = origInsecure
-		credsFile = origCredsFile
 		os.Stdout = origStdout
 	}()
 
@@ -200,7 +198,6 @@ func TestInitAppNonInteractive(t *testing.T) {
 	// Set test values
 	outputDir = tempDir + "/"
 	insecure = true
-	credsFile = true
 
 	// Run the function
 	initAppNonInteractive()
@@ -253,9 +250,6 @@ func TestInitAppNonInteractive(t *testing.T) {
 	if settings.ApiNotSecure != true {
 		t.Errorf("ApiNotSecure = %v, want true", settings.ApiNotSecure)
 	}
-	if settings.CredsFileMode != true {
-		t.Errorf("CredsFileMode = %v, want true", settings.CredsFileMode)
-	}
 	if settings.SelectedProfile != "vbr" {
 		t.Errorf("SelectedProfile = %s, want vbr", settings.SelectedProfile)
 	}
@@ -292,13 +286,11 @@ func TestInitSettingsNonInteractive(t *testing.T) {
 	// Save and restore original values
 	origOutputDir := outputDir
 	origInsecure := insecure
-	origCredsFile := credsFile
 	origStdout := os.Stdout
 
 	defer func() {
 		outputDir = origOutputDir
 		insecure = origInsecure
-		credsFile = origCredsFile
 		os.Stdout = origStdout
 	}()
 
@@ -309,7 +301,6 @@ func TestInitSettingsNonInteractive(t *testing.T) {
 	// Set test values
 	outputDir = tempDir + "/"
 	insecure = false
-	credsFile = false
 
 	// Run the function
 	initSettingsNonInteractive()
@@ -437,7 +428,6 @@ func TestFlagDefaults(t *testing.T) {
 	// Reset flags to defaults
 	interactive = false
 	insecure = false
-	credsFile = false
 	outputDir = ""
 
 	tests := []struct {
@@ -456,12 +446,6 @@ func TestFlagDefaults(t *testing.T) {
 			name:     "insecure default",
 			flagName: "insecure",
 			value:    insecure,
-			want:     false,
-		},
-		{
-			name:     "creds-file default",
-			flagName: "creds-file",
-			value:    credsFile,
 			want:     false,
 		},
 		{

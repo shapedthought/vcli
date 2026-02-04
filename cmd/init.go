@@ -15,7 +15,6 @@ import (
 var (
 	interactive bool
 	insecure    bool
-	credsFile   bool
 	outputDir   string
 )
 
@@ -101,10 +100,8 @@ func init() {
 	}
 
 	// Settings-specific flags
-	initCmd.Flags().BoolVar(&insecure, "insecure", false, "Skip TLS verification (sets skipTLSVerify: true)")
-	initCmd.Flags().BoolVar(&credsFile, "creds-file", false, "Enable credentials file mode")
-	initSettingsCmd.Flags().BoolVar(&insecure, "insecure", false, "Skip TLS verification (sets skipTLSVerify: true)")
-	initSettingsCmd.Flags().BoolVar(&credsFile, "creds-file", false, "Enable credentials file mode")
+	initCmd.Flags().BoolVar(&insecure, "insecure", false, "Skip TLS verification (sets apiNotSecure: true)")
+	initSettingsCmd.Flags().BoolVar(&insecure, "insecure", false, "Skip TLS verification (sets apiNotSecure: true)")
 }
 
 // isInteractiveSession detects if we're in an interactive terminal
@@ -274,7 +271,6 @@ func initAppNonInteractive() {
 	settings := models.Settings{
 		SelectedProfile: profilesFile.CurrentProfile,
 		ApiNotSecure:    insecure,
-		CredsFileMode:   credsFile,
 	}
 	settingsPath := basePath + "settings"
 	utils.SaveJson(&settings, settingsPath)
@@ -313,7 +309,6 @@ func initSettingsNonInteractive() {
 	settings := models.Settings{
 		SelectedProfile: "vbr",
 		ApiNotSecure:    insecure,
-		CredsFileMode:   credsFile,
 	}
 	settingsPath := basePath + "settings"
 	utils.SaveJson(&settings, settingsPath)
@@ -380,22 +375,13 @@ func initAppInteractive() {
 	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"
 	insecureResult, _ := pterm.DefaultInteractiveConfirm.Show()
 
-	pterm.DefaultInteractiveConfirm.DefaultText = "Use Creds file mode?"
-	credsMode, _ := pterm.DefaultInteractiveConfirm.Show()
-
 	settings := models.Settings{
 		SelectedProfile: "vbr",
 		ApiNotSecure:    insecureResult,
-		CredsFileMode:   credsMode,
 	}
 
-	if credsMode {
-		fmt.Println("Remember to update the profiles.json file with the usernames and API addresses.")
-		fmt.Printf("Settings file location: %v\n", basePath)
-		fmt.Println("VCLI_PASSWORD will still need to be set as an environment variable")
-	} else {
-		fmt.Println("Initialized, ensure all environment variables are set.")
-	}
+	fmt.Println("Initialized successfully. Ensure environment variables are set:")
+	fmt.Println("  - VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL")
 
 	settingsPath := basePath + "settings"
 	utils.SaveJson(&settings, settingsPath)
@@ -408,13 +394,9 @@ func initSettingsInteractive() {
 	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"
 	insecureResult, _ := pterm.DefaultInteractiveConfirm.Show()
 
-	pterm.DefaultInteractiveConfirm.DefaultText = "Use Creds file mode?"
-	credsMode, _ := pterm.DefaultInteractiveConfirm.Show()
-
 	settings := models.Settings{
 		SelectedProfile: "vbr",
 		ApiNotSecure:    insecureResult,
-		CredsFileMode:   credsMode,
 	}
 
 	settingsPath := basePath + "settings"

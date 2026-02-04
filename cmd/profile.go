@@ -55,12 +55,12 @@ func printCurrentProfile() {
 }
 
 func listProfiles() {
-	profiles := utils.ReadProfiles()
+	profilesFile := utils.ReadProfilesFile()
 
 	var names []string
 
-	for _, i := range profiles {
-		names = append(names, i.Name)
+	for name := range profilesFile.Profiles {
+		names = append(names, name)
 	}
 
 	sort.Strings(names)
@@ -77,12 +77,12 @@ func setProfile() {
 
 	settings := utils.ReadSettings()
 
-	profiles := utils.ReadProfiles()
+	profilesFile := utils.ReadProfilesFile()
 
 	var names []string
 
-	for _, i := range profiles {
-		names = append(names, i.Name)
+	for name := range profilesFile.Profiles {
+		names = append(names, name)
 	}
 
 	sort.Strings(names)

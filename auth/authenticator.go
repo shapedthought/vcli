@@ -41,7 +41,8 @@ type AuthResult struct {
 
 // Authenticate performs OAuth or Basic Auth login
 func (a *Authenticator) Authenticate(profile models.Profile, username, password, apiURL string) (*AuthResult, error) {
-	connstring := fmt.Sprintf("https://%s%s", apiURL, profile.URL)
+	// Build connection string using new Endpoints structure
+	connstring := fmt.Sprintf("https://%s:%d%s", apiURL, profile.Port, profile.Endpoints.Auth)
 
 	if a.debug {
 		fmt.Printf("DEBUG: Authenticating to %s\n", connstring)
@@ -50,7 +51,7 @@ func (a *Authenticator) Authenticate(profile models.Profile, username, password,
 	var r *http.Request
 	var err error
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		// Enterprise Manager uses Basic Auth
 		r, err = http.NewRequest("POST", connstring, nil)
 		if err != nil {
@@ -89,7 +90,7 @@ func (a *Authenticator) Authenticate(profile models.Profile, username, password,
 		return nil, fmt.Errorf("authentication failed with status %d: %s", res.StatusCode, string(body))
 	}
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		// Extract session token from header
 		token := res.Header.Get("X-RestSvcSessionId")
 		if token == "" {

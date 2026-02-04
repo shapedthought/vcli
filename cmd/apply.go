@@ -54,9 +54,10 @@ Overlay Resolution:
 }
 
 func applyJob(configFile string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 

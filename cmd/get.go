@@ -25,7 +25,7 @@ It will print to stdout in json by default, --yaml will print out to yaml.
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		profile := utils.GetProfile()
+		profile := utils.GetCurrentProfile()
 
 		customGet(profile, args[0])
 	},

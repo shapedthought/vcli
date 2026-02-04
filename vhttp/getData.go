@@ -19,48 +19,31 @@ type ReadHeaders interface {
 
 func GetData[T any](url string, profile models.Profile) T {
 	
-	// creds := utils.ReadCreds()
 	settings := utils.ReadSettings()
 
-	var api_url string
-
-	if settings.CredsFileMode {
-		if len(profile.Address) > 0 {
-			api_url = profile.Address
-		} else {
-			log.Fatal("Profile Address is not set")
-		}
-	} else {
-		api_url = os.Getenv("VCLI_URL")
-		if api_url == "" {
-			log.Fatal("VCLI_URL environment variable not set")
-		}
+	// With v1.0 profiles, credentials are always from environment variables
+	api_url := os.Getenv("VCLI_URL")
+	if api_url == "" {
+		log.Fatal("VCLI_URL environment variable not set")
 	}
 
 	// creates a new client instance
 	client := Client(settings.ApiNotSecure)
 
-	apibit := "/api/"
-
-	if profile.Name == "vb365" && profile.Name != "ent_man" {
-		apibit = "/"
-	} else if profile.Name == "ent_man" {
-		apibit = "/api"
-	}
-
-	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, url)
+	// Use APIPrefix from endpoints structure
+	connstring := fmt.Sprintf("https://%v:%v%v/%v", api_url, profile.Port, profile.Endpoints.APIPrefix, url)
 
 	r, err := http.NewRequest("GET", connstring, nil)
 	utils.IsErr(err)
 	r.Header.Add("accept", profile.Headers.Accept)
 
 	// Get authentication token using TokenManager
-	token, err := auth.GetTokenForRequest(profile, settings)
+	token, err := auth.GetTokenForRequest(settings.SelectedProfile, profile, settings)
 	if err != nil {
 		log.Fatalf("Authentication failed: %v", err)
 	}
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		r.Header.Add("x-RestSvcSessionId", token)
 	} else {
 		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)

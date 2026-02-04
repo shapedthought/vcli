@@ -56,36 +56,12 @@ func init() {
 
 func loginWithTokenManager() {
 	settings := utils.ReadSettings()
-	profiles := utils.ReadProfiles()
+	profile := utils.GetProfile(settings.SelectedProfile)
 
-	var profile models.Profile
-	check := false
-	for _, v := range profiles {
-		if v.Name == settings.SelectedProfile {
-			profile = v
-			check = true
-			break
-		}
-	}
-
-	if !check {
-		log.Fatalf("Error with selected profile %v", settings.SelectedProfile)
-	}
-
-	// Get credentials
-	var username, vcliUrl string
-	if settings.CredsFileMode {
-		if len(profile.Username) > 0 && len(profile.Address) > 0 {
-			username = profile.Username
-			vcliUrl = profile.Address
-		} else {
-			log.Fatal("Username or API address not set in the profile")
-		}
-	} else {
-		username = os.Getenv("VCLI_USERNAME")
-		vcliUrl = os.Getenv("VCLI_URL")
-	}
-
+	// Get credentials from environment variables
+	// Note: With v1.0 profiles, credentials are no longer stored in profiles.json
+	username := os.Getenv("VCLI_USERNAME")
+	vcliUrl := os.Getenv("VCLI_URL")
 	password := os.Getenv("VCLI_PASSWORD")
 
 	// Validate credentials
@@ -133,12 +109,12 @@ func loginWithTokenManager() {
 		fmt.Fprintln(os.Stderr, "Use 'vcli login --output-token' to capture token for reuse")
 	} else {
 		// Store in keychain for interactive sessions
-		if err := tm.StoreToken(profile.Name, token, expiresIn); err != nil {
+		if err := tm.StoreToken(settings.SelectedProfile, token, expiresIn); err != nil {
 			fmt.Fprintf(os.Stderr, "WARNING: Failed to store token in keychain: %v\n", err)
 			fmt.Fprintln(os.Stderr, "Token will need to be re-generated on next command")
 		} else {
 			if debugAuth {
-				fmt.Fprintf(os.Stderr, "DEBUG: Token stored in system keychain for profile '%s'\n", profile.Name)
+				fmt.Fprintf(os.Stderr, "DEBUG: Token stored in system keychain for profile '%s'\n", settings.SelectedProfile)
 			}
 		}
 		fmt.Println("Login OK")
@@ -146,7 +122,7 @@ func loginWithTokenManager() {
 
 	// For backward compatibility, also write to headers.json (will be removed in future version)
 	if !outputToken {
-		if err := writeLegacyHeadersFile(token, expiresIn, profile.Name == "ent_man"); err != nil {
+		if err := writeLegacyHeadersFile(token, expiresIn, profile.AuthType == "basic"); err != nil {
 			// Non-fatal warning
 			if debugAuth {
 				fmt.Fprintf(os.Stderr, "WARNING: Failed to write legacy headers.json: %v\n", err)

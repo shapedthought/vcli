@@ -25,7 +25,7 @@ vcli post jobs -f job.json
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		profile := utils.GetProfile()
+		profile := utils.GetCurrentProfile()
 		settings := utils.ReadSettings()
 
 		api_url := utils.GetAddress(profile, settings)

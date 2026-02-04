@@ -53,7 +53,7 @@ func (r *Resolver) ResolveRepositoryID(name string) (string, error) {
 	}
 
 	// Fetch repositories from VBR
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	repos := vhttp.GetData[RepositoryList]("backupInfrastructure/repositories", profile)
 
 	// Find repository by name
@@ -76,7 +76,7 @@ func (r *Resolver) ResolveVMID(name string, hostName string) (string, error) {
 	}
 
 	// Fetch VMs from VBR hierarchy
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	vms := vhttp.GetData[VMList]("vmware/hierarchyRoots", profile)
 
 	// Find VM by name (and optionally hostname)
@@ -98,7 +98,7 @@ func (r *Resolver) ResolveVMID(name string, hostName string) (string, error) {
 // ResolveRepositoryName resolves a repository ID to its name
 func (r *Resolver) ResolveRepositoryName(id string) (string, error) {
 	// Fetch repositories from VBR
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	repos := vhttp.GetData[RepositoryList]("backupInfrastructure/repositories", profile)
 
 	// Find repository by ID
@@ -114,7 +114,7 @@ func (r *Resolver) ResolveRepositoryName(id string) (string, error) {
 // ResolveVMName resolves a VM object ID to its name
 func (r *Resolver) ResolveVMName(objectID string) (string, string, error) {
 	// Fetch VMs from VBR hierarchy
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	vms := vhttp.GetData[VMList]("vmware/hierarchyRoots", profile)
 
 	// Find VM by object ID

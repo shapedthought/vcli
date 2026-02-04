@@ -42,32 +42,16 @@ func PostDataWithError(url string, data interface{}, profile models.Profile) ([]
 func sendRequestWithError(method string, url string, data interface{}, profile models.Profile) ([]byte, error) {
 	settings := utils.ReadSettings()
 
-	var api_url string
-
-	if settings.CredsFileMode {
-		if len(profile.Address) > 0 {
-			api_url = profile.Address
-		} else {
-			return nil, fmt.Errorf("profile Address is not set")
-		}
-	} else {
-		api_url = os.Getenv("VCLI_URL")
-		if api_url == "" {
-			return nil, fmt.Errorf("VCLI_URL environment variable not set")
-		}
+	// With v1.0 profiles, credentials are always from environment variables
+	api_url := os.Getenv("VCLI_URL")
+	if api_url == "" {
+		return nil, fmt.Errorf("VCLI_URL environment variable not set")
 	}
 
 	client := Client(settings.ApiNotSecure)
 
-	apibit := "/api/"
-
-	if profile.Name == "vb365" {
-		apibit = "/"
-	} else if profile.Name == "ent_man" {
-		apibit = "/api"
-	}
-
-	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, url)
+	// Use APIPrefix from endpoints structure
+	connstring := fmt.Sprintf("https://%v:%v%v/%v", api_url, profile.Port, profile.Endpoints.APIPrefix, url)
 
 	var reqBody io.Reader
 	if data != nil {
@@ -87,12 +71,12 @@ func sendRequestWithError(method string, url string, data interface{}, profile m
 	r.Header.Add("Content-Type", "application/json")
 
 	// Get authentication token using TokenManager
-	token, err := auth.GetTokenForRequest(profile, settings)
+	token, err := auth.GetTokenForRequest(settings.SelectedProfile, profile, settings)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		r.Header.Add("x-RestSvcSessionId", token)
 	} else {
 		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
@@ -126,32 +110,16 @@ func DeleteData(url string, profile models.Profile) {
 func sendRequest[T any](method string, url string, data interface{}, profile models.Profile) T {
 	settings := utils.ReadSettings()
 
-	var api_url string
-
-	if settings.CredsFileMode {
-		if len(profile.Address) > 0 {
-			api_url = profile.Address
-		} else {
-			log.Fatal("Profile Address is not set")
-		}
-	} else {
-		api_url = os.Getenv("VCLI_URL")
-		if api_url == "" {
-			log.Fatal("VCLI_URL environment variable not set")
-		}
+	// With v1.0 profiles, credentials are always from environment variables
+	api_url := os.Getenv("VCLI_URL")
+	if api_url == "" {
+		log.Fatal("VCLI_URL environment variable not set")
 	}
 
 	client := Client(settings.ApiNotSecure)
 
-	apibit := "/api/"
-
-	if profile.Name == "vb365" && profile.Name != "ent_man" {
-		apibit = "/"
-	} else if profile.Name == "ent_man" {
-		apibit = "/api"
-	}
-
-	connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, url)
+	// Use APIPrefix from endpoints structure
+	connstring := fmt.Sprintf("https://%v:%v%v/%v", api_url, profile.Port, profile.Endpoints.APIPrefix, url)
 
 	var reqBody io.Reader
 	if data != nil {
@@ -167,12 +135,12 @@ func sendRequest[T any](method string, url string, data interface{}, profile mod
 	r.Header.Add("Content-Type", "application/json")
 
 	// Get authentication token using TokenManager
-	token, err := auth.GetTokenForRequest(profile, settings)
+	token, err := auth.GetTokenForRequest(settings.SelectedProfile, profile, settings)
 	if err != nil {
 		log.Fatalf("Authentication failed: %v", err)
 	}
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		r.Header.Add("x-RestSvcSessionId", token)
 	} else {
 		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)

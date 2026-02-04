@@ -38,15 +38,9 @@ func SendData(api_url string, filename string, endPoint string, method string, p
 		var data interface{}
 
 		client := Client(settings.ApiNotSecure)
-		apibit := "/api/"
 
-		if profile.Name == "vb365" && profile.Name != "ent_man" {
-			apibit = "/"
-		} else if profile.Name == "ent_man" {
-			apibit = "/api"
-		}
-	
-		connstring := fmt.Sprintf("https://%v:%v%v%v/%v", api_url, profile.Port, apibit, profile.APIVersion, endPoint)
+		// Use APIPrefix from endpoints structure
+		connstring := fmt.Sprintf("https://%v:%v%v/%v", api_url, profile.Port, profile.Endpoints.APIPrefix, endPoint)
 
 		// var sendData []byte
 		var j []byte
@@ -102,12 +96,12 @@ func SendData(api_url string, filename string, endPoint string, method string, p
 		r.Header.Add("Content-Type", "application/json")
 
 		// Get authentication token using TokenManager
-		token, err := auth.GetTokenForRequest(profile, settings)
+		token, err := auth.GetTokenForRequest(settings.SelectedProfile, profile, settings)
 		if err != nil {
 			log.Fatalf("Authentication failed: %v", err)
 		}
 
-		if profile.Name == "ent_man" {
+		if profile.AuthType == "basic" {
 			r.Header.Add("x-RestSvcSessionId", token)
 		} else {
 			r.Header.Add("x-api-version", profile.Headers.XAPIVersion)

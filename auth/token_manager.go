@@ -61,7 +61,8 @@ func NewTokenManager(debug bool) (*TokenManager, error) {
 
 // GetToken retrieves token using hybrid approach
 // Priority: 1) VCLI_TOKEN env var, 2) keychain, 3) auto-authenticate
-func (tm *TokenManager) GetToken(profile models.Profile, username, password, apiURL string, insecure bool) (string, error) {
+// profileName is used for keychain storage/retrieval
+func (tm *TokenManager) GetToken(profileName string, profile models.Profile, username, password, apiURL string, insecure bool) (string, error) {
 	if tm.debug {
 		fmt.Fprintln(os.Stderr, "DEBUG: Token resolution started")
 	}
@@ -81,7 +82,7 @@ func (tm *TokenManager) GetToken(profile models.Profile, username, password, api
 	}
 
 	// 2. Check system keychain
-	if token, err := tm.getTokenFromKeychain(profile.Name); err == nil {
+	if token, err := tm.getTokenFromKeychain(profileName); err == nil {
 		if tm.debug {
 			fmt.Fprintln(os.Stderr, "DEBUG: Using token from system keychain")
 		}
@@ -105,7 +106,7 @@ func (tm *TokenManager) GetToken(profile models.Profile, username, password, api
 			if tm.debug {
 				fmt.Fprintln(os.Stderr, "DEBUG: Storing token in keychain (interactive session)")
 			}
-			if err := tm.StoreToken(profile.Name, token, expiresIn); err != nil {
+			if err := tm.StoreToken(profileName, token, expiresIn); err != nil {
 				// Non-fatal: just warn
 				if tm.debug {
 					fmt.Fprintf(os.Stderr, "DEBUG: Failed to store token in keychain: %v\n", err)
@@ -248,7 +249,7 @@ func IsCI() bool {
 // GetTokenForRequest is a convenience function for API requests that handles
 // credential gathering from settings/env and token resolution.
 // Returns the token string or an error.
-func GetTokenForRequest(profile models.Profile, settings models.Settings) (string, error) {
+func GetTokenForRequest(profileName string, profile models.Profile, settings models.Settings) (string, error) {
 	// Check if explicit token is set (highest priority)
 	if token := os.Getenv(TokenEnvVar); token != "" {
 		if isValidTokenFormat(token) {
@@ -256,24 +257,16 @@ func GetTokenForRequest(profile models.Profile, settings models.Settings) (strin
 		}
 	}
 
-	// Get credentials based on mode for keychain lookup or auto-auth
-	var username, apiURL string
-	if settings.CredsFileMode {
-		if len(profile.Username) > 0 && len(profile.Address) > 0 {
-			username = profile.Username
-			apiURL = profile.Address
-		} else {
-			return "", errors.New("username or address not set in profile")
-		}
-	} else {
-		username = os.Getenv("VCLI_USERNAME")
-		apiURL = os.Getenv("VCLI_URL")
-		if username == "" || apiURL == "" {
-			return "", errors.New("VCLI_USERNAME or VCLI_URL environment variable not set")
-		}
+	// Get credentials from environment variables
+	// Note: With v1.0 profiles, credentials are no longer stored in profiles.json
+	username := os.Getenv("VCLI_USERNAME")
+	apiURL := os.Getenv("VCLI_URL")
+	password := os.Getenv("VCLI_PASSWORD")
+
+	if username == "" || apiURL == "" {
+		return "", errors.New("VCLI_USERNAME or VCLI_URL environment variable not set")
 	}
 
-	password := os.Getenv("VCLI_PASSWORD")
 	if password == "" {
 		return "", errors.New("VCLI_PASSWORD environment variable not set")
 	}
@@ -285,7 +278,7 @@ func GetTokenForRequest(profile models.Profile, settings models.Settings) (strin
 	}
 
 	// Get token (tries keychain → auto-auth)
-	token, err := tm.GetToken(profile, username, password, apiURL, settings.ApiNotSecure)
+	token, err := tm.GetToken(profileName, profile, username, password, apiURL, settings.ApiNotSecure)
 	if err != nil {
 		return "", fmt.Errorf("failed to get authentication token: %w", err)
 	}

@@ -106,9 +106,10 @@ Exit Codes:
 }
 
 func snapshotSingleRepo(repoName string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -139,9 +140,10 @@ func snapshotSingleRepo(repoName string) {
 }
 
 func snapshotAllRepos() {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -177,9 +179,10 @@ func saveRepoToState(name, id string, rawData json.RawMessage) error {
 
 func diffSingleRepo(repoName string) {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -247,9 +250,10 @@ func diffSingleRepo(repoName string) {
 
 func diffAllRepos() {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -377,9 +381,10 @@ Exit Codes:
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		profile := utils.GetProfile()
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
 
-		if profile.Name != "vbr" {
+		if settings.SelectedProfile != "vbr" {
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
@@ -447,9 +452,10 @@ Exit Codes:
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		profile := utils.GetProfile()
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
 
-		if profile.Name != "vbr" {
+		if settings.SelectedProfile != "vbr" {
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
@@ -521,9 +527,10 @@ Exit Codes:
 }
 
 func snapshotSingleSobr(sobrName string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -552,9 +559,10 @@ func snapshotSingleSobr(sobrName string) {
 }
 
 func snapshotAllSobrs() {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -585,9 +593,10 @@ func snapshotAllSobrs() {
 
 func diffSingleSobr(sobrName string) {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -652,9 +661,10 @@ func diffSingleSobr(sobrName string) {
 
 func diffAllSobrs() {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 

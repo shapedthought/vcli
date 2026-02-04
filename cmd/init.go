@@ -138,98 +138,125 @@ func ensureTrailingSlash(path string) string {
 }
 
 // getDefaultProfiles returns the default profile configurations
-func getDefaultProfiles() []models.Profile {
-	return []models.Profile{
-		{
-			Name: "vb365",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "",
+// getProfileNames returns a slice of profile names from ProfilesFile
+func getProfileNames(pf models.ProfilesFile) []string {
+	names := make([]string, 0, len(pf.Profiles))
+	for name := range pf.Profiles {
+		names = append(names, name)
+	}
+	return names
+}
+
+func getDefaultProfiles() models.ProfilesFile {
+	return models.ProfilesFile{
+		Version:        "1.0",
+		CurrentProfile: "vbr",
+		Profiles: map[string]models.Profile{
+			"vb365": {
+				Product:    "VeeamBackupFor365",
+				APIVersion: "v7",
+				Port:       4443,
+				Endpoints: models.Endpoints{
+					Auth:      "/v6/Token",
+					APIPrefix: "/v7",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "",
+				},
 			},
-			URL:        ":4443/v6/Token",
-			Port:       "4443",
-			APIVersion: "v7",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "aws",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "1.4-rev0",
+			"aws": {
+				Product:    "VeeamBackupForAWS",
+				APIVersion: "1.4-rev0",
+				Port:       11005,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/v1/token",
+					APIPrefix: "/api/v1",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "1.4-rev0",
+				},
 			},
-			URL:        ":11005/api/v1/token",
-			Port:       "11005",
-			APIVersion: "v1",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "vbr",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "1.3-rev1",
+			"vbr": {
+				Product:    "VeeamBackupReplication",
+				APIVersion: "1.3-rev1",
+				Port:       9419,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/oauth2/token",
+					APIPrefix: "/api/v1",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "1.3-rev1",
+				},
 			},
-			URL:        ":9419/api/oauth2/token",
-			Port:       "9419",
-			APIVersion: "v1",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "azure",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "",
+			"azure": {
+				Product:    "VeeamBackupForAzure",
+				APIVersion: "v5",
+				Port:       443,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/oauth2/token",
+					APIPrefix: "/api/v5",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "",
+				},
 			},
-			URL:        "/api/oauth2/token",
-			Port:       "",
-			APIVersion: "v5",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "gcp",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "1.2-rev0",
+			"gcp": {
+				Product:    "VeeamBackupForGCP",
+				APIVersion: "1.2-rev0",
+				Port:       13140,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/v1/token",
+					APIPrefix: "/api/v1",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "1.2-rev0",
+				},
 			},
-			URL:        ":13140/api/v1/token",
-			Port:       "13140",
-			APIVersion: "v1",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "vone",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/x-www-form-urlencoded",
-				XAPIVersion: "1.0-rev2",
+			"vone": {
+				Product:    "VeeamOne",
+				APIVersion: "1.0-rev2",
+				Port:       1239,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/token",
+					APIPrefix: "/api/v2.1",
+				},
+				AuthType: "oauth",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/x-www-form-urlencoded",
+					XAPIVersion: "1.0-rev2",
+				},
 			},
-			URL:        ":1239/api/token",
-			Port:       "1239",
-			APIVersion: "v2.1",
-			Username:   "",
-			Address:    "",
-		},
-		{
-			Name: "ent_man",
-			Headers: models.Headers{
-				Accept:      "application/json",
-				ContentType: "application/json",
-				XAPIVersion: "",
+			"ent_man": {
+				Product:    "EnterpriseManager",
+				APIVersion: "",
+				Port:       9398,
+				Endpoints: models.Endpoints{
+					Auth:      "/api/sessionMngr/?v=latest",
+					APIPrefix: "/api",
+				},
+				AuthType: "basic",
+				Headers: models.Headers{
+					Accept:      "application/json",
+					ContentType: "application/json",
+					XAPIVersion: "",
+				},
 			},
-			URL:        ":9398/api/sessionMngr/?v=latest",
-			Port:       "9398",
-			APIVersion: "",
-			Username:   "",
-			Address:    "",
 		},
 	}
 }
@@ -238,14 +265,14 @@ func getDefaultProfiles() []models.Profile {
 func initAppNonInteractive() {
 	basePath := getOutputPath()
 
-	// Create profiles
-	profiles := getDefaultProfiles()
+	// Create profiles (new v1.0 format)
+	profilesFile := getDefaultProfiles()
 	profilePath := basePath + "profiles"
-	utils.SaveJson(&profiles, profilePath)
+	utils.SaveJson(&profilesFile, profilePath)
 
 	// Create settings
 	settings := models.Settings{
-		SelectedProfile: "vbr",
+		SelectedProfile: profilesFile.CurrentProfile,
 		ApiNotSecure:    insecure,
 		CredsFileMode:   credsFile,
 	}
@@ -254,8 +281,9 @@ func initAppNonInteractive() {
 
 	// Output result as JSON for piping
 	result := map[string]interface{}{
+		"version":  profilesFile.Version,
 		"settings": settings,
-		"profiles": profiles,
+		"profiles": profilesFile.Profiles,
 		"files": map[string]string{
 			"settings": settingsPath + ".json",
 			"profiles": profilePath + ".json",
@@ -271,14 +299,11 @@ func initAppNonInteractive() {
 	fmt.Println(string(jsonOutput))
 
 	// Print helpful message to stderr so it doesn't interfere with JSON piping
-	if credsFile {
-		fmt.Fprintln(os.Stderr, "\nNote: Credentials file mode enabled.")
-		fmt.Fprintf(os.Stderr, "Update profiles.json with usernames and API addresses at: %s\n", profilePath+".json")
-		fmt.Fprintln(os.Stderr, "Set VCLI_PASSWORD environment variable for authentication.")
-	} else {
-		fmt.Fprintln(os.Stderr, "\nInitialized successfully.")
-		fmt.Fprintln(os.Stderr, "Ensure environment variables are set: VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL")
-	}
+	fmt.Fprintln(os.Stderr, "\nInitialized successfully (profiles v1.0)")
+	fmt.Fprintln(os.Stderr, "Ensure environment variables are set: VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "Available profiles: %v\n", getProfileNames(profilesFile))
+	fmt.Fprintf(os.Stderr, "Current profile: %s\n", profilesFile.CurrentProfile)
 }
 
 // initSettingsNonInteractive initializes only settings.json
@@ -313,13 +338,14 @@ func initSettingsNonInteractive() {
 func initProfilesOnly() {
 	basePath := getOutputPath()
 
-	profiles := getDefaultProfiles()
+	profilesFile := getDefaultProfiles()
 	profilePath := basePath + "profiles"
-	utils.SaveJson(&profiles, profilePath)
+	utils.SaveJson(&profilesFile, profilePath)
 
 	// Output as JSON
 	result := map[string]interface{}{
-		"profiles": profiles,
+		"version":  profilesFile.Version,
+		"profiles": profilesFile.Profiles,
 		"file":     profilePath + ".json",
 	}
 
@@ -330,7 +356,7 @@ func initProfilesOnly() {
 	}
 
 	fmt.Println(string(jsonOutput))
-	fmt.Fprintf(os.Stderr, "\nProfiles file created: %s\n", profilePath+".json")
+	fmt.Fprintf(os.Stderr, "\nProfiles file created (v%s): %s\n", profilesFile.Version, profilePath+".json")
 }
 
 // initAppInteractive runs init in interactive mode (legacy behavior)
@@ -345,10 +371,10 @@ func initAppInteractive() {
 
 	basePath := getOutputPath()
 
-	// Create profiles
-	profiles := getDefaultProfiles()
+	// Create profiles (new v1.0 format)
+	profilesFile := getDefaultProfiles()
 	profilePath := basePath + "profiles"
-	utils.SaveJson(&profiles, profilePath)
+	utils.SaveJson(&profilesFile, profilePath)
 
 	// Interactive prompts
 	pterm.DefaultInteractiveConfirm.DefaultText = "Allow insecure TLS?"

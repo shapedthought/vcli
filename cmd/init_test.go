@@ -12,35 +12,52 @@ import (
 
 // TestGetDefaultProfiles verifies the default profile configuration
 func TestGetDefaultProfiles(t *testing.T) {
-	profiles := getDefaultProfiles()
+	profilesFile := getDefaultProfiles()
+
+	// Check version
+	if profilesFile.Version != "1.0" {
+		t.Errorf("Expected version 1.0, got %s", profilesFile.Version)
+	}
+
+	// Check currentProfile
+	if profilesFile.CurrentProfile != "vbr" {
+		t.Errorf("Expected currentProfile vbr, got %s", profilesFile.CurrentProfile)
+	}
 
 	expectedProfiles := []string{"vb365", "aws", "vbr", "azure", "gcp", "vone", "ent_man"}
 
-	if len(profiles) != len(expectedProfiles) {
-		t.Errorf("Expected %d profiles, got %d", len(expectedProfiles), len(profiles))
-	}
-
-	profileMap := make(map[string]models.Profile)
-	for _, p := range profiles {
-		profileMap[p.Name] = p
+	if len(profilesFile.Profiles) != len(expectedProfiles) {
+		t.Errorf("Expected %d profiles, got %d", len(expectedProfiles), len(profilesFile.Profiles))
 	}
 
 	for _, expectedName := range expectedProfiles {
-		if _, exists := profileMap[expectedName]; !exists {
+		if _, exists := profilesFile.Profiles[expectedName]; !exists {
 			t.Errorf("Expected profile %s not found", expectedName)
 		}
 	}
 
 	// Verify VBR profile has correct settings
-	vbr := profileMap["vbr"]
-	if vbr.Port != "9419" {
-		t.Errorf("VBR port = %s, want 9419", vbr.Port)
+	vbr := profilesFile.Profiles["vbr"]
+	if vbr.Port != 9419 {
+		t.Errorf("VBR port = %d, want 9419", vbr.Port)
 	}
 	if vbr.Headers.XAPIVersion != "1.3-rev1" {
 		t.Errorf("VBR X-API-Version = %s, want 1.3-rev1", vbr.Headers.XAPIVersion)
 	}
-	if vbr.APIVersion != "v1" {
-		t.Errorf("VBR APIVersion = %s, want v1", vbr.APIVersion)
+	if vbr.APIVersion != "1.3-rev1" {
+		t.Errorf("VBR APIVersion = %s, want 1.3-rev1", vbr.APIVersion)
+	}
+	if vbr.Product != "VeeamBackupReplication" {
+		t.Errorf("VBR Product = %s, want VeeamBackupReplication", vbr.Product)
+	}
+	if vbr.AuthType != "oauth" {
+		t.Errorf("VBR AuthType = %s, want oauth", vbr.AuthType)
+	}
+	if vbr.Endpoints.Auth != "/api/oauth2/token" {
+		t.Errorf("VBR Auth endpoint = %s, want /api/oauth2/token", vbr.Endpoints.Auth)
+	}
+	if vbr.Endpoints.APIPrefix != "/api/v1" {
+		t.Errorf("VBR API prefix = %s, want /api/v1", vbr.Endpoints.APIPrefix)
 	}
 }
 
@@ -249,13 +266,17 @@ func TestInitAppNonInteractive(t *testing.T) {
 		t.Fatalf("Failed to read profiles.json: %v", err)
 	}
 
-	var profiles []models.Profile
-	if err := json.Unmarshal(profilesData, &profiles); err != nil {
+	var profilesFile models.ProfilesFile
+	if err := json.Unmarshal(profilesData, &profilesFile); err != nil {
 		t.Fatalf("Failed to parse profiles.json: %v", err)
 	}
 
-	if len(profiles) != 7 {
-		t.Errorf("Expected 7 profiles, got %d", len(profiles))
+	if profilesFile.Version != "1.0" {
+		t.Errorf("Expected version 1.0, got %s", profilesFile.Version)
+	}
+
+	if len(profilesFile.Profiles) != 7 {
+		t.Errorf("Expected 7 profiles, got %d", len(profilesFile.Profiles))
 	}
 }
 
@@ -388,26 +409,25 @@ func TestInitProfilesOnly(t *testing.T) {
 		t.Fatalf("Failed to read profiles.json: %v", err)
 	}
 
-	var profiles []models.Profile
-	if err := json.Unmarshal(profilesData, &profiles); err != nil {
+	var profilesFile models.ProfilesFile
+	if err := json.Unmarshal(profilesData, &profilesFile); err != nil {
 		t.Fatalf("Failed to parse profiles.json: %v", err)
 	}
 
-	if len(profiles) != 7 {
-		t.Errorf("Expected 7 profiles, got %d", len(profiles))
+	if profilesFile.Version != "1.0" {
+		t.Errorf("Expected version 1.0, got %s", profilesFile.Version)
+	}
+
+	if len(profilesFile.Profiles) != 7 {
+		t.Errorf("Expected 7 profiles, got %d", len(profilesFile.Profiles))
 	}
 
 	// Verify specific profile details
-	profileMap := make(map[string]models.Profile)
-	for _, p := range profiles {
-		profileMap[p.Name] = p
-	}
-
-	if vbr, exists := profileMap["vbr"]; !exists {
+	if vbr, exists := profilesFile.Profiles["vbr"]; !exists {
 		t.Error("VBR profile not found")
 	} else {
-		if vbr.Port != "9419" {
-			t.Errorf("VBR port = %s, want 9419", vbr.Port)
+		if vbr.Port != 9419 {
+			t.Errorf("VBR port = %d, want 9419", vbr.Port)
 		}
 	}
 }

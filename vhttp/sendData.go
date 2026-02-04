@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/shapedthought/vcli/auth"
 	"github.com/shapedthought/vcli/models"
 	"github.com/shapedthought/vcli/utils"
 	"gopkg.in/yaml.v2"
@@ -97,15 +99,19 @@ func SendData(api_url string, filename string, endPoint string, method string, p
 		utils.IsErr(err)
 
 		r.Header.Add("accept", profile.Headers.Accept)
+		r.Header.Add("Content-Type", "application/json")
+
+		// Get authentication token using TokenManager
+		token, err := auth.GetTokenForRequest(profile, settings)
+		if err != nil {
+			log.Fatalf("Authentication failed: %v", err)
+		}
+
 		if profile.Name == "ent_man" {
-			headers := utils.ReadHeader[models.BasicAuthModel]()
-			r.Header.Add("x-RestSvcSessionId", headers.Token)
-			r.Header.Add("Content-Type", "application/json")
+			r.Header.Add("x-RestSvcSessionId", token)
 		} else {
-			headers := utils.ReadHeader[models.SendHeader]()
 			r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-			r.Header.Add("Content-Type", "application/json")
-			r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+			r.Header.Add("Authorization", "Bearer "+token)
 		}
 
 		res, err := client.Do(r)

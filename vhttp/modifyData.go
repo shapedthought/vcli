@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/shapedthought/vcli/auth"
 	"github.com/shapedthought/vcli/models"
 	"github.com/shapedthought/vcli/utils"
 )
@@ -85,13 +86,17 @@ func sendRequestWithError(method string, url string, data interface{}, profile m
 	r.Header.Add("accept", profile.Headers.Accept)
 	r.Header.Add("Content-Type", "application/json")
 
+	// Get authentication token using TokenManager
+	token, err := auth.GetTokenForRequest(profile, settings)
+	if err != nil {
+		return nil, fmt.Errorf("authentication failed: %w", err)
+	}
+
 	if profile.Name == "ent_man" {
-		headers := utils.ReadHeader[models.BasicAuthModel]()
-		r.Header.Add("x-RestSvcSessionId", headers.Token)
+		r.Header.Add("x-RestSvcSessionId", token)
 	} else {
-		headers := utils.ReadHeader[models.SendHeader]()
 		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-		r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+		r.Header.Add("Authorization", "Bearer "+token)
 	}
 
 	res, err := client.Do(r)
@@ -161,13 +166,17 @@ func sendRequest[T any](method string, url string, data interface{}, profile mod
 	r.Header.Add("accept", profile.Headers.Accept)
 	r.Header.Add("Content-Type", "application/json")
 
+	// Get authentication token using TokenManager
+	token, err := auth.GetTokenForRequest(profile, settings)
+	if err != nil {
+		log.Fatalf("Authentication failed: %v", err)
+	}
+
 	if profile.Name == "ent_man" {
-		headers := utils.ReadHeader[models.BasicAuthModel]()
-		r.Header.Add("x-RestSvcSessionId", headers.Token)
+		r.Header.Add("x-RestSvcSessionId", token)
 	} else {
-		headers := utils.ReadHeader[models.SendHeader]()
 		r.Header.Add("x-api-version", profile.Headers.XAPIVersion)
-		r.Header.Add("Authorization", "Bearer "+headers.AccessToken)
+		r.Header.Add("Authorization", "Bearer "+token)
 	}
 
 	res, err := client.Do(r)

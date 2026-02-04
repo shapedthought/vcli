@@ -151,11 +151,11 @@ func getDefaultProfiles() models.ProfilesFile {
 		Profiles: map[string]models.Profile{
 			"vb365": {
 				Product:    "VeeamBackupFor365",
-				APIVersion: "v7",
+				APIVersion: "v8",
 				Port:       4443,
 				Endpoints: models.Endpoints{
-					Auth:      "/v6/Token",
-					APIPrefix: "/v7",
+					Auth:      "/v8/Token",
+					APIPrefix: "/v8",
 				},
 				AuthType: "oauth",
 				Headers: models.Headers{

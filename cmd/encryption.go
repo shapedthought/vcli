@@ -110,9 +110,10 @@ Exit Codes:
 }
 
 func snapshotSingleEncryptionPassword(hint string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -139,9 +140,10 @@ func snapshotSingleEncryptionPassword(hint string) {
 }
 
 func snapshotAllEncryptionPasswords() {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -198,9 +200,10 @@ func saveEncryptionPasswordToState(p *models.VbrEncryptionPasswordGet, hintCount
 
 func diffSingleEncryptionPassword(hint string) {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -284,9 +287,10 @@ func diffSingleEncryptionPassword(hint string) {
 
 func diffAllEncryptionPasswords() {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -468,9 +472,10 @@ Exit Codes:
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		profile := utils.GetProfile()
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
 
-		if profile.Name != "vbr" {
+		if settings.SelectedProfile != "vbr" {
 			log.Fatal("This command only works with VBR at the moment.")
 		}
 
@@ -542,9 +547,10 @@ Exit Codes:
 }
 
 func snapshotSingleKmsServer(name string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -575,9 +581,10 @@ func snapshotSingleKmsServer(name string) {
 }
 
 func snapshotAllKmsServers() {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -622,9 +629,10 @@ func snapshotAllKmsServers() {
 
 func diffSingleKmsServer(name string) {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -705,9 +713,10 @@ func diffSingleKmsServer(name string) {
 
 func diffAllKmsServers() {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 

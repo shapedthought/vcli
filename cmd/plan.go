@@ -51,9 +51,9 @@ against current VBR state. Full drift detection will be available in Phase 2.
 }
 
 func planJob(configFile string) {
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 

@@ -70,14 +70,20 @@ Move-Item vcli-windows-amd64.exe C:\Windows\System32\vcli.exe
 
 ### 1. Initialize vcli
 
-Create the configuration files:
+Create the configuration files non-interactively:
 
 ```bash
+# Basic init (creates files with defaults)
 ./vcli init
+
+# With specific directory
+./vcli init --output-dir ~/.vcli/
+
+# With flags for specific settings
+./vcli init --insecure --creds-file
 ```
 
-You'll be asked:
-- **Use creds file mode?** - Choose **No** (recommended for getting started)
+**New in v0.11.0:** Init is now non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./vcli init --interactive` (deprecated, will be removed in v0.12.0).
 
 This creates:
 - `settings.json` - vcli settings
@@ -85,7 +91,22 @@ This creates:
 
 **Configuration Location:**
 - By default, files are created in the current directory
-- Set `VCLI_SETTINGS_PATH` to use a specific directory (e.g., `~/.vcli/`)
+- Use `--output-dir` flag or set `VCLI_SETTINGS_PATH` environment variable to use a specific directory
+
+**Available Flags:**
+- `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
+- `--creds-file` - Enable credentials file mode
+- `--output-dir <path>` - Specify where to write config files
+- `--interactive` - Use legacy interactive prompts (deprecated)
+
+**Subcommands:**
+```bash
+# Initialize only settings
+./vcli init settings --insecure
+
+# Initialize only profiles
+./vcli init profiles
+```
 
 ### 2. Set Credentials
 
@@ -118,9 +139,14 @@ Set the Veeam product you're connecting to:
 # List available profiles
 ./vcli profile --list
 
-# Set profile (e.g., VBR)
+# Set profile directly (no prompts)
 ./vcli profile --set vbr
+
+# Get current profile (returns just "vbr")
+./vcli profile --get
 ```
+
+**New in v0.11.0:** Profile commands now require explicit arguments and return clean output for scripting.
 
 **Available Profiles:**
 - `vbr` - Veeam Backup & Replication (port 9419)

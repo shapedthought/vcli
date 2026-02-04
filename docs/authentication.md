@@ -15,21 +15,42 @@ This guide covers initializing vcli, managing profiles, and setting up authentic
 
 ### Initialize vcli
 
+**New in v0.11.0:** Init is now non-interactive by default for GitOps/CI/CD compatibility.
+
 Run the init command to create configuration files:
 
 ```bash
+# Non-interactive init (default)
 ./vcli init
+
+# With specific settings
+./vcli init --insecure --creds-file --output-dir ~/.vcli/
+
+# Legacy interactive mode (deprecated, will be removed in v0.12.0)
+./vcli init --interactive
 ```
 
-**You'll be asked:**
-> Use creds file mode? (y/N)
-
-- **No** (recommended for getting started) - Environmental mode
-- **Yes** - Creds file mode (stores username/address in profiles.json)
+**Available Flags:**
+- `--insecure` - Skip TLS verification
+- `--creds-file` - Enable credentials file mode
+- `--output-dir <path>` - Specify config file directory
+- `--interactive` - Use legacy interactive prompts (deprecated)
 
 **Files created:**
 - `settings.json` - vcli settings and preferences
 - `profiles.json` - API profiles for each Veeam product
+
+**Output:** Init now outputs JSON to stdout for automation/piping:
+```json
+{
+  "settings": {...},
+  "profiles": [...],
+  "files": {
+    "settings": "path/to/settings.json",
+    "profiles": "path/to/profiles.json"
+  }
+}
+```
 
 ### Configuration File Location
 
@@ -76,16 +97,18 @@ Profiles define connection settings for each Veeam product. Each profile contain
 
 ### Profile Commands
 
+**New in v0.11.0:** Profile commands now require explicit arguments (no interactive prompts).
+
 ```bash
 # List all available profiles
 ./vcli profile --list
 ./vcli profile -l
 
-# Get current active profile
+# Get current active profile (returns clean output: "vbr")
 ./vcli profile --get
 ./vcli profile -g
 
-# Set active profile
+# Set active profile (requires explicit argument)
 ./vcli profile --set vbr
 ./vcli profile -s vbr
 
@@ -93,6 +116,8 @@ Profiles define connection settings for each Veeam product. Each profile contain
 ./vcli profile --profile vbr
 ./vcli profile -p vbr
 ```
+
+**Breaking Change:** `./vcli profile --set` now requires an argument. Previously it prompted interactively.
 
 ### Profile Structure
 
@@ -151,8 +176,13 @@ vcli supports two authentication modes. Choose based on your workflow.
 - Slower when switching between products
 
 **Setup:**
-1. During `init`, select **No** for creds file mode
+1. During `init`, omit `--creds-file` flag (defaults to environmental mode)
 2. Set environment variables before each session
+
+```bash
+# Initialize in environmental mode (default)
+./vcli init --output-dir ~/.vcli/
+```
 
 **Bash/Zsh (macOS/Linux):**
 ```bash
@@ -193,8 +223,13 @@ $env:VCLI_SETTINGS_PATH = "$HOME\.vcli\"  # Optional
 - Not recommended for shared systems
 
 **Setup:**
-1. During `init`, select **Yes** for creds file mode
+1. During `init`, use `--creds-file` flag
 2. Edit `profiles.json` and add `username` and `address` fields to each profile:
+
+```bash
+# Initialize in creds file mode
+./vcli init --creds-file --output-dir ~/.vcli/
+```
 
 ```json
 {
@@ -220,6 +255,18 @@ export VCLI_PASSWORD="your-password"
 ```
 
 ### Switching Modes
+
+**Option 1: Re-initialize with different flag**
+
+```bash
+# Switch to environmental mode
+./vcli init --output-dir ~/.vcli/
+
+# Switch to creds file mode
+./vcli init --creds-file --output-dir ~/.vcli/
+```
+
+**Option 2: Edit `settings.json` manually**
 
 Edit `settings.json` and change `credsFileMode`:
 

@@ -78,21 +78,7 @@ func CheckEnv(name string, data string) {
 
 func ApiLogin() {
 	settings := utils.ReadSettings()
-	profiles := utils.ReadProfiles()
-
-	var profile models.Profile
-
-	check := false
-	for _, v := range profiles {
-		if v.Name == settings.SelectedProfile {
-			profile = v
-			check = true
-		}
-	}
-
-	if !check {
-		log.Fatalf("Error with selected profile %v", settings.SelectedProfile)
-	}
+	profile := utils.GetProfile(settings.SelectedProfile)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: settings.ApiNotSecure},
@@ -100,20 +86,9 @@ func ApiLogin() {
 
 	client := &http.Client{Transport: tr}
 
-	var username string
-	var vcliUrl string
-
-	if settings.CredsFileMode {
-		if len(profile.Username) > 0 && len(profile.Address) > 0 {
-			username = profile.Username
-			vcliUrl = profile.Address
-		} else {
-			log.Fatal("Username or API address not set in the profile")
-		}
-	} else {
-		username = os.Getenv("VCLI_USERNAME")
-		vcliUrl = os.Getenv("VCLI_URL")
-	}
+	// With v1.0 profiles, credentials are always from environment variables
+	username := os.Getenv("VCLI_USERNAME")
+	vcliUrl := os.Getenv("VCLI_URL")
 
 	password := os.Getenv("VCLI_PASSWORD")
 	
@@ -126,12 +101,12 @@ func ApiLogin() {
 	data.Add("username", username)
 	data.Add("password", password)
 
-	connstring := fmt.Sprintf("https://%s%s", vcliUrl, profile.URL)
+	connstring := fmt.Sprintf("https://%s:%d%s", vcliUrl, profile.Port, profile.Endpoints.Auth)
 	fmt.Println(connstring)
 	var r *http.Request
 	var err error
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		r, err = http.NewRequest("POST", connstring, nil)
 		utils.IsErr(err)
 		r.Header.Add("accept", profile.Headers.Accept)
@@ -158,7 +133,7 @@ func ApiLogin() {
 
 	var writeData []byte
 
-	if profile.Name == "ent_man" {
+	if profile.AuthType == "basic" {
 		token := res.Header.Get("X-RestSvcSessionId")
 
 		aum := models.BasicAuthModel {

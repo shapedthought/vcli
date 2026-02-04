@@ -96,7 +96,7 @@ func (r *VBRJobResource) Create() error {
 	}
 
 	// Create the job
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	endpoint := "jobs"
 	response := vhttp.PostData[models.VbrJobGet](endpoint, vbrJob, profile)
 
@@ -123,7 +123,7 @@ func (r *VBRJobResource) Update(current Resource) error {
 	}
 
 	// Update the job
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	endpoint := fmt.Sprintf("jobs/%s", r.id)
 	vhttp.PutData(endpoint, vbrJob, profile)
 
@@ -136,7 +136,7 @@ func (r *VBRJobResource) Delete() error {
 		return fmt.Errorf("cannot delete job without ID")
 	}
 
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	endpoint := fmt.Sprintf("jobs/%s", r.id)
 	vhttp.DeleteData(endpoint, profile)
 
@@ -145,7 +145,7 @@ func (r *VBRJobResource) Delete() error {
 
 // Fetch retrieves the job from VBR by ID
 func (r *VBRJobResource) Fetch(id string) (Resource, error) {
-	profile := utils.GetProfile()
+	profile := utils.GetCurrentProfile()
 	endpoint := fmt.Sprintf("jobs/%s", id)
 	vbrJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
 

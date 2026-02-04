@@ -3,10 +3,11 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sort"
+	"text/tabwriter"
 
-	"github.com/pterm/pterm"
 	"github.com/shapedthought/vcli/utils"
 	"github.com/spf13/cobra"
 )
@@ -16,91 +17,141 @@ var (
 	getFlag     bool
 	setFlag     bool
 	profileFlag bool
+	tableFlag   bool
+	jsonFlag    bool
 )
 
 // profileCmd represents the profile command
 var profileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "List and manage the current profile",
-	Long:  `List, Get, and Set the current API profile`,
+	Long: `List, Get, and Set the current API profile (non-interactive).
+
+Examples:
+  # Get current profile (machine-readable)
+  vcli profile -g
+  vcli profile --get
+
+  # Set profile (requires argument)
+  vcli profile -s vbr
+  vcli profile --set ent_man
+
+  # List profiles (JSON by default)
+  vcli profile -l
+  vcli profile --list
+
+  # List profiles (human-readable table)
+  vcli profile -l --table
+
+  # Show current profile details
+  vcli profile -p
+  vcli profile --profile
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if getFlag {
 			printCurrentProfile()
-		}
-		if listFlag {
+		} else if listFlag {
 			listProfiles()
-		}
-		if setFlag {
-			setProfile()
-		}
-		if profileFlag {
+		} else if setFlag {
+			if len(args) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: profile name required")
+				fmt.Fprintln(os.Stderr, "Usage: vcli profile --set <profile-name>")
+				os.Exit(1)
+			}
+			setProfile(args[0])
+		} else if profileFlag {
 			utils.ReadCurrentProfile()
+		} else {
+			cmd.Help()
 		}
 	},
 }
 
 func init() {
-	profileCmd.Flags().BoolVarP(&listFlag, "list", "l", false, "lists the available profiles")
-	profileCmd.Flags().BoolVarP(&getFlag, "get", "g", false, "gets the current profile name")
-	profileCmd.Flags().BoolVarP(&setFlag, "set", "s", false, "sets the current profile")
-	profileCmd.Flags().BoolVarP(&profileFlag, "profile", "p", false, "shows the current profile settings")
+	profileCmd.Flags().BoolVarP(&listFlag, "list", "l", false, "List available profiles (JSON by default)")
+	profileCmd.Flags().BoolVarP(&getFlag, "get", "g", false, "Get current profile name")
+	profileCmd.Flags().BoolVarP(&setFlag, "set", "s", false, "Set current profile (requires profile name)")
+	profileCmd.Flags().BoolVarP(&profileFlag, "profile", "p", false, "Show current profile details")
+	profileCmd.Flags().BoolVar(&tableFlag, "table", false, "Output as human-readable table (use with --list)")
+	profileCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output as JSON (default for --list)")
 	rootCmd.AddCommand(profileCmd)
-
 }
 
+// printCurrentProfile outputs just the profile name (machine-readable)
 func printCurrentProfile() {
 	settings := utils.ReadSettings()
-
-	fmt.Printf("Current profile: %v\n", settings.SelectedProfile)
+	fmt.Println(settings.SelectedProfile)
 }
 
+// listProfiles lists available profiles in JSON or table format
 func listProfiles() {
-	profiles := utils.ReadProfiles()
+	profilesFile := utils.ReadProfilesFile()
 
 	var names []string
-
-	for _, i := range profiles {
-		names = append(names, i.Name)
+	for name := range profilesFile.Profiles {
+		names = append(names, name)
 	}
-
 	sort.Strings(names)
 
-	fmt.Println("Profiles available")
-	for _, n := range names {
-		fmt.Println(n)
+	if tableFlag {
+		// Human-readable table format
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "NAME\tPRODUCT\tPORT\tAPI_VERSION\tAUTH_TYPE")
+		for _, name := range names {
+			profile := profilesFile.Profiles[name]
+			apiVersion := profile.APIVersion
+			if apiVersion == "" {
+				apiVersion = "-"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+				name,
+				profile.Product,
+				profile.Port,
+				apiVersion,
+				profile.AuthType,
+			)
+		}
+		w.Flush()
+	} else {
+		// JSON format (default)
+		jsonOutput, err := json.Marshal(names)
+		if err != nil {
+			log.Fatalf("Failed to marshal profile names: %v", err)
+		}
+		fmt.Println(string(jsonOutput))
 	}
-
 }
 
-func setProfile() {
+// setProfile sets the current profile (non-interactive)
+func setProfile(profileName string) {
 	settingsPath := utils.SettingPath()
-
 	settings := utils.ReadSettings()
+	profilesFile := utils.ReadProfilesFile()
 
-	profiles := utils.ReadProfiles()
-
-	var names []string
-
-	for _, i := range profiles {
-		names = append(names, i.Name)
+	// Validate profile exists
+	if _, exists := profilesFile.Profiles[profileName]; !exists {
+		fmt.Fprintf(os.Stderr, "Error: profile '%s' not found\n", profileName)
+		fmt.Fprintln(os.Stderr, "Available profiles:")
+		for name := range profilesFile.Profiles {
+			fmt.Fprintf(os.Stderr, "  - %s\n", name)
+		}
+		os.Exit(2)
 	}
 
-	sort.Strings(names)
+	// Update settings
+	settings.SelectedProfile = profileName
 
-	pterm.DefaultInteractiveSelect.DefaultText = "Select Profile"
-
-	result, _ := pterm.DefaultInteractiveSelect.
-		WithOptions(names).
-		Show()
-
-	settings.SelectedProfile = result
-
-	file, _ := json.Marshal(settings)
+	// Save settings
+	data, err := json.MarshalIndent(settings, "", "    ")
+	if err != nil {
+		log.Fatalf("Failed to marshal settings: %v", err)
+	}
 
 	settingsFile := settingsPath + "settings.json"
+	if err := os.WriteFile(settingsFile, data, 0644); err != nil {
+		log.Fatalf("Failed to write settings file: %v", err)
+	}
 
-	_ = os.WriteFile(settingsFile, file, 0644)
-
-	fmt.Printf("Profile set to: %v\n", result)
-
+	// Success - output to stdout for confirmation
+	fmt.Printf("Profile set to: %s\n", profileName)
 }

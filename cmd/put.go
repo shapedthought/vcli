@@ -36,22 +36,13 @@ vcli put jobs -f job.json
 			log.Fatal("A JSON file is required for PUT commands")
 		}
 		
-		profile := utils.GetProfile()
+		profile := utils.GetCurrentProfile()
 		settings := utils.ReadSettings()
 
-		var api_url string
-
-		if settings.CredsFileMode {
-			if len(profile.Address) > 0 {
-				api_url = profile.Address
-			} else {
-				log.Fatal("Profile Address not set")
-			}
-		} else {
-			api_url = os.Getenv("VCLI_URL")
-			if api_url == "" {
-				log.Fatal("VCLI_URL environment variable not set")
-			}
+		// With v1.0 profiles, credentials are always from environment variables
+		api_url := os.Getenv("VCLI_URL")
+		if api_url == "" {
+			log.Fatal("VCLI_URL environment variable not set")
 		}
 
 		vhttp.SendData(api_url, filename, args[0], "PUT", profile, settings)

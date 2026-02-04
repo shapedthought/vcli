@@ -14,30 +14,30 @@ import (
 
 func ReadCurrentProfile() {
 	settings := ReadSettings()
+	profile := GetProfile(settings.SelectedProfile)
 
-	profiles := ReadProfiles()
-
-	for _, v := range profiles {
-		if v.Name == settings.SelectedProfile {
-			d, err := json.MarshalIndent(v, "", "    ")
-			IsErr(err)
-			fmt.Println(string(d))
-		}
-	}
+	d, err := json.MarshalIndent(profile, "", "    ")
+	IsErr(err)
+	fmt.Println(string(d))
 }
 
-func GetProfile() models.Profile {
-	profiles := ReadProfiles()
-	settings := ReadSettings()
+// GetProfile returns the profile with the given name
+func GetProfile(profileName string) models.Profile {
+	profilesFile := ReadProfilesFile()
 
-	var profile models.Profile
-	for _, v := range profiles {
-		if v.Name == settings.SelectedProfile {
-			profile = v
-		}
+	profile, exists := profilesFile.Profiles[profileName]
+	if !exists {
+		fmt.Fprintf(os.Stderr, "Profile '%s' not found in profiles.json\n", profileName)
+		os.Exit(1)
 	}
 
 	return profile
+}
+
+// GetCurrentProfile returns the currently selected profile from settings
+func GetCurrentProfile() models.Profile {
+	settings := ReadSettings()
+	return GetProfile(settings.SelectedProfile)
 }
 
 func SettingPath() string {
@@ -56,23 +56,51 @@ func SettingPath() string {
 	return settingsPath
 }
 
-func ReadProfiles() []models.Profile {
-	var profiles []models.Profile
+// ReadProfilesFile reads the profiles.json file (new v1.0 format)
+func ReadProfilesFile() models.ProfilesFile {
+	var profilesFile models.ProfilesFile
 
 	settingsPath := SettingPath()
-
 	profileFile := settingsPath + "profiles.json"
 
 	j, err := os.Open(profileFile)
 	IsErr(err)
+	defer j.Close()
 
 	b, err := io.ReadAll(j)
 	IsErr(err)
 
-	err = json.Unmarshal(b, &profiles)
-	IsErr(err)
+	err = json.Unmarshal(b, &profilesFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Invalid profiles.json format. Expected v1.0 format.\n")
+		fmt.Fprintf(os.Stderr, "Please run 'vcli init' to regenerate profiles.json\n")
+		os.Exit(1)
+	}
 
-	return profiles
+	// Validate version
+	if profilesFile.Version != "1.0" {
+		fmt.Fprintf(os.Stderr, "WARNING: Unsupported profiles.json version: %s (expected 1.0)\n", profilesFile.Version)
+	}
+
+	return profilesFile
+}
+
+// SaveProfilesFile writes the profiles file to disk
+func SaveProfilesFile(profilesFile models.ProfilesFile) error {
+	settingsPath := SettingPath()
+	profileFile := settingsPath + "profiles.json"
+
+	data, err := json.MarshalIndent(profilesFile, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal profiles: %w", err)
+	}
+
+	// Use restrictive permissions (0600) to protect infrastructure information
+	if err := os.WriteFile(profileFile, data, 0600); err != nil {
+		return fmt.Errorf("failed to write profiles file: %w", err)
+	}
+
+	return nil
 }
 
 func ReadSettings() models.Settings {

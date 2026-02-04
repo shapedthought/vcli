@@ -57,9 +57,10 @@ vcli create job -f .\path\to\jobs-folder
 func getTemplates(args []string, folder string) {
 
 	// get the job data
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with vbr at the moment.")
 	}
 
@@ -134,10 +135,10 @@ func getSettingsPath(cp string) string {
 
 
 func createJob(args []string, folder string, customTemplate string) {
-	profile := utils.GetProfile()
 	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with vbr at the moment.")
 	}
 
@@ -343,9 +344,10 @@ Exit Codes:
 
 func diffSingleJob(jobName string) {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
@@ -416,9 +418,10 @@ func diffSingleJob(jobName string) {
 
 func diffAllJobs() {
 	loadSeverityOverrides()
-	profile := utils.GetProfile()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
 
-	if profile.Name != "vbr" {
+	if settings.SelectedProfile != "vbr" {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 

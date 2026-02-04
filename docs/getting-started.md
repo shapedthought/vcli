@@ -80,14 +80,14 @@ Create the configuration files non-interactively:
 ./vcli init --output-dir ~/.vcli/
 
 # With flags for specific settings
-./vcli init --insecure --creds-file
+./vcli init --insecure
 ```
 
 **New in v0.11.0:** Init is now non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./vcli init --interactive` (deprecated, will be removed in v0.12.0).
 
 This creates:
 - `settings.json` - vcli settings
-- `profiles.json` - API profiles for each Veeam product
+- `profiles.json` - API profiles for each Veeam product (v1.0 format with all profiles)
 
 **Configuration Location:**
 - By default, files are created in the current directory
@@ -95,7 +95,6 @@ This creates:
 
 **Available Flags:**
 - `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
-- `--creds-file` - Enable credentials file mode
 - `--output-dir <path>` - Specify where to write config files
 - `--interactive` - Use legacy interactive prompts (deprecated)
 
@@ -165,7 +164,9 @@ Authenticate with the Veeam API:
 ./vcli login
 ```
 
-If successful, vcli creates `headers.json` with your authentication token.
+**New in v0.11.0:** Tokens are stored securely:
+- **Interactive sessions:** System keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- **CI/CD pipelines:** Auto-authentication using environment variables (no keychain interaction)
 
 **Troubleshooting:**
 - **TLS certificate errors**: If using self-signed certificates, see [Troubleshooting](#troubleshooting) below

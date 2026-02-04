@@ -15,7 +15,7 @@ Ready-to-use pipeline templates are available in [`examples/pipelines/`](../exam
 
 See the [pipeline README](../examples/pipelines/README.md) for setup instructions.
 
-## Current Integration (v0.10.0-beta1)
+## Current Integration (v0.11.0)
 
 ### What Works Today
 
@@ -61,11 +61,11 @@ variables:
 
 steps:
   - script: |
-      curl -L https://github.com/shapedthought/vcli/releases/download/v0.10.0-beta1/vcli-linux-amd64 -o vcli
+      curl -L https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
       chmod +x vcli
     displayName: 'Install vcli'
 
-  - script: ./vcli init && ./vcli login
+  - script: ./vcli init && ./vcli profile --set vbr && ./vcli login
     displayName: 'Authenticate to VBR'
     env:
       VCLI_USERNAME: $(VCLI_USERNAME)
@@ -151,6 +151,7 @@ steps:
       mkdir -p $HOME/.vcli
       cp $(vcliSettings.secureFilePath) $HOME/.vcli/settings.json
       cp $(vcliProfiles.secureFilePath) $HOME/.vcli/profiles.json
+      ./vcli profile --set vbr
       ./vcli login
     env:
       VCLI_PASSWORD: $(VCLI_PASSWORD)
@@ -212,9 +213,9 @@ stages:
         displayName: 'Scan all resources'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/v0.10.0-beta1/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
               chmod +x vcli
-              ./vcli init && ./vcli login
+              ./vcli init && ./vcli profile --set vbr && ./vcli login
             displayName: 'Setup vcli'
             env:
               VCLI_USERNAME: $(VCLI_USERNAME)
@@ -304,9 +305,9 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.10.0-beta1/vcli-linux-amd64 -o vcli
+      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
       chmod +x vcli
-      ./vcli init && ./vcli login
+      ./vcli init && ./vcli profile --set vbr && ./vcli login
     displayName: 'Setup vcli'
     env:
       VCLI_USERNAME: $(VCLI_USERNAME)
@@ -410,7 +411,7 @@ stages:
         steps:
           - script: |
               curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli login
+              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
             displayName: 'Setup'
             env:
               VCLI_USERNAME: $(VCLI_USERNAME)
@@ -449,7 +450,7 @@ stages:
 
           - script: |
               curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli login
+              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
             displayName: 'Setup'
             env:
               VCLI_USERNAME: $(VCLI_USERNAME)
@@ -491,7 +492,7 @@ stages:
         steps:
           - script: |
               curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli login
+              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
             displayName: 'Setup'
             env:
               VCLI_USERNAME: $(VCLI_USERNAME)
@@ -569,7 +570,7 @@ With Epic #23 Phases 2-4 complete, drift scans and remediation cover the entire 
 ```yaml
 steps:
   - script: |
-      # Current (v0.10.0-beta1)
+      # Current (v0.11.0)
       ./vcli job diff --all --security-only
       ./vcli repo diff --all --security-only
       ./vcli repo sobr-diff --all --security-only
@@ -982,7 +983,7 @@ steps:
   - script: |
       curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
       chmod +x vcli
-      ./vcli init && ./vcli login
+      ./vcli init && ./vcli profile --set vbr && ./vcli login
     displayName: 'Setup'
     env:
       VCLI_USERNAME: $(VCLI_USERNAME)

@@ -88,6 +88,9 @@ export VCLI_USERNAME="administrator"
 export VCLI_PASSWORD="your-password"
 export VCLI_URL="vbr.example.com"
 
+# Set profile (select Veeam product)
+./vcli profile --set vbr
+
 # Authenticate
 ./vcli login
 ```

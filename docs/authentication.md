@@ -343,7 +343,7 @@ After setting up credentials and selecting a profile, authenticate:
 **OAuth (most products):**
 - VBR, VB365, VONE, AWS, Azure, GCP
 - Uses Bearer token
-- Token stored in `headers.json`
+- Token stored in system keychain (v0.11.0+)
 
 **Basic Auth (Enterprise Manager only):**
 - Enterprise Manager uses session-based authentication
@@ -520,7 +520,7 @@ mkdir -p ~/.vcli
 2. Or move files manually:
 ```bash
 mkdir -p ~/.vcli
-mv settings.json profiles.json headers.json ~/.vcli/
+mv settings.json profiles.json ~/.vcli/
 export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 ```
 

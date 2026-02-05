@@ -420,6 +420,33 @@ func valuesEqual(a, b interface{}) bool {
 		return len(bMap) == 0
 	}
 
+	// Handle numeric comparisons (int, float64, etc.)
+	// JSON unmarshaling can produce different numeric types
+	aNum, aIsNum := tryParseFloat64(a)
+	bNum, bIsNum := tryParseFloat64(b)
+	if aIsNum && bIsNum {
+		return aNum == bNum
+	}
+
 	// Fall back to reflect.DeepEqual for other types
 	return reflect.DeepEqual(a, b)
+}
+
+// tryParseFloat64 attempts to convert a value to float64
+// Returns (value, true) if successful, (0, false) otherwise
+func tryParseFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case int:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case float32:
+		return float64(val), true
+	case float64:
+		return val, true
+	default:
+		return 0, false
+	}
 }

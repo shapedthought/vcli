@@ -105,47 +105,26 @@ func applyJob(configFile string) {
 
 	// Display merged configuration in dry-run mode
 	if dryRun {
-		fmt.Println("\n=== Dry Run Mode ===")
+		fmt.Println("\n╔════════════════════════════════════════════════════════════════════╗")
+		fmt.Println("║                         Dry Run Mode                               ║")
+		fmt.Println("╚════════════════════════════════════════════════════════════════════╝")
+		fmt.Println()
 		fmt.Printf("Resource: %s (%s)\n", finalSpec.Metadata.Name, finalSpec.Kind)
-		fmt.Printf("Configuration to be applied:\n")
+		fmt.Println()
 
-		// Display key fields
-		if desc, ok := finalSpec.Spec["description"].(string); ok {
-			fmt.Printf("  Description: %s\n", desc)
-		}
-		if repo, ok := finalSpec.Spec["repository"].(string); ok {
-			fmt.Printf("  Repository: %s\n", repo)
-		}
-		if typ, ok := finalSpec.Spec["type"].(string); ok {
-			fmt.Printf("  Type: %s\n", typ)
-		}
+		// Fetch current job from VBR to show diff
+		currentJob, exists := findJobByName(finalSpec.Metadata.Name, profile)
 
-		// Show storage settings
-		if storage, ok := finalSpec.Spec["storage"].(map[string]interface{}); ok {
-			fmt.Println("  Storage:")
-			if comp, ok := storage["compression"].(string); ok {
-				fmt.Printf("    Compression: %s\n", comp)
-			}
-			if ret, ok := storage["retention"].(map[string]interface{}); ok {
-				if typ, ok := ret["type"].(string); ok {
-					fmt.Printf("    Retention Type: %s\n", typ)
-				}
-				if qty, ok := ret["quantity"].(int); ok {
-					fmt.Printf("    Retention Quantity: %d\n", qty)
-				}
-			}
-		}
-
-		// Show VMs
-		if objects, ok := finalSpec.Spec["objects"].([]interface{}); ok {
-			fmt.Printf("  Objects (%d):\n", len(objects))
-			for _, obj := range objects {
-				if objMap, ok := obj.(map[string]interface{}); ok {
-					name := objMap["name"]
-					typ := objMap["type"]
-					fmt.Printf("    - %s (%s)\n", name, typ)
-				}
-			}
+		if !exists {
+			// Job doesn't exist - will be created
+			fmt.Println("⚠ Job not found in VBR - will be created")
+			fmt.Println()
+			showNewJobSummary(finalSpec)
+		} else {
+			// Job exists - show diff
+			fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentJob.ID)
+			fmt.Println()
+			showJobDiff(finalSpec, currentJob)
 		}
 
 		fmt.Println("\n=== End Dry Run ===")

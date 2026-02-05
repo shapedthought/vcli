@@ -115,7 +115,7 @@ export VCLI_URL="vbr.example.com"
 ./vcli job diff --all --security-only
 ```
 
-📖 **Next steps:** [User Guide](user_guide.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
+📖 **Next steps:** [User Guide](user_guide.md) | [GitOps Workflows](docs/gitops-workflows.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
 
 ## Detailed Documentation
 

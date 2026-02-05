@@ -403,6 +403,7 @@ git push
 
 ### Declarative Mode Users
 
+- **Start here:** [GitOps Workflows Guide](gitops-workflows.md) - Comprehensive CI/CD integration
 - Deep dive into [Drift Detection](drift-detection.md)
 - Understand [Security Alerting](security-alerting.md) severity classification
 - Set up [Azure DevOps Integration](azure-devops-integration.md) for CI/CD

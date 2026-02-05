@@ -169,11 +169,28 @@ var jobSeverityMap = SeverityMap{
 
 // repoSeverityMap classifies repository drift fields by severity
 var repoSeverityMap = SeverityMap{
-	// CRITICAL — repository type changes
+	// CRITICAL — repository type changes and immutability
 	"type": SeverityCritical,
+	"repository.makeRecentBackupsImmutableDays": SeverityCritical,
+	"makeRecentBackupsImmutableDays":            SeverityCritical, // fallback for last segment match
+
+	// CRITICAL — security-relevant advanced settings
+	"repository.advancedSettings.decompressBeforeStoring": SeverityCritical,
+	"decompressBeforeStoring":                             SeverityCritical,
+	"repository.advancedSettings.perVmBackup":             SeverityCritical,
+	"perVmBackup":                                         SeverityCritical,
+
 	// WARNING — operational changes with security relevance
 	"path":         SeverityWarning,
 	"maxTaskCount": SeverityWarning,
+	"repository.advancedSettings.alignDataBlocks": SeverityWarning,
+	"alignDataBlocks":                             SeverityWarning,
+	"repository.readWriteLimitEnabled":            SeverityWarning,
+	"readWriteLimitEnabled":                       SeverityWarning,
+	"repository.readWriteRate":                    SeverityWarning,
+	"readWriteRate":                               SeverityWarning,
+	"repository.taskLimitEnabled":                 SeverityWarning,
+	"taskLimitEnabled":                            SeverityWarning,
 }
 
 // sobrSeverityMap classifies SOBR drift fields by severity
@@ -183,6 +200,17 @@ var sobrSeverityMap = SeverityMap{
 	"immutabilityMode":             SeverityCritical,
 	"type":                         SeverityCritical,
 	"enforceStrictPlacementPolicy": SeverityCritical,
+
+	// CRITICAL — capacity tier encryption
+	"capacityTier.encryption":          SeverityCritical,
+	"capacityTier.encryption.isEnabled": SeverityCritical,
+	"encryption":                       SeverityCritical, // fallback for last segment match
+
+	// WARNING — backup health monitoring
+	"capacityTier.backupHealth":          SeverityWarning,
+	"capacityTier.backupHealth.isEnabled": SeverityWarning,
+	"backupHealth":                       SeverityWarning, // fallback for last segment match
+
 	// WARNING — policy and tier changes
 	"movePolicyEnabled":  SeverityWarning,
 	"copyPolicyEnabled":  SeverityWarning,
@@ -198,7 +226,11 @@ var encryptionSeverityMap = SeverityMap{
 
 // kmsSeverityMap classifies KMS server drift fields by severity
 var kmsSeverityMap = SeverityMap{
-	"type":        SeverityCritical,
+	// CRITICAL — KMS type changes
+	"type": SeverityCritical,
+
+	// WARNING — server hostname and description changes
+	"name":        SeverityWarning, // Server hostname/address
 	"description": SeverityWarning,
 }
 

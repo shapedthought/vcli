@@ -17,7 +17,7 @@ This release delivers major improvements to security, automation workflows, and 
 
 **Quick upgrade:**
 ```bash
-vcli init-profiles  # Regenerate configs
+vcli init profiles  # Regenerate configs
 vcli login          # Done!
 ```
 
@@ -48,7 +48,7 @@ vcli login          # Done!
 - All profiles in single file (easy switching)
 - Logical grouping of endpoints and headers
 - Proper types (port as number, not string)
-- **Migration:** Regenerate with `vcli init-profiles`
+- **Migration:** Regenerate with `vcli init profiles`
 
 #### 5. Removed CredsFileMode
 - Credentials now **always** from environment variables
@@ -70,8 +70,8 @@ vcli login          # Done!
 - Versioned profiles.json format (`"version": "1.0"`)
 - Multi-profile support in single configuration file
 - Structured endpoint and header configuration
-- `init-profiles` command for profile-only initialization
-- `init-settings` command for settings-only initialization
+- `init profiles` command for profile-only initialization
+- `init settings` command for settings-only initialization
 
 #### Commands
 - `vcli init` - Non-interactive with JSON output by default
@@ -148,7 +148,7 @@ We chose a clean break over backward compatibility:
 
 **For all users:**
 1. Backup configs (optional): `cp -r ~/.vcli ~/.vcli.old`
-2. Regenerate: `vcli init-profiles`
+2. Regenerate: `vcli init profiles`
 3. Re-login: `vcli login`
 4. Test: `vcli get jobs`
 

@@ -13,7 +13,7 @@ vcli v0.11.0 introduces comprehensive improvements to authentication, security, 
 
 **Key principle:** Rather than maintaining backward compatibility and complex migration logic, we opted for simplicity: regenerate your configuration files in ~10 seconds. This approach delivers:
 
-- **Simpler upgrade:** `vcli init-profiles` → `vcli login` (done!)
+- **Simpler upgrade:** `vcli init profiles` → `vcli login` (done!)
 - **Cleaner codebase:** No legacy format support to maintain
 - **Better UX:** Clear error messages, one simple fix
 - **Faster delivery:** Ship improvements immediately
@@ -27,7 +27,7 @@ vcli v0.11.0 introduces comprehensive improvements to authentication, security, 
 | Non-interactive init | Scripts work unchanged; interactive users add `--interactive` flag | Update scripts if using interactive mode |
 | Profile commands | Must pass arguments instead of prompting | Add profile name as argument |
 | Secure token storage | System keychain instead of plaintext files | Just re-login after upgrade |
-| profiles.json v1.0 | Completely new structure | Regenerate with `vcli init-profiles` |
+| profiles.json v1.0 | Completely new structure | Regenerate with `vcli init profiles` |
 | Removed CredsFileMode | Credentials always from environment variables | Set environment variables |
 
 ---
@@ -345,7 +345,7 @@ Enter password for vcli file keyring: _
 cp -r ~/.vcli ~/.vcli.old
 
 # Regenerate profiles (creates v1.0 format)
-vcli init-profiles
+vcli init profiles
 
 # Output:
 # {
@@ -379,7 +379,7 @@ vcli detects v0.10.x format and provides clear guidance:
 $ vcli get jobs
 Error: Invalid profiles.json format (legacy v0.10.x detected)
 
-Run 'vcli init-profiles' to regenerate (takes ~5 seconds)
+Run 'vcli init profiles' to regenerate (takes ~5 seconds)
 
 See: https://github.com/shapedthought/vcli/blob/master/UPGRADING.md
 ```
@@ -443,7 +443,7 @@ export VCLI_URL="vbr.example.com"
 **If using environmental mode (already env vars):**
 ```bash
 # No changes needed - you're already using env vars
-vcli init-profiles
+vcli init profiles
 vcli login
 ```
 
@@ -459,7 +459,7 @@ export VCLI_URL="$OLD_ADDRESS"
 export VCLI_PASSWORD="your-password"  # You already had this
 
 # 3. Regenerate configs
-vcli init-profiles
+vcli init profiles
 vcli login
 
 # 4. Add to shell profile for persistence
@@ -521,7 +521,7 @@ cp -r ~/.vcli ~/.vcli.old
 
 #### 2. Regenerate Profiles
 ```bash
-vcli init-profiles
+vcli init profiles
 ```
 
 Output:
@@ -539,8 +539,8 @@ Output:
 
 #### 3. Regenerate Settings (if needed)
 ```bash
-vcli init-settings          # Default settings
-vcli init-settings --insecure  # For lab environments
+vcli init settings          # Default settings
+vcli init settings --insecure  # For lab environments
 ```
 
 #### 4. Set Environment Variables
@@ -647,12 +647,12 @@ drift-check:
 **Symptom:**
 ```
 Error: Invalid profiles.json format (legacy v0.10.x detected)
-Run 'vcli init-profiles' to regenerate
+Run 'vcli init profiles' to regenerate
 ```
 
 **Solution:**
 ```bash
-vcli init-profiles
+vcli init profiles
 vcli login
 ```
 
@@ -803,7 +803,7 @@ v0.11.0 also includes updated API versions for Veeam products:
 | VB for GCP | 1.1-rev0 | 1.2-rev0 |
 | VONE | 1.0-rev1 | 1.0-rev2 |
 
-These updates are automatically included when you run `vcli init-profiles`.
+These updates are automatically included when you run `vcli init profiles`.
 
 ---
 
@@ -820,7 +820,7 @@ These updates are automatically included when you run `vcli init-profiles`.
 
 v0.11.0 delivers major improvements to security, automation, and usability through a clean break approach. The upgrade process is straightforward:
 
-1. Regenerate configs: `vcli init-profiles`
+1. Regenerate configs: `vcli init profiles`
 2. Re-login: `vcli login`
 3. Done!
 

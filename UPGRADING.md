@@ -17,7 +17,7 @@ cp -r ~/.vcli ~/.vcli.old
 
 #### 2. Regenerate Profiles
 ```bash
-vcli init-profiles
+vcli init profiles
 ```
 
 **Output:**
@@ -35,8 +35,8 @@ vcli init-profiles
 
 #### 3. Regenerate Settings (if needed)
 ```bash
-vcli init-settings          # Default: secure settings
-vcli init-settings --insecure  # For lab environments
+vcli init settings          # Default: secure settings
+vcli init settings --insecure  # For lab environments
 ```
 
 #### 4. Set Environment Variables
@@ -99,7 +99,7 @@ cd ~/.vcli
 cp -r . ../vcli.old  # Backup
 
 vcli init-profiles
-vcli init-settings
+vcli init settings
 
 # Set credentials (add to ~/.bashrc for persistence)
 export VCLI_USERNAME="administrator"

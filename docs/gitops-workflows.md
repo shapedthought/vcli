@@ -399,7 +399,7 @@ jobs:
 
       - name: Find changed YAML files
         id: changed-files
-        uses: tj-actions/changed-files@v41
+        uses: tj-actions/changed-files@v45  # Pin to specific version
         with:
           files: |
             specs/**/*.yaml

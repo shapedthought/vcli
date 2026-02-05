@@ -11,7 +11,7 @@ See the [User guide](https://github.com/shapedthought/vcli/blob/master/user_guid
 
 **Quick upgrade:** Regenerate configs in 2 minutes
 ```bash
-vcli init-profiles
+vcli init profiles
 vcli login
 ```
 

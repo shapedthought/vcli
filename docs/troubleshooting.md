@@ -113,17 +113,93 @@ vcli profile --set vbr
 vcli login
 ```
 
-### Wrong Credentials Used (Creds File Mode)
+### Token Storage Issues (v0.11.0+)
 
-**Problem:** Creds file mode uses wrong username for current profile.
+**Problem:** `failed to open keyring` or `no authentication method available`
 
-**Solution:** Verify each profile has correct credentials:
+**Context:** System keychain unavailable (headless Linux, Docker, restricted environments)
+
+**Solutions:**
+
+**Option 1: Use explicit token (recommended for CI/CD)**
 ```bash
-# Check profile details
-vcli profile --profile vbr
+export VCLI_TOKEN="your-long-lived-token"
+vcli get jobs
+```
 
-# Update profiles.json manually if needed
-vim $VCLI_SETTINGS_PATH/profiles.json
+**Option 2: File-based keyring with password**
+```bash
+# CI/CD environments
+export VCLI_FILE_KEY="your-secure-password"
+vcli login
+
+# Interactive systems
+vcli login
+# Prompts: Enter password for vcli file keyring: _
+```
+
+**Option 3: Auto-authenticate (requires credentials)**
+```bash
+# Set all three credentials
+export VCLI_USERNAME="admin"
+export VCLI_PASSWORD="pass"
+export VCLI_URL="vbr.local"
+
+# vcli auto-authenticates when keychain unavailable
+vcli get jobs
+```
+
+### CI/CD Auto-Authentication Not Working
+
+**Problem:** Commands fail in pipeline with "no authentication method available"
+
+**Cause:** Missing required environment variables
+
+**Solution:**
+
+Check all required variables are set in CI/CD secrets:
+```yaml
+# GitHub Actions example
+env:
+  VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
+  VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+  VCLI_URL: ${{ secrets.VBR_URL }}
+```
+
+Verify variables in pipeline:
+```bash
+echo "Username: $VCLI_USERNAME"
+echo "URL: $VCLI_URL"
+# Don't echo password for security
+
+# Test authentication
+vcli login
+vcli get jobs
+```
+
+### Profile Command Requires Argument (v0.11.0+)
+
+**Problem:** `vcli profile --set` hangs or returns "profile name required" error
+
+**Breaking Change:** Profile commands now require explicit arguments (no interactive prompts)
+
+**Old command (v0.10.x):**
+```bash
+vcli profile --set
+# Prompted: Enter profile name: _
+```
+
+**New command (v0.11.0+):**
+```bash
+vcli profile --set vbr  # Provide argument
+vcli profile -s vbr     # Short form
+```
+
+**In scripts:**
+```bash
+# Update CI/CD pipelines
+- script: vcli profile --set vbr  # Add profile name
+  displayName: 'Set Profile'
 ```
 
 ## Connection Issues
@@ -294,8 +370,11 @@ vcli init
 2. Or move files manually:
 ```bash
 mkdir -p ~/.vcli
-mv settings.json profiles.json headers.json ~/.vcli/
+mv settings.json profiles.json ~/.vcli/
 export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+
+# Note: headers.json no longer exists in v0.11.0+
+# Tokens stored in system keychain instead
 ```
 
 ### Profile Not Found

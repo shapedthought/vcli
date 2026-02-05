@@ -5,6 +5,27 @@
 
 See the [User guide](https://github.com/shapedthought/vcli/blob/master/user_guide.md) for more information.
 
+## ⚠️ Upgrading to v0.11.0
+
+**v0.11.0 contains breaking changes** (clean break for simplicity and security improvements).
+
+**Quick upgrade:** Regenerate configs in 2 minutes
+```bash
+vcli init profiles
+vcli login
+```
+
+📖 **See:** [Breaking Changes](docs/breaking-changes-v0.11.md) | [Upgrade Guide](UPGRADING.md)
+
+**What changed:**
+- Non-interactive init (automation-friendly by default)
+- Secure token storage (system keychain instead of plaintext files)
+- profiles.json v1.0 format (all profiles in one file)
+- Credentials always from environment variables
+- Profile commands take arguments instead of prompting
+
+---
+
 NOTE:
 
 - This is not an official Veeam tool and is provided under the MIT license.
@@ -67,6 +88,9 @@ export VCLI_USERNAME="administrator"
 export VCLI_PASSWORD="your-password"
 export VCLI_URL="vbr.example.com"
 
+# Set profile (select Veeam product)
+./vcli profile --set vbr
+
 # Authenticate
 ./vcli login
 ```
@@ -91,7 +115,7 @@ export VCLI_URL="vbr.example.com"
 ./vcli job diff --all --security-only
 ```
 
-📖 **Next steps:** [User Guide](user_guide.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
+📖 **Next steps:** [User Guide](user_guide.md) | [GitOps Workflows](docs/gitops-workflows.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
 
 ## Detailed Documentation
 
@@ -554,3 +578,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.8.0-beta1 | Bumped API versions in the init command                             |
 | 0.9.0-beta1 | **Configuration Overlay System**: Strategic merge engine for multi-environment deployments. Enhanced export (300+ fields), vcli.yaml environment config, overlay support in apply/plan commands. Deep merge preserves base values. Full GitOps support. See [RELEASE_NOTES_v0.9.0-beta1.md](RELEASE_NOTES_v0.9.0-beta1.md) |
 | 0.10.0-beta1 | **Security Drift Detection**: State management and drift detection for repositories, SOBRs, encryption passwords, and KMS servers. Security severity classification (CRITICAL/WARNING/INFO) for all resource types. Value-aware severity with directional change analysis. Cross-resource hardened repository validation. Customizable severity via severity-config.json. CI/CD-ready exit codes. See [RELEASE_NOTES_v0.10.0-beta1.md](RELEASE_NOTES_v0.10.0-beta1.md) |
+| 0.11.0-beta1 | **Epic #66: Modernized Authentication & Automation**: Non-interactive init by default, secure token storage (system keychain), profiles.json v1.0 format, credentials always from environment variables, profile commands take arguments instead of prompting. Comprehensive documentation updates. Clean break for simplicity and security. See [Breaking Changes](docs/breaking-changes-v0.11.md) \| [Upgrade Guide](UPGRADING.md) |

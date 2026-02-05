@@ -24,27 +24,27 @@ Run the init command to create configuration files:
 ./vcli init
 
 # With specific settings
-./vcli init --insecure --creds-file --output-dir ~/.vcli/
+./vcli init --insecure --output-dir ~/.vcli/
 
 # Legacy interactive mode (deprecated, will be removed in v0.12.0)
 ./vcli init --interactive
 ```
 
 **Available Flags:**
-- `--insecure` - Skip TLS verification
-- `--creds-file` - Enable credentials file mode
+- `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
 - `--output-dir <path>` - Specify config file directory
 - `--interactive` - Use legacy interactive prompts (deprecated)
 
 **Files created:**
 - `settings.json` - vcli settings and preferences
-- `profiles.json` - API profiles for each Veeam product
+- `profiles.json` - API profiles for each Veeam product (v1.0 format)
 
 **Output:** Init now outputs JSON to stdout for automation/piping:
 ```json
 {
+  "version": "1.0",
   "settings": {...},
-  "profiles": [...],
+  "profiles": {...},
   "files": {
     "settings": "path/to/settings.json",
     "profiles": "path/to/profiles.json"
@@ -119,25 +119,52 @@ Profiles define connection settings for each Veeam product. Each profile contain
 
 **Breaking Change:** `./vcli profile --set` now requires an argument. Previously it prompted interactively.
 
-### Profile Structure
+### Profile Structure (v1.0 Format)
 
-Example profile (Enterprise Manager):
+**New in v0.11.0:** profiles.json now uses versioned format with all profiles in one file.
+
+Example structure:
 
 ```json
 {
-  "name": "ent_man",
-  "headers": {
-    "accept": "application/json",
-    "Content-type": "application/json",
-    "x-api-version": ""
-  },
-  "url": ":9398/api/sessionMngr/?v=latest",
-  "port": "9398",
-  "api_version": "",
-  "username": "administrator@",      // Only in creds file mode
-  "address": "192.168.0.123"        // Only in creds file mode
+  "version": "1.0",
+  "currentProfile": "vbr",
+  "profiles": {
+    "vbr": {
+      "product": "VeeamBackupReplication",
+      "apiVersion": "1.3-rev1",
+      "port": 9419,
+      "endpoints": {
+        "auth": "/api/oauth2/token",
+        "apiPrefix": "/api/v1"
+      },
+      "authType": "oauth",
+      "headers": {
+        "accept": "application/json",
+        "contentType": "application/x-www-form-urlencoded",
+        "xAPIVersion": "1.3-rev1"
+      }
+    },
+    "ent_man": {
+      "product": "EnterpriseManager",
+      "apiVersion": "",
+      "port": 9398,
+      "endpoints": {
+        "auth": "/api/sessionMngr/?v=latest",
+        "apiPrefix": "/api"
+      },
+      "authType": "basic",
+      "headers": {
+        "accept": "application/json",
+        "contentType": "application/json",
+        "xAPIVersion": ""
+      }
+    }
+  }
 }
 ```
+
+**Note:** Credentials are never stored in profiles.json (v0.11.0+). Always use environment variables.
 
 ### API Versions
 
@@ -157,32 +184,13 @@ Current default versions (as of October 2023):
 
 **Veeam API documentation:** https://www.veeam.com/documentation-guides-datasheets.html
 
-## Authentication Modes
+## Credentials and Token Storage
 
-vcli supports two authentication modes. Choose based on your workflow.
+**v0.11.0:** Credentials always from environment variables. Tokens stored securely in system keychain.
 
-### Environmental Mode (Recommended)
+### Setting Credentials
 
-**Credentials from environment variables only.**
-
-**Pros:**
-- More secure (no credentials in files)
-- Simple setup
-- Works well with CI/CD
-- Recommended for most users
-
-**Cons:**
-- Must set environment variables each session
-- Slower when switching between products
-
-**Setup:**
-1. During `init`, omit `--creds-file` flag (defaults to environmental mode)
-2. Set environment variables before each session
-
-```bash
-# Initialize in environmental mode (default)
-./vcli init --output-dir ~/.vcli/
-```
+vcli requires three environment variables for authentication:
 
 **Bash/Zsh (macOS/Linux):**
 ```bash
@@ -204,84 +212,107 @@ $env:VCLI_SETTINGS_PATH = "$HOME\.vcli\"  # Optional
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VCLI_USERNAME` | Yes | API username (may need `DOMAIN\user` format) |
-| `VCLI_PASSWORD` | Yes | API password |
-| `VCLI_URL` | Yes | Server hostname/IP (without `https://` or port) |
+| `VCLI_USERNAME` | Yes* | API username (may need `DOMAIN\user` format) |
+| `VCLI_PASSWORD` | Yes* | API password |
+| `VCLI_URL` | Yes* | Server hostname/IP (without `https://` or port) |
+| `VCLI_TOKEN` | No | Explicit authentication token (bypasses auto-auth) |
 | `VCLI_SETTINGS_PATH` | No | Config file directory (default: current directory) |
+| `VCLI_FILE_KEY` | No | File keyring password (for non-interactive systems) |
 
-### Creds File Mode
+*Not required if `VCLI_TOKEN` is set
 
-**Username and address stored in profiles.json, password from environment variable.**
+### Secure Token Storage
 
-**Pros:**
-- Faster switching between products
-- Username and address stored per profile
+**New in v0.11.0:** Authentication tokens are stored in your system's secure keychain instead of plaintext files.
 
-**Cons:**
-- Username and address stored in plaintext in `profiles.json`
-- Less secure
-- Not recommended for shared systems
+#### Token Resolution Priority
 
-**Setup:**
-1. During `init`, use `--creds-file` flag
-2. Edit `profiles.json` and add `username` and `address` fields to each profile:
+vcli attempts authentication in this order:
 
+1. **`VCLI_TOKEN` environment variable** (highest priority)
+   - For explicit token control
+   - Useful for service accounts or long-lived tokens
+   ```bash
+   export VCLI_TOKEN="your-long-lived-token"
+   ./vcli get jobs
+   ```
+
+2. **System keychain** (interactive sessions only)
+   - **macOS:** Keychain Access
+   - **Windows:** Credential Manager
+   - **Linux:** Secret Service (GNOME Keyring, KWallet)
+   - Token stored encrypted by OS
+   - Persists across vcli sessions
+   ```bash
+   ./vcli login  # Token stored in keychain
+   ./vcli get jobs  # Uses token from keychain
+   ```
+
+3. **Auto-authenticate** (CI/CD and non-TTY environments)
+   - Detects non-interactive sessions automatically
+   - Authenticates on-demand using `VCLI_USERNAME`/`VCLI_PASSWORD`/`VCLI_URL`
+   - No keychain interaction on headless systems
+   ```bash
+   # GitHub Actions, GitLab CI, Jenkins, etc.
+   ./vcli get jobs  # Auto-authenticates using env vars
+   ```
+
+#### File-Based Keyring (Fallback)
+
+If system keychain is unavailable, vcli uses encrypted file storage (`~/.vcli/vcli-keyring`):
+
+**Interactive systems:**
 ```bash
-# Initialize in creds file mode
-./vcli init --creds-file --output-dir ~/.vcli/
-```
-
-```json
-{
-  "name": "vbr",
-  "username": "administrator@domain.com",
-  "address": "vbr.example.com",
-  // ... other fields
-}
-```
-
-3. Set password environment variable:
-```bash
-export VCLI_PASSWORD="your-password"
-```
-
-4. Switch profiles:
-```bash
-./vcli profile --set vbr
 ./vcli login
-
-./vcli profile --set vb365
-./vcli login  # Uses vb365 credentials from profile
+# Prompts: Enter password for vcli file keyring: _
 ```
 
-### Switching Modes
-
-**Option 1: Re-initialize with different flag**
-
+**CI/CD systems:**
 ```bash
-# Switch to environmental mode
-./vcli init --output-dir ~/.vcli/
-
-# Switch to creds file mode
-./vcli init --creds-file --output-dir ~/.vcli/
+export VCLI_FILE_KEY="your-secure-password"
+./vcli login  # Uses VCLI_FILE_KEY for encryption
 ```
 
-**Option 2: Edit `settings.json` manually**
+### Authentication Flow
 
-Edit `settings.json` and change `credsFileMode`:
+**Interactive Session (Local Development):**
+```bash
+# 1. Set credentials
+export VCLI_USERNAME="admin"
+export VCLI_PASSWORD="pass"
+export VCLI_URL="vbr.local"
 
-```json
-{
-  "credsFileMode": false,    // Environmental mode
-  "skipTLSVerify": false
-}
+# 2. Set profile
+./vcli profile --set vbr
+
+# 3. Login (stores token in keychain)
+./vcli login
+# Token stored in system keychain
+
+# 4. Make API calls (uses keychain token)
+./vcli get jobs
+./vcli post jobs/<id>/start
 ```
 
-```json
-{
-  "credsFileMode": true,     // Creds file mode
-  "skipTLSVerify": false
-}
+**CI/CD Pipeline:**
+```yaml
+# GitHub Actions example
+- name: Check VBR drift
+  env:
+    VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
+    VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+    VCLI_URL: ${{ secrets.VBR_URL }}
+  run: |
+    ./vcli profile --set vbr
+    ./vcli job diff --all --security-only
+    # Auto-authenticates, no keychain interaction
+```
+
+**Explicit Token Control:**
+```bash
+# Use specific token
+export VCLI_TOKEN="your-service-account-token"
+./vcli get jobs  # Bypasses keychain and auto-auth
 ```
 
 ## Logging In
@@ -293,33 +324,26 @@ After setting up credentials and selecting a profile, authenticate:
 ```
 
 **On success:**
-- Creates `headers.json` with authentication token
-- Token is used for all subsequent API calls
-- Token is valid until expiration or logout
+- Stores authentication token in system keychain (interactive) or authenticates on-demand (CI/CD)
+- Token used for all subsequent API calls
+- Token valid until expiration
 
-**Important:** The authentication token is overwritten on each login. Switching between profiles requires re-login with each profile's credentials.
+**Interactive Sessions:**
+- Token stored in system keychain
+- Persists across terminal sessions
+- Encrypted by operating system
 
-### Authentication Flow
-
-**Environmental Mode:**
-1. Set `VCLI_USERNAME`, `VCLI_PASSWORD`, `VCLI_URL`
-2. Set profile: `./vcli profile --set vbr`
-3. Login: `./vcli login`
-4. API calls use token from `headers.json`
-
-**Creds File Mode:**
-1. Edit `profiles.json` with username and address
-2. Set `VCLI_PASSWORD` environment variable
-3. Set profile: `./vcli profile --set vbr`
-4. Login: `./vcli login` (uses credentials from profile + env password)
-5. API calls use token from `headers.json`
+**CI/CD Environments:**
+- Auto-authenticates using environment variables
+- No keychain storage (non-TTY detection)
+- Authenticates on-demand for each command
 
 ### Authentication Types by Product
 
 **OAuth (most products):**
 - VBR, VB365, VONE, AWS, Azure, GCP
 - Uses Bearer token
-- Token stored in `headers.json`
+- Token stored in system keychain (v0.11.0+)
 
 **Basic Auth (Enterprise Manager only):**
 - Enterprise Manager uses session-based authentication
@@ -328,7 +352,7 @@ After setting up credentials and selecting a profile, authenticate:
 
 ## Switching Between Products
 
-### Method 1: Environmental Mode
+### Method 1: Switch Credentials and Profile
 
 ```bash
 # Connect to VBR
@@ -344,35 +368,52 @@ export VCLI_USERNAME="admin" VCLI_PASSWORD="pass2" VCLI_URL="vb365.example.com"
 ./vcli get organizations
 ```
 
-### Method 2: Creds File Mode
+Each profile gets its own token in the keychain (keyed by profile name).
 
-```bash
-# profiles.json contains credentials for all products
-# Just switch profile and login
+### Method 2: Multiple Config Directories
 
-./vcli profile --set vbr
-./vcli login
-./vcli get jobs
-
-./vcli profile --set vb365
-./vcli login
-./vcli get organizations
-```
-
-### Method 3: Multiple Config Directories
-
-Use different directories for different environments:
+Use separate directories for different environments:
 
 ```bash
 # Production VBR
 export VCLI_SETTINGS_PATH="$HOME/.vcli/prod/"
+export VCLI_USERNAME="prod-admin" VCLI_PASSWORD="prod-pass" VCLI_URL="vbr-prod.local"
 ./vcli profile --set vbr
 ./vcli login
 
 # Development VBR
 export VCLI_SETTINGS_PATH="$HOME/.vcli/dev/"
+export VCLI_USERNAME="dev-admin" VCLI_PASSWORD="dev-pass" VCLI_URL="vbr-dev.local"
 ./vcli profile --set vbr
 ./vcli login
+```
+
+### Method 3: Shell Functions for Quick Switching
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+vbr-prod() {
+    export VCLI_USERNAME="prod-admin"
+    export VCLI_PASSWORD="$VBR_PROD_PASS"
+    export VCLI_URL="vbr-prod.local"
+    ./vcli profile --set vbr
+    ./vcli login
+}
+
+vbr-dev() {
+    export VCLI_USERNAME="dev-admin"
+    export VCLI_PASSWORD="$VBR_DEV_PASS"
+    export VCLI_URL="vbr-dev.local"
+    ./vcli profile --set vbr
+    ./vcli login
+}
+
+# Usage
+vbr-prod
+./vcli get jobs
+
+vbr-dev
+./vcli get jobs
 ```
 
 ## Troubleshooting
@@ -479,7 +520,7 @@ mkdir -p ~/.vcli
 2. Or move files manually:
 ```bash
 mkdir -p ~/.vcli
-mv settings.json profiles.json headers.json ~/.vcli/
+mv settings.json profiles.json ~/.vcli/
 export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 ```
 
@@ -487,56 +528,127 @@ export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 
 **Problem:** API calls failing with authentication errors after working previously.
 
-**Solution:** Re-login to get a fresh token:
+**Solution:** Re-login to refresh the token in keychain:
 ```bash
 ./vcli login
 ```
 
-### Multiple Profiles - Wrong Credentials Used
+The keychain token is automatically refreshed.
 
-**Problem:** Creds file mode uses wrong username for current profile.
+### Token Storage Issues
 
-**Solution:** Verify each profile has correct credentials:
+**Problem:** `failed to open keyring` or `no authentication method available`
 
+**Context:** System keychain unavailable (headless Linux, Docker, etc.)
+
+**Solution:**
+
+**Option 1: Use explicit token**
 ```bash
-./vcli profile --profile vbr
-# Check "username" and "address" fields
+export VCLI_TOKEN="your-long-lived-token"
+./vcli get jobs
+```
 
-# Update profiles.json manually if needed
+**Option 2: Set file keyring password**
+```bash
+# CI/CD environments
+export VCLI_FILE_KEY="your-secure-password"
+./vcli login
+
+# Interactive systems
+./vcli login
+# Prompts for file keyring password
+```
+
+### CI/CD Auto-Authentication Not Working
+
+**Problem:** Commands fail in CI/CD pipeline
+
+**Cause:** Missing environment variables
+
+**Solution:** Verify all required variables are set:
+```yaml
+# GitHub Actions
+env:
+  VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
+  VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+  VCLI_URL: ${{ secrets.VBR_URL }}
+```
+
+Check environment variables in pipeline:
+```bash
+echo "Username: $VCLI_USERNAME"
+echo "URL: $VCLI_URL"
+# Don't echo password for security
 ```
 
 ## Best Practices
 
 ### Security
 
-1. **Use environmental mode** for better security
-2. **Never commit `headers.json`** to version control
-3. **Use secrets management** in CI/CD (Azure Key Vault, GitHub Secrets, etc.)
-4. **Rotate credentials regularly**
-5. **Use dedicated service accounts** for automation
+1. **Environment variables for credentials** - Never store credentials in configuration files
+2. **Use secrets management** in CI/CD - Azure Key Vault, GitHub Secrets, AWS Secrets Manager, etc.
+3. **Rotate credentials regularly** - Especially for service accounts
+4. **Use dedicated service accounts** for automation - Separate accounts for CI/CD vs interactive use
+5. **Trust system keychain** - Let vcli manage token storage securely
+6. **Use `VCLI_TOKEN` for long-lived tokens** - Service accounts with explicit token control
+
+**What to commit to Git:**
+- ✅ `settings.json` (no secrets)
+- ✅ `profiles.json` (no credentials in v1.0 format)
+- ✅ Configuration YAML files
+- ❌ Never commit tokens or credentials
+- ❌ state.json (optional - depends on workflow)
 
 ### Organization
 
-1. **Use custom settings path** to keep config centralized: `~/.vcli/`
+1. **Use custom settings path** to keep config centralized:
+   ```bash
+   export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+   ```
+
 2. **Name config directories** clearly for multiple environments:
-   - `~/.vcli/prod/`
-   - `~/.vcli/dev/`
-   - `~/.vcli/customer-a/`
-3. **Document which profile is for which product** in a README
+   - `~/.vcli/prod/` - Production environment
+   - `~/.vcli/dev/` - Development environment
+   - `~/.vcli/customer-a/` - Customer-specific config
+
+3. **Document environment setup** in project README:
+   ```markdown
+   # Setup
+   export VCLI_SETTINGS_PATH="$HOME/.vcli/prod/"
+   export VCLI_USERNAME="prod-admin"
+   export VCLI_URL="vbr-prod.example.com"
+   ```
 
 ### Automation
 
-1. **Set credentials in CI/CD secrets**
-2. **Use environmental mode** in automation
+1. **Set credentials in CI/CD secrets** - Use platform-native secret stores
+2. **Let auto-authentication work** - vcli detects CI/CD environments automatically
 3. **Set `VCLI_SETTINGS_PATH` to build directory** to avoid conflicts
-4. **Include profile setting in scripts**:
+4. **Pass profile as argument** (not interactive):
 ```bash
 #!/bin/bash
+# CI/CD automation script
 export VCLI_SETTINGS_PATH="./vcli-config/"
-./vcli init
+
+# Non-interactive init
+./vcli init --output-dir ./vcli-config/
+
+# Set profile with argument (not interactive)
 ./vcli profile --set vbr
-./vcli login
-./vcli get jobs
+
+# Auto-authenticates using VCLI_USERNAME/PASSWORD/URL from secrets
+./vcli job diff --all --security-only
+```
+
+5. **Handle exit codes properly** for drift detection:
+```bash
+./vcli job diff --all --security-only
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 4 ]; then
+    echo "CRITICAL drift detected"
+    exit 1
+fi
 ```
 
 ## See Also

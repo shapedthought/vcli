@@ -42,7 +42,7 @@ jobs:
       - script: |
           curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
           chmod +x vcli
-          ./vcli init && ./vcli login
+          ./vcli init && ./vcli profile --set vbr && ./vcli login
         displayName: 'Install and authenticate vcli'
         env:
           VCLI_USERNAME: $(VCLI_USERNAME)

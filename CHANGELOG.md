@@ -7,6 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0-beta1] - 2026-02-04
+
+### Epic #66: Modernized Authentication & Automation
+
+This release delivers major improvements to security, automation workflows, and CI/CD integration through a **clean break** from v0.10.x configuration format.
+
+⚠️ **BREAKING CHANGES** - See [Breaking Changes](docs/breaking-changes-v0.11.md) | [Upgrade Guide](UPGRADING.md)
+
+**Quick upgrade:**
+```bash
+vcli init profiles  # Regenerate configs
+vcli login          # Done!
+```
+
+### Breaking Changes
+
+#### 1. Non-Interactive Init by Default
+- `vcli init` now non-interactive by default (outputs JSON for scripting)
+- Interactive mode available via `--interactive` flag
+- Automation-first design for CI/CD workflows
+- **Migration:** CI/CD scripts work unchanged; interactive users add `--interactive` flag
+
+#### 2. Profile Commands Take Arguments
+- Profile management commands now require arguments instead of prompting
+- `vcli profile --set vbr` (was: interactive prompt)
+- JSON output by default; `--table` flag for human-readable format
+- **Migration:** Add profile name as argument in scripts
+
+#### 3. Secure Token Storage
+- Tokens stored in system keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- File-based fallback with encryption for systems without keychain
+- Auto-authentication in CI/CD environments (non-TTY detection)
+- Explicit token control via `VCLI_TOKEN` environment variable
+- **Security:** No more plaintext tokens in `headers.json`
+- **Migration:** Just `vcli login` after upgrade
+
+#### 4. profiles.json v1.0 Format
+- Completely restructured configuration format with versioning
+- All profiles in single file (easy switching)
+- Logical grouping of endpoints and headers
+- Proper types (port as number, not string)
+- **Migration:** Regenerate with `vcli init profiles`
+
+#### 5. Removed CredsFileMode
+- Credentials now **always** from environment variables
+- No more `--creds-file` option
+- Consistent with 12-factor app principles and CI/CD standards
+- **Migration:** Set `VCLI_USERNAME`, `VCLI_PASSWORD`, `VCLI_URL` environment variables
+
+### Added
+
+#### Authentication Improvements
+- System keychain integration for secure token storage
+- Hybrid token resolution: `VCLI_TOKEN` → keychain → auto-auth
+- CI/CD environment detection (skips keychain on headless systems)
+- File-based keyring with encryption as fallback
+- Password prompting for file keyring in interactive sessions
+- `VCLI_FILE_KEY` environment variable for non-interactive file keyring
+
+#### Configuration Management
+- Versioned profiles.json format (`"version": "1.0"`)
+- Multi-profile support in single configuration file
+- Structured endpoint and header configuration
+- `init profiles` command for profile-only initialization
+- `init settings` command for settings-only initialization
+
+#### Commands
+- `vcli init` - Non-interactive with JSON output by default
+- `vcli init --interactive` - Legacy interactive mode
+- `vcli init profiles` - Generate only profiles.json
+- `vcli init settings` - Generate only settings.json
+- `vcli profile --list --table` - Human-readable profile list
+- `vcli profile --set <name>` - Argument-based profile switching
+
+### Changed
+
+#### Behavior Changes
+- Default init mode is now non-interactive (JSON output)
+- Profile commands require arguments instead of prompting
+- Tokens never stored in plaintext files
+- Configuration file permissions: `0600` (owner-only)
+- Authentication flows through system keychain in interactive sessions
+- Auto-authentication in CI/CD without keychain interaction
+
+#### API Version Updates
+- VBR: `1.1-rev0` → `1.3-rev1`
+- VB365: `v6/v7` → `v8` (consistent version)
+- VB for AWS: `1.3-rev0` → `1.4-rev0`
+- VB for Azure: `v4` → `v5`
+- VB for GCP: `1.1-rev0` → `1.2-rev0`
+- VONE: `1.0-rev1` → `1.0-rev2`
+
+### Removed
+- `--creds-file` flag and CredsFileMode support
+- Plaintext token storage in headers.json
+- Interactive prompts from default init behavior
+- Legacy profiles.json format (pre-v1.0)
+
+### Security
+- **Critical:** Hardcoded file keyring password replaced with `VCLI_FILE_KEY` env var + interactive prompt
+- **Critical:** Configuration file permissions changed from `0644` to `0600`
+- **Critical:** Tokens stored in OS-encrypted keychain instead of plaintext files
+- Tilde expansion bug fixed in file keyring path resolution
+- Token validation improved (JWT detection + length checks)
+
+### Fixed
+- Tilde expansion in file keyring directory path
+- Token validation logic (flawed OR condition)
+- Flag description inconsistencies (`apiNotSecure` vs `skipTLSVerify`)
+- VB365 API version consistency (mixed v6/v7 → v8)
+- Removed deprecated `authenticate()` method
+- Removed unused code and comments
+
 ### Documentation
 - Complete documentation restructure and improvements
 - New focused guides: Authentication, Imperative Mode, Declarative Mode, State Management, Troubleshooting
@@ -14,6 +127,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Getting Started guide for new users
 - Created Command Reference quick lookup guide
 - Transformed user_guide.md into navigable index page
+- **New:** Breaking changes documentation (docs/breaking-changes-v0.11.md)
+- **New:** Upgrade guide (UPGRADING.md)
+- CI/CD pipeline migration guide
+- Troubleshooting common upgrade issues
+
+### Dependencies
+- Updated `jose2go` from v1.5.0 to v1.7.0 (fixes Snyk vulnerabilities)
+
+### Design Philosophy: Why Clean Break?
+
+We chose a clean break over backward compatibility:
+- **Simpler:** 2-minute config regeneration vs complex migration logic
+- **Cleaner:** No legacy format support to maintain
+- **Better UX:** Clear errors, single fix that always works
+- **Faster delivery:** Ship improvements immediately
+- **Industry standard:** Major tools (Terraform, Kubernetes) make clean breaks
+
+### Upgrade Notes
+
+**For all users:**
+1. Backup configs (optional): `cp -r ~/.vcli ~/.vcli.old`
+2. Regenerate: `vcli init profiles`
+3. Re-login: `vcli login`
+4. Test: `vcli get jobs`
+
+**For CI/CD:**
+- Environment variables work unchanged
+- Update profile commands to pass arguments: `vcli profile --set vbr`
+- See [Azure DevOps Integration Guide](docs/azure-devops-integration.md)
+
+**Detailed guidance:**
+- [Breaking Changes Documentation](docs/breaking-changes-v0.11.md)
+- [Upgrade Guide](UPGRADING.md)
 
 ## [0.10.0-beta1] - 2024-01-15
 

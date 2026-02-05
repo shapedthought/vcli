@@ -557,10 +557,7 @@ func snapshotSingleJob(jobName string) {
 	}
 
 	// Fetch all jobs and find by name
-	type JobsResponse struct {
-		Data []models.VbrJobGet `json:"data"`
-	}
-	jobList := vhttp.GetData[JobsResponse]("jobs", profile)
+	jobList := vhttp.GetData[models.VbrJobList]("jobs", profile)
 
 	var found *models.VbrJobGet
 	for i := range jobList.Data {
@@ -594,10 +591,7 @@ func snapshotAllJobs() {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	type JobsResponse struct {
-		Data []models.VbrJobGet `json:"data"`
-	}
-	jobList := vhttp.GetData[JobsResponse]("jobs", profile)
+	jobList := vhttp.GetData[models.VbrJobList]("jobs", profile)
 
 	if len(jobList.Data) == 0 {
 		fmt.Println("No jobs found.")

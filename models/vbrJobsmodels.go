@@ -33,6 +33,12 @@ type VbrJobGet struct {
 	IsDisabled      bool            `json:"isDisabled" yaml:"isDisabled"`
 }
 
+// VbrJobList represents the list response from the jobs endpoint
+type VbrJobList struct {
+	Data       []VbrJobGet            `json:"data"`
+	Pagination map[string]interface{} `json:"pagination,omitempty"`
+}
+
 // Includes represents a VM or object included in a backup job
 // Structure matches VBR API v1.3 GET response (flat, no inventoryObject wrapper)
 type Includes struct {

@@ -226,7 +226,11 @@ var encryptionSeverityMap = SeverityMap{
 
 // kmsSeverityMap classifies KMS server drift fields by severity
 var kmsSeverityMap = SeverityMap{
-	"type":        SeverityCritical,
+	// CRITICAL — KMS type changes
+	"type": SeverityCritical,
+
+	// WARNING — server hostname and description changes
+	"name":        SeverityWarning, // Server hostname/address
 	"description": SeverityWarning,
 }
 

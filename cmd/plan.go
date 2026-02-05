@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/shapedthought/vcli/config"
+	"github.com/shapedthought/vcli/models"
 	"github.com/shapedthought/vcli/resources"
 	"github.com/shapedthought/vcli/utils"
 	"github.com/spf13/cobra"
@@ -122,166 +125,21 @@ func planJob(configFile string) {
 		fmt.Println()
 	}
 
-	// Display merged configuration details
-	fmt.Println("Merged Configuration:")
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	// Fetch current job from VBR to show diff
+	profile := utils.GetCurrentProfile()
+	currentJob, exists := findJobByName(finalSpec.Metadata.Name, profile)
 
-	// Display key fields
-	if desc, ok := finalSpec.Spec["description"].(string); ok {
-		fmt.Printf("  Description: %s\n", desc)
-	}
-	if repo, ok := finalSpec.Spec["repository"].(string); ok {
-		fmt.Printf("  Repository:  %s\n", repo)
-	}
-	if typ, ok := finalSpec.Spec["type"].(string); ok {
-		fmt.Printf("  Job Type:    %s\n", typ)
-	}
-	if disabled, ok := finalSpec.Spec["isDisabled"].(bool); ok {
-		fmt.Printf("  Disabled:    %v\n", disabled)
-	}
-
-	// Show storage settings
-	fmt.Println("\n  Storage Settings:")
-	if storage, ok := finalSpec.Spec["storage"].(map[string]interface{}); ok {
-		// Try simplified format first (storage.compression)
-		if comp, ok := storage["compression"].(string); ok {
-			fmt.Printf("    Compression: %s\n", comp)
-		} else {
-			// Try full export format (storage.advancedSettings.storageData.compressionLevel)
-			if advSettings, ok := storage["advancedSettings"].(map[string]interface{}); ok {
-				if storageData, ok := advSettings["storageData"].(map[string]interface{}); ok {
-					if comp, ok := storageData["compressionLevel"].(string); ok {
-						fmt.Printf("    Compression: %s\n", comp)
-					}
-				}
-			}
-		}
-
-		// Try simplified format first (storage.encryption)
-		if enc, ok := storage["encryption"].(bool); ok {
-			fmt.Printf("    Encryption:  %v\n", enc)
-		} else {
-			// Try full export format (storage.advancedSettings.storageData.encryption.isEnabled)
-			if advSettings, ok := storage["advancedSettings"].(map[string]interface{}); ok {
-				if storageData, ok := advSettings["storageData"].(map[string]interface{}); ok {
-					if encryption, ok := storageData["encryption"].(map[string]interface{}); ok {
-						if isEnabled, ok := encryption["isEnabled"].(bool); ok {
-							fmt.Printf("    Encryption:  %v", isEnabled)
-							// Show encryption type if available
-							if encType, ok := encryption["encryptionType"].(string); ok {
-								fmt.Printf(" (%s)", encType)
-							}
-							fmt.Println()
-						}
-					}
-				}
-			}
-		}
-
-		// Try simplified format first (storage.retention)
-		if ret, ok := storage["retention"].(map[string]interface{}); ok {
-			retType := ret["type"]
-			retQty := ret["quantity"]
-			fmt.Printf("    Retention:   %v %s\n", retQty, retType)
-		} else {
-			// Try full export format (storage.retentionPolicy)
-			if ret, ok := storage["retentionPolicy"].(map[string]interface{}); ok {
-				retType := ret["type"]
-				retQty := ret["quantity"]
-				fmt.Printf("    Retention:   %v %s\n", retQty, retType)
-			}
-		}
-	}
-
-	// Show schedule if present
-	if schedule, ok := finalSpec.Spec["schedule"].(map[string]interface{}); ok {
-		fmt.Println("\n  Schedule Settings:")
-
-		// Try simplified format first (schedule.enabled)
-		if enabled, ok := schedule["enabled"].(bool); ok {
-			fmt.Printf("    Enabled: %v\n", enabled)
-		} else {
-			// Try full export format (schedule.runAutomatically or schedule.daily.isEnabled)
-			if runAuto, ok := schedule["runAutomatically"].(bool); ok {
-				fmt.Printf("    Run Automatically: %v\n", runAuto)
-			}
-		}
-
-		// Try simplified format first (schedule.daily as string)
-		if daily, ok := schedule["daily"].(string); ok {
-			fmt.Printf("    Daily:   %s\n", daily)
-		} else {
-			// Try full export format (schedule.daily as object)
-			if dailyObj, ok := schedule["daily"].(map[string]interface{}); ok {
-				if isEnabled, ok := dailyObj["isEnabled"].(bool); ok && isEnabled {
-					if localTime, ok := dailyObj["localTime"].(string); ok {
-						fmt.Printf("    Daily:   %s\n", localTime)
-					}
-					if dailyKind, ok := dailyObj["dailyKind"].(string); ok {
-						fmt.Printf("    Kind:    %s\n", dailyKind)
-					}
-				}
-			}
-		}
-
-		// Try simplified format first (schedule.retry)
-		if retry, ok := schedule["retry"].(map[string]interface{}); ok {
-			if enabled, ok := retry["enabled"].(bool); ok && enabled {
-				times := retry["times"]
-				wait := retry["wait"]
-				fmt.Printf("    Retry:   %v times, wait %v minutes\n", times, wait)
-			} else {
-				// Try full export format (retry.isEnabled)
-				if isEnabled, ok := retry["isEnabled"].(bool); ok && isEnabled {
-					retryCount := retry["retryCount"]
-					awaitMinutes := retry["awaitMinutes"]
-					fmt.Printf("    Retry:   %v times, wait %v minutes\n", retryCount, awaitMinutes)
-				}
-			}
-		}
-	}
-
-	// Show VMs/objects
-	fmt.Println("\n  Backup Objects:")
-
-	// Try simplified format first (objects array)
-	if objects, ok := finalSpec.Spec["objects"].([]interface{}); ok {
-		fmt.Printf("    Total: %d object(s)\n", len(objects))
-		for i, obj := range objects {
-			if objMap, ok := obj.(map[string]interface{}); ok {
-				name := objMap["name"]
-				typ := objMap["type"]
-				hostName := objMap["hostName"]
-				if hostName != nil {
-					fmt.Printf("    %d. %s (%s) on %s\n", i+1, name, typ, hostName)
-				} else {
-					fmt.Printf("    %d. %s (%s)\n", i+1, name, typ)
-				}
-			}
-		}
+	if !exists {
+		// Job doesn't exist - will be created
+		fmt.Println("⚠ Job not found in VBR - will be created")
+		fmt.Println()
+		showNewJobSummary(finalSpec)
 	} else {
-		// Try full export format (virtualMachines.includes array)
-		if virtualMachines, ok := finalSpec.Spec["virtualMachines"].(map[string]interface{}); ok {
-			if includes, ok := virtualMachines["includes"].([]interface{}); ok {
-				fmt.Printf("    Total: %d object(s)\n", len(includes))
-				for i, obj := range includes {
-					if objMap, ok := obj.(map[string]interface{}); ok {
-						name := objMap["name"]
-						typ := objMap["type"]
-						hostName := objMap["hostName"]
-						if hostName != nil && hostName != "" {
-							fmt.Printf("    %d. %s (%s) on %s\n", i+1, name, typ, hostName)
-						} else {
-							fmt.Printf("    %d. %s (%s)\n", i+1, name, typ)
-						}
-					}
-				}
-			}
-		}
+		// Job exists - show diff
+		fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentJob.ID)
+		fmt.Println()
+		showJobDiff(finalSpec, currentJob)
 	}
-
-	fmt.Println()
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	// Show full YAML if requested
 	if planShowYAML {
@@ -347,6 +205,193 @@ func getPlanConfiguredOverlay() (string, error) {
 	}
 
 	return overlayPath, nil
+}
+
+// showNewJobSummary displays configuration for a job that will be created
+func showNewJobSummary(spec resources.ResourceSpec) {
+	fmt.Println("Configuration to be created:")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Show key fields
+	if desc, ok := spec.Spec["description"].(string); ok && desc != "" {
+		fmt.Printf("  Description: %s\n", desc)
+	}
+	if typ, ok := spec.Spec["type"].(string); ok {
+		fmt.Printf("  Job Type:    %s\n", typ)
+	}
+
+	// Storage
+	if storage, ok := spec.Spec["storage"].(map[string]interface{}); ok {
+		if ret, ok := storage["retentionPolicy"].(map[string]interface{}); ok {
+			quantityVal, quantityOk := ret["quantity"]
+			typeVal, typeOk := ret["type"]
+
+			quantityStr := "N/A"
+			if quantityOk && quantityVal != nil {
+				quantityStr = fmt.Sprintf("%v", quantityVal)
+			}
+
+			typeStr := "N/A"
+			if typeOk && typeVal != nil {
+				if str, ok := typeVal.(string); ok {
+					typeStr = str
+				} else {
+					typeStr = fmt.Sprintf("%v", typeVal)
+				}
+			}
+
+			fmt.Printf("  Retention:   %s %s\n", quantityStr, typeStr)
+		}
+	}
+
+	// Schedule
+	if schedule, ok := spec.Spec["schedule"].(map[string]interface{}); ok {
+		if dailyObj, ok := schedule["daily"].(map[string]interface{}); ok {
+			if isEnabled, ok := dailyObj["isEnabled"].(bool); ok && isEnabled {
+				if localTime, ok := dailyObj["localTime"].(string); ok {
+					fmt.Printf("  Schedule:    Daily at %s\n", localTime)
+				}
+			}
+		}
+	}
+
+	// Objects count
+	if virtualMachines, ok := spec.Spec["virtualMachines"].(map[string]interface{}); ok {
+		if includes, ok := virtualMachines["includes"].([]interface{}); ok {
+			fmt.Printf("  Objects:     %d VM(s)\n", len(includes))
+		}
+	}
+
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+}
+
+// showJobDiff compares desired spec with current VBR job and displays differences
+func showJobDiff(desiredSpec resources.ResourceSpec, currentJob models.VbrJobGet) {
+	// Convert both to comparable maps
+	desiredMap := desiredSpec.Spec
+
+	// Convert currentJob to map
+	currentBytes, err := json.Marshal(currentJob)
+	if err != nil {
+		log.Fatalf("Failed to marshal current job: %v", err)
+	}
+
+	var currentMap map[string]interface{}
+	if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+		log.Fatalf("Failed to unmarshal current job: %v", err)
+	}
+
+	// Detect drifts (desired is "state", current is "VBR")
+	drifts := detectDrift(desiredMap, currentMap, jobIgnoreFields)
+
+	if len(drifts) == 0 {
+		fmt.Println("Changes to be applied:")
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Println("  No changes detected - configuration matches current VBR state")
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		return
+	}
+
+	// Classify drifts by severity
+	drifts = classifyDrifts(drifts, jobSeverityMap)
+
+	// Group drifts by category for better readability
+	storageDrifts := []Drift{}
+	scheduleDrifts := []Drift{}
+	objectDrifts := []Drift{}
+	otherDrifts := []Drift{}
+
+	for _, d := range drifts {
+		if strings.HasPrefix(d.Path, "storage") {
+			storageDrifts = append(storageDrifts, d)
+		} else if strings.HasPrefix(d.Path, "schedule") {
+			scheduleDrifts = append(scheduleDrifts, d)
+		} else if strings.HasPrefix(d.Path, "virtualMachines") {
+			objectDrifts = append(objectDrifts, d)
+		} else {
+			otherDrifts = append(otherDrifts, d)
+		}
+	}
+
+	fmt.Println("Changes to be applied:")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Show drifts by category
+	if len(storageDrifts) > 0 {
+		fmt.Println("\nStorage Settings:")
+		for _, d := range storageDrifts {
+			printPlanDrift(d)
+		}
+	}
+
+	if len(scheduleDrifts) > 0 {
+		fmt.Println("\nSchedule Settings:")
+		for _, d := range scheduleDrifts {
+			printPlanDrift(d)
+		}
+	}
+
+	if len(objectDrifts) > 0 {
+		fmt.Println("\nBackup Objects:")
+		for _, d := range objectDrifts {
+			printPlanDrift(d)
+		}
+	}
+
+	if len(otherDrifts) > 0 {
+		fmt.Println("\nOther Settings:")
+		for _, d := range otherDrifts {
+			printPlanDrift(d)
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Summary
+	criticalCount := 0
+	warningCount := 0
+	infoCount := 0
+	for _, d := range drifts {
+		switch d.Severity {
+		case SeverityCritical:
+			criticalCount++
+		case SeverityWarning:
+			warningCount++
+		case SeverityInfo:
+			infoCount++
+		}
+	}
+
+	fmt.Printf("\nSummary: %d field(s) will be changed", len(drifts))
+	if criticalCount > 0 || warningCount > 0 {
+		fmt.Printf(" (%d critical, %d warning, %d info)", criticalCount, warningCount, infoCount)
+	}
+	fmt.Println()
+}
+
+// printPlanDrift prints a single drift in plan format, labeling values as current (VBR) and new (desired)
+func printPlanDrift(drift Drift) {
+	// For plan, we show: current (VBR) -> new (desired from YAML)
+	// Drift detection also compares desired (state) to current (VBR) and shows it as: state -> VBR
+	// The comparison direction is the same, we just label the values differently for clarity
+
+	sev := string(drift.Severity)
+
+	switch drift.Action {
+	case "modified":
+		desiredStr := formatValue(drift.State) // What we want (from YAML)
+		currentStr := formatValue(drift.VBR)   // What's currently in VBR
+		fmt.Printf("  %s ~ %s: %s (current) -> %s (new)\n", sev, drift.Path, currentStr, desiredStr)
+	case "removed":
+		// Field exists in YAML but not in VBR - will be added when applying
+		desiredStr := formatValue(drift.State)
+		fmt.Printf("  %s + %s: Will be added with value %s\n", sev, drift.Path, desiredStr)
+	case "added":
+		// Field exists in VBR but not in YAML - will be removed/unset when applying
+		currentStr := formatValue(drift.VBR)
+		fmt.Printf("  %s - %s: Will be removed/unset (current: %s)\n", sev, drift.Path, currentStr)
+	}
 }
 
 func init() {

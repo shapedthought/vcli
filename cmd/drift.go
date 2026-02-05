@@ -238,7 +238,7 @@ func collectDrifts(path string, state, vbr map[string]interface{}, drifts *[]Dri
 		}
 
 		// Both exist - check if different (using semantic equality)
-		if !valuesEqual(stateValue, vbrValue) {
+		if !valuesEqual(stateValue, vbrValue, ignore) {
 			// Try recursive comparison for maps
 			if stateMap, stateIsMap := stateValue.(map[string]interface{}); stateIsMap {
 				if vbrMap, vbrIsMap := vbrValue.(map[string]interface{}); vbrIsMap {
@@ -382,7 +382,8 @@ func formatValue(value interface{}) string {
 
 // valuesEqual compares two values for semantic equality.
 // Treats nil and empty arrays/slices as equivalent.
-func valuesEqual(a, b interface{}) bool {
+// Filters ignored fields from nested maps and arrays before comparison.
+func valuesEqual(a, b interface{}, ignore map[string]bool) bool {
 	// Handle nil cases
 	if a == nil && b == nil {
 		return true
@@ -393,7 +394,10 @@ func valuesEqual(a, b interface{}) bool {
 	bSlice, bIsSlice := b.([]interface{})
 
 	if aIsSlice && bIsSlice {
-		return reflect.DeepEqual(aSlice, bSlice)
+		// Filter ignored fields from array elements before comparing
+		cleanedA := filterIgnoredFieldsFromArray(aSlice, ignore)
+		cleanedB := filterIgnoredFieldsFromArray(bSlice, ignore)
+		return reflect.DeepEqual(cleanedA, cleanedB)
 	}
 
 	if aIsSlice && b == nil {
@@ -409,7 +413,10 @@ func valuesEqual(a, b interface{}) bool {
 	bMap, bIsMap := b.(map[string]interface{})
 
 	if aIsMap && bIsMap {
-		return reflect.DeepEqual(aMap, bMap)
+		// Filter ignored fields from maps before comparing
+		cleanedA := filterIgnoredFieldsFromMap(aMap, ignore)
+		cleanedB := filterIgnoredFieldsFromMap(bMap, ignore)
+		return reflect.DeepEqual(cleanedA, cleanedB)
 	}
 
 	if aIsMap && b == nil {
@@ -420,6 +427,85 @@ func valuesEqual(a, b interface{}) bool {
 		return len(bMap) == 0
 	}
 
+	// Handle numeric comparisons (int, float64, etc.)
+	// JSON unmarshaling can produce different numeric types
+	aNum, aIsNum := tryParseFloat64(a)
+	bNum, bIsNum := tryParseFloat64(b)
+	if aIsNum && bIsNum {
+		return aNum == bNum
+	}
+
 	// Fall back to reflect.DeepEqual for other types
 	return reflect.DeepEqual(a, b)
+}
+
+// filterIgnoredFieldsFromArray recursively filters ignored fields from array elements
+func filterIgnoredFieldsFromArray(arr []interface{}, ignore map[string]bool) []interface{} {
+	if arr == nil {
+		return nil
+	}
+
+	cleaned := make([]interface{}, len(arr))
+	for i, item := range arr {
+		if itemMap, ok := item.(map[string]interface{}); ok {
+			// Recursively filter maps inside arrays
+			cleaned[i] = filterIgnoredFieldsFromMap(itemMap, ignore)
+		} else if itemArr, ok := item.([]interface{}); ok {
+			// Recursively filter nested arrays
+			cleaned[i] = filterIgnoredFieldsFromArray(itemArr, ignore)
+		} else {
+			cleaned[i] = item
+		}
+	}
+	return cleaned
+}
+
+// filterIgnoredFieldsFromMap recursively filters ignored fields from a map
+func filterIgnoredFieldsFromMap(m map[string]interface{}, ignore map[string]bool) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+
+	result := make(map[string]interface{})
+	for k, v := range m {
+		// Skip ignored fields
+		if ignore[k] {
+			continue
+		}
+
+		// Recursively handle nested structures
+		if nestedMap, ok := v.(map[string]interface{}); ok {
+			result[k] = filterIgnoredFieldsFromMap(nestedMap, ignore)
+		} else if nestedArr, ok := v.([]interface{}); ok {
+			result[k] = filterIgnoredFieldsFromArray(nestedArr, ignore)
+		} else {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+// tryParseFloat64 attempts to convert a value to float64
+// Returns (value, true) if successful, (0, false) otherwise
+func tryParseFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case int:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case uint:
+		return float64(val), true
+	case uint32:
+		return float64(val), true
+	case uint64:
+		return float64(val), true
+	case float32:
+		return float64(val), true
+	case float64:
+		return val, true
+	default:
+		return 0, false
+	}
 }

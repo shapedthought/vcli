@@ -193,9 +193,14 @@ type Storage struct {
 			ExcludeSwapFileBlocks    bool   `json:"excludeSwapFileBlocks" yaml:"excludeSwapFileBlocks"`
 			ExcludeDeletedFileBlocks bool   `json:"excludeDeletedFileBlocks" yaml:"excludeDeletedFileBlocks"`
 			Encryption               struct {
-				IsEnabled                  bool        `json:"isEnabled" yaml:"isEnabled"`
-				EncryptionPasswordIDOrNull string      `json:"encryptionPasswordIdOrNull" yaml:"encryptionPasswordIdOrNull"`
-				EncryptionPasswordTag      interface{} `json:"encryptionPasswordTag" yaml:"encryptionPasswordTag"`
+				IsEnabled                   bool        `json:"isEnabled" yaml:"isEnabled"`
+				EncryptionType              string      `json:"encryptionType,omitempty" yaml:"encryptionType,omitempty"`
+				EncryptionPasswordID        string      `json:"encryptionPasswordId,omitempty" yaml:"encryptionPasswordId,omitempty"`
+				EncryptionPasswordUniqueID  string      `json:"encryptionPasswordUniqueId,omitempty" yaml:"encryptionPasswordUniqueId,omitempty"`
+				KmsServerID                 string      `json:"kmsServerId,omitempty" yaml:"kmsServerId,omitempty"`
+				// Legacy fields from older API versions (keep for backward compatibility)
+				EncryptionPasswordIDOrNull string      `json:"encryptionPasswordIdOrNull,omitempty" yaml:"encryptionPasswordIdOrNull,omitempty"`
+				EncryptionPasswordTag      interface{} `json:"encryptionPasswordTag,omitempty" yaml:"encryptionPasswordTag,omitempty"`
 			} `json:"encryption" yaml:"encryption"`
 		} `json:"storageData" yaml:"storageData"`
 		Notifications struct {

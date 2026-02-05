@@ -200,6 +200,17 @@ var sobrSeverityMap = SeverityMap{
 	"immutabilityMode":             SeverityCritical,
 	"type":                         SeverityCritical,
 	"enforceStrictPlacementPolicy": SeverityCritical,
+
+	// CRITICAL — capacity tier encryption
+	"capacityTier.encryption":          SeverityCritical,
+	"capacityTier.encryption.isEnabled": SeverityCritical,
+	"encryption":                       SeverityCritical, // fallback for last segment match
+
+	// WARNING — backup health monitoring
+	"capacityTier.backupHealth":          SeverityWarning,
+	"capacityTier.backupHealth.isEnabled": SeverityWarning,
+	"backupHealth":                       SeverityWarning, // fallback for last segment match
+
 	// WARNING — policy and tier changes
 	"movePolicyEnabled":  SeverityWarning,
 	"copyPolicyEnabled":  SeverityWarning,

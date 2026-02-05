@@ -495,6 +495,12 @@ func tryParseFloat64(v interface{}) (float64, bool) {
 		return float64(val), true
 	case int64:
 		return float64(val), true
+	case uint:
+		return float64(val), true
+	case uint32:
+		return float64(val), true
+	case uint64:
+		return float64(val), true
 	case float32:
 		return float64(val), true
 	case float64:

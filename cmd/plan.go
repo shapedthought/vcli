@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/shapedthought/vcli/config"
 	"github.com/shapedthought/vcli/models"
@@ -222,7 +223,24 @@ func showNewJobSummary(spec resources.ResourceSpec) {
 	// Storage
 	if storage, ok := spec.Spec["storage"].(map[string]interface{}); ok {
 		if ret, ok := storage["retentionPolicy"].(map[string]interface{}); ok {
-			fmt.Printf("  Retention:   %v %s\n", ret["quantity"], ret["type"])
+			quantityVal, quantityOk := ret["quantity"]
+			typeVal, typeOk := ret["type"]
+
+			quantityStr := "N/A"
+			if quantityOk && quantityVal != nil {
+				quantityStr = fmt.Sprintf("%v", quantityVal)
+			}
+
+			typeStr := "N/A"
+			if typeOk && typeVal != nil {
+				if str, ok := typeVal.(string); ok {
+					typeStr = str
+				} else {
+					typeStr = fmt.Sprintf("%v", typeVal)
+				}
+			}
+
+			fmt.Printf("  Retention:   %s %s\n", quantityStr, typeStr)
 		}
 	}
 
@@ -284,11 +302,11 @@ func showJobDiff(desiredSpec resources.ResourceSpec, currentJob models.VbrJobGet
 	otherDrifts := []Drift{}
 
 	for _, d := range drifts {
-		if containsPrefix(d.Path, "storage") {
+		if strings.HasPrefix(d.Path, "storage") {
 			storageDrifts = append(storageDrifts, d)
-		} else if containsPrefix(d.Path, "schedule") {
+		} else if strings.HasPrefix(d.Path, "schedule") {
 			scheduleDrifts = append(scheduleDrifts, d)
-		} else if containsPrefix(d.Path, "virtualMachines") {
+		} else if strings.HasPrefix(d.Path, "virtualMachines") {
 			objectDrifts = append(objectDrifts, d)
 		} else {
 			otherDrifts = append(otherDrifts, d)
@@ -352,10 +370,11 @@ func showJobDiff(desiredSpec resources.ResourceSpec, currentJob models.VbrJobGet
 	fmt.Println()
 }
 
-// printPlanDrift prints a single drift in plan format (desired -> current)
+// printPlanDrift prints a single drift in plan format, labeling values as current (VBR) and new (desired)
 func printPlanDrift(drift Drift) {
-	// For plan, we show: desired (new) -> current (VBR)
-	// This is opposite of drift detection which shows: state -> VBR
+	// For plan, we show: current (VBR) -> new (desired from YAML)
+	// Drift detection also compares desired (state) to current (VBR) and shows it as: state -> VBR
+	// The comparison direction is the same, we just label the values differently for clarity
 
 	sev := string(drift.Severity)
 
@@ -365,18 +384,14 @@ func printPlanDrift(drift Drift) {
 		currentStr := formatValue(drift.VBR)   // What's currently in VBR
 		fmt.Printf("  %s ~ %s: %s (current) -> %s (new)\n", sev, drift.Path, currentStr, desiredStr)
 	case "removed":
-		// Field in YAML is not in VBR - will be removed/unset
-		fmt.Printf("  %s - %s: Will be removed\n", sev, drift.Path)
-	case "added":
-		// Field in VBR but not in YAML - will be added/set
+		// Field exists in YAML but not in VBR - will be added when applying
 		desiredStr := formatValue(drift.State)
-		fmt.Printf("  %s + %s: Will be set to %s\n", sev, drift.Path, desiredStr)
+		fmt.Printf("  %s + %s: Will be added with value %s\n", sev, drift.Path, desiredStr)
+	case "added":
+		// Field exists in VBR but not in YAML - will be removed/unset when applying
+		currentStr := formatValue(drift.VBR)
+		fmt.Printf("  %s - %s: Will be removed/unset (current: %s)\n", sev, drift.Path, currentStr)
 	}
-}
-
-// containsPrefix checks if path starts with prefix
-func containsPrefix(path, prefix string) bool {
-	return len(path) >= len(prefix) && path[:len(prefix)] == prefix
 }
 
 func init() {

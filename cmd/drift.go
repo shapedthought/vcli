@@ -169,11 +169,28 @@ var jobSeverityMap = SeverityMap{
 
 // repoSeverityMap classifies repository drift fields by severity
 var repoSeverityMap = SeverityMap{
-	// CRITICAL — repository type changes
+	// CRITICAL — repository type changes and immutability
 	"type": SeverityCritical,
+	"repository.makeRecentBackupsImmutableDays": SeverityCritical,
+	"makeRecentBackupsImmutableDays":            SeverityCritical, // fallback for last segment match
+
+	// CRITICAL — security-relevant advanced settings
+	"repository.advancedSettings.decompressBeforeStoring": SeverityCritical,
+	"decompressBeforeStoring":                             SeverityCritical,
+	"repository.advancedSettings.perVmBackup":             SeverityCritical,
+	"perVmBackup":                                         SeverityCritical,
+
 	// WARNING — operational changes with security relevance
 	"path":         SeverityWarning,
 	"maxTaskCount": SeverityWarning,
+	"repository.advancedSettings.alignDataBlocks": SeverityWarning,
+	"alignDataBlocks":                             SeverityWarning,
+	"repository.readWriteLimitEnabled":            SeverityWarning,
+	"readWriteLimitEnabled":                       SeverityWarning,
+	"repository.readWriteRate":                    SeverityWarning,
+	"readWriteRate":                               SeverityWarning,
+	"repository.taskLimitEnabled":                 SeverityWarning,
+	"taskLimitEnabled":                            SeverityWarning,
 }
 
 // sobrSeverityMap classifies SOBR drift fields by severity

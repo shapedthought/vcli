@@ -99,8 +99,15 @@ The severity level of the header reflects the highest severity drift found. The 
 | Field Path | Default Severity |
 |-----------|-----------------|
 | `type` | CRITICAL |
+| `repository.makeRecentBackupsImmutableDays` | CRITICAL |
+| `repository.advancedSettings.decompressBeforeStoring` | CRITICAL |
+| `repository.advancedSettings.perVmBackup` | CRITICAL |
 | `path` | WARNING |
 | `maxTaskCount` | WARNING |
+| `repository.advancedSettings.alignDataBlocks` | WARNING |
+| `repository.readWriteLimitEnabled` | WARNING |
+| `repository.readWriteRate` | WARNING |
+| `repository.taskLimitEnabled` | WARNING |
 | All other fields | INFO |
 
 ### Scale-Out Repository (SOBR) Fields
@@ -111,11 +118,15 @@ The severity level of the header reflects the highest severity drift found. The 
 | `immutabilityMode` | CRITICAL |
 | `type` | CRITICAL |
 | `enforceStrictPlacementPolicy` | CRITICAL |
+| `capacityTier.encryption` | CRITICAL |
+| `capacityTier.encryption.isEnabled` | CRITICAL |
 | `movePolicyEnabled` | WARNING |
 | `copyPolicyEnabled` | WARNING |
 | `daysCount` | WARNING |
 | `performanceExtents` | WARNING |
 | `extents` | WARNING |
+| `capacityTier.backupHealth` | WARNING |
+| `capacityTier.backupHealth.isEnabled` | WARNING |
 | All other fields | INFO |
 
 ### Encryption Password Fields
@@ -130,6 +141,7 @@ The severity level of the header reflects the highest severity drift found. The 
 | Field Path | Default Severity |
 |-----------|-----------------|
 | `type` | CRITICAL |
+| `name` | WARNING |
 | `description` | WARNING |
 | All other fields | INFO |
 

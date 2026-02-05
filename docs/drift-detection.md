@@ -96,6 +96,31 @@ vcli repo diff "Default Backup Repository"
 vcli repo diff --all
 ```
 
+### Example: Immutability Drift Detection
+
+Repository immutability changes are critical security events. vcli detects these with CRITICAL severity:
+
+```bash
+vcli repo diff "Hard1"
+```
+
+**Output:**
+```
+Checking drift for repository: Hard1 (observed)
+
+CRITICAL: 1 security-relevant changes detected
+
+Drift detected:
+  CRITICAL ~ repository.makeRecentBackupsImmutableDays: 7 (state) -> 5 (VBR)
+
+Summary:
+  - 1 drifts detected
+  - Highest severity: CRITICAL
+  - Exit code: 4
+```
+
+This ensures immutability reductions (e.g., 7 days → 5 days) trigger alerts in CI/CD pipelines and are visible with `--security-only` filters.
+
 ## Scale-Out Backup Repository (SOBR) Drift Detection
 
 ```bash
@@ -105,6 +130,32 @@ vcli repo sobr-snapshot --all
 # Detect drift
 vcli repo sobr-diff --all
 ```
+
+### Example: SOBR Encryption Drift Detection
+
+SOBR encryption changes are critical security events. vcli detects capacity tier encryption changes with CRITICAL severity:
+
+```bash
+vcli repo sobr-diff "Scale-out Backup Repository 1"
+```
+
+**Output:**
+```
+Checking drift for scale-out repository: Scale-out Backup Repository 1 (observed)
+
+CRITICAL: 1 security-relevant changes detected
+
+Drift detected:
+  CRITICAL ~ capacityTier.encryption.isEnabled: true (state) -> false (VBR)
+  INFO ~ capacityTier.encryption.encryptionPasswordId: Removed from VBR
+
+Summary:
+  - 2 drifts detected
+  - Highest severity: CRITICAL
+  - Exit code: 4
+```
+
+Encryption disabled = CRITICAL. Encryption enabled = INFO (positive security change).
 
 ## Encryption Password Drift Detection
 

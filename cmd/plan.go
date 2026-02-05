@@ -143,39 +143,108 @@ func planJob(configFile string) {
 	// Show storage settings
 	fmt.Println("\n  Storage Settings:")
 	if storage, ok := finalSpec.Spec["storage"].(map[string]interface{}); ok {
+		// Try simplified format first (storage.compression)
 		if comp, ok := storage["compression"].(string); ok {
 			fmt.Printf("    Compression: %s\n", comp)
+		} else {
+			// Try full export format (storage.advancedSettings.storageData.compressionLevel)
+			if advSettings, ok := storage["advancedSettings"].(map[string]interface{}); ok {
+				if storageData, ok := advSettings["storageData"].(map[string]interface{}); ok {
+					if comp, ok := storageData["compressionLevel"].(string); ok {
+						fmt.Printf("    Compression: %s\n", comp)
+					}
+				}
+			}
 		}
+
+		// Try simplified format first (storage.encryption)
 		if enc, ok := storage["encryption"].(bool); ok {
 			fmt.Printf("    Encryption:  %v\n", enc)
+		} else {
+			// Try full export format (storage.advancedSettings.storageData.encryption.isEnabled)
+			if advSettings, ok := storage["advancedSettings"].(map[string]interface{}); ok {
+				if storageData, ok := advSettings["storageData"].(map[string]interface{}); ok {
+					if encryption, ok := storageData["encryption"].(map[string]interface{}); ok {
+						if isEnabled, ok := encryption["isEnabled"].(bool); ok {
+							fmt.Printf("    Encryption:  %v", isEnabled)
+							// Show encryption type if available
+							if encType, ok := encryption["encryptionType"].(string); ok {
+								fmt.Printf(" (%s)", encType)
+							}
+							fmt.Println()
+						}
+					}
+				}
+			}
 		}
+
+		// Try simplified format first (storage.retention)
 		if ret, ok := storage["retention"].(map[string]interface{}); ok {
 			retType := ret["type"]
 			retQty := ret["quantity"]
 			fmt.Printf("    Retention:   %v %s\n", retQty, retType)
+		} else {
+			// Try full export format (storage.retentionPolicy)
+			if ret, ok := storage["retentionPolicy"].(map[string]interface{}); ok {
+				retType := ret["type"]
+				retQty := ret["quantity"]
+				fmt.Printf("    Retention:   %v %s\n", retQty, retType)
+			}
 		}
 	}
 
 	// Show schedule if present
 	if schedule, ok := finalSpec.Spec["schedule"].(map[string]interface{}); ok {
 		fmt.Println("\n  Schedule Settings:")
+
+		// Try simplified format first (schedule.enabled)
 		if enabled, ok := schedule["enabled"].(bool); ok {
 			fmt.Printf("    Enabled: %v\n", enabled)
+		} else {
+			// Try full export format (schedule.runAutomatically or schedule.daily.isEnabled)
+			if runAuto, ok := schedule["runAutomatically"].(bool); ok {
+				fmt.Printf("    Run Automatically: %v\n", runAuto)
+			}
 		}
+
+		// Try simplified format first (schedule.daily as string)
 		if daily, ok := schedule["daily"].(string); ok {
 			fmt.Printf("    Daily:   %s\n", daily)
+		} else {
+			// Try full export format (schedule.daily as object)
+			if dailyObj, ok := schedule["daily"].(map[string]interface{}); ok {
+				if isEnabled, ok := dailyObj["isEnabled"].(bool); ok && isEnabled {
+					if localTime, ok := dailyObj["localTime"].(string); ok {
+						fmt.Printf("    Daily:   %s\n", localTime)
+					}
+					if dailyKind, ok := dailyObj["dailyKind"].(string); ok {
+						fmt.Printf("    Kind:    %s\n", dailyKind)
+					}
+				}
+			}
 		}
+
+		// Try simplified format first (schedule.retry)
 		if retry, ok := schedule["retry"].(map[string]interface{}); ok {
 			if enabled, ok := retry["enabled"].(bool); ok && enabled {
 				times := retry["times"]
 				wait := retry["wait"]
 				fmt.Printf("    Retry:   %v times, wait %v minutes\n", times, wait)
+			} else {
+				// Try full export format (retry.isEnabled)
+				if isEnabled, ok := retry["isEnabled"].(bool); ok && isEnabled {
+					retryCount := retry["retryCount"]
+					awaitMinutes := retry["awaitMinutes"]
+					fmt.Printf("    Retry:   %v times, wait %v minutes\n", retryCount, awaitMinutes)
+				}
 			}
 		}
 	}
 
 	// Show VMs/objects
 	fmt.Println("\n  Backup Objects:")
+
+	// Try simplified format first (objects array)
 	if objects, ok := finalSpec.Spec["objects"].([]interface{}); ok {
 		fmt.Printf("    Total: %d object(s)\n", len(objects))
 		for i, obj := range objects {
@@ -187,6 +256,25 @@ func planJob(configFile string) {
 					fmt.Printf("    %d. %s (%s) on %s\n", i+1, name, typ, hostName)
 				} else {
 					fmt.Printf("    %d. %s (%s)\n", i+1, name, typ)
+				}
+			}
+		}
+	} else {
+		// Try full export format (virtualMachines.includes array)
+		if virtualMachines, ok := finalSpec.Spec["virtualMachines"].(map[string]interface{}); ok {
+			if includes, ok := virtualMachines["includes"].([]interface{}); ok {
+				fmt.Printf("    Total: %d object(s)\n", len(includes))
+				for i, obj := range includes {
+					if objMap, ok := obj.(map[string]interface{}); ok {
+						name := objMap["name"]
+						typ := objMap["type"]
+						hostName := objMap["hostName"]
+						if hostName != nil && hostName != "" {
+							fmt.Printf("    %d. %s (%s) on %s\n", i+1, name, typ, hostName)
+						} else {
+							fmt.Printf("    %d. %s (%s)\n", i+1, name, typ)
+						}
+					}
 				}
 			}
 		}

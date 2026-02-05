@@ -302,7 +302,8 @@ func createJob(args []string, folder string, customTemplate string) {
 }
 
 var (
-	diffAll bool
+	diffAll     bool
+	snapshotAll bool
 )
 
 var diffCmd = &cobra.Command{
@@ -336,6 +337,42 @@ Exit Codes:
 			diffAllJobs()
 		} else if len(args) > 0 {
 			diffSingleJob(args[0])
+		} else {
+			log.Fatal("Provide job name or use --all")
+		}
+	},
+}
+
+var snapshotCmd = &cobra.Command{
+	Use:   "snapshot [job-name]",
+	Short: "Capture current job configuration into state for drift monitoring",
+	Long: `Snapshot captures the current configuration of a job from VBR and saves it
+to state with origin: "observed". This allows drift detection without actively
+managing the job via apply.
+
+Use this to:
+- Track jobs created manually in VBR
+- Monitor jobs created before vcli adoption
+- Observe configuration changes without management
+
+Snapshots enable drift detection via 'vcli job diff' but do not allow
+remediation via 'vcli job apply' (use 'apply' to actively manage jobs).
+
+Examples:
+  # Snapshot a single job
+  vcli job snapshot "SQL Backup Job"
+
+  # Snapshot all jobs
+  vcli job snapshot --all
+
+After snapshotting, use 'vcli job diff' to detect drift:
+  vcli job diff "SQL Backup Job"
+  vcli job diff --all --security-only`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if snapshotAll {
+			snapshotAllJobs()
+		} else if len(args) > 0 {
+			snapshotSingleJob(args[0])
 		} else {
 			log.Fatal("Provide job name or use --all")
 		}
@@ -510,10 +547,94 @@ func diffAllJobs() {
 	os.Exit(0)
 }
 
+// snapshotSingleJob captures a single job's current configuration into state
+func snapshotSingleJob(jobName string) {
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
+
+	if settings.SelectedProfile != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	// Fetch all jobs and find by name
+	type JobsResponse struct {
+		Data []models.VbrJobGet `json:"data"`
+	}
+	jobList := vhttp.GetData[JobsResponse]("jobs", profile)
+
+	var found *models.VbrJobGet
+	for i := range jobList.Data {
+		if jobList.Data[i].Name == jobName {
+			found = &jobList.Data[i]
+			break
+		}
+	}
+
+	if found == nil {
+		log.Fatalf("Job '%s' not found in VBR.", jobName)
+	}
+
+	// Fetch the individual job for full details
+	endpoint := fmt.Sprintf("jobs/%s", found.ID)
+	jobData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	if err := saveJobToState(jobName, found.ID, jobData); err != nil {
+		log.Fatalf("Failed to save job state: %v", err)
+	}
+
+	fmt.Printf("Snapshot saved for job: %s\n", jobName)
+}
+
+// snapshotAllJobs captures all jobs' current configurations into state
+func snapshotAllJobs() {
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
+
+	if settings.SelectedProfile != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	type JobsResponse struct {
+		Data []models.VbrJobGet `json:"data"`
+	}
+	jobList := vhttp.GetData[JobsResponse]("jobs", profile)
+
+	if len(jobList.Data) == 0 {
+		fmt.Println("No jobs found.")
+		return
+	}
+
+	fmt.Printf("Snapshotting %d jobs...\n", len(jobList.Data))
+
+	for _, job := range jobList.Data {
+		// Fetch full details for each job
+		endpoint := fmt.Sprintf("jobs/%s", job.ID)
+		jobData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+		if err := saveJobToState(job.Name, job.ID, jobData); err != nil {
+			fmt.Printf("Warning: Failed to save state for '%s': %v\n", job.Name, err)
+			continue
+		}
+
+		fmt.Printf("  Snapshot saved: %s\n", job.Name)
+	}
+
+	stateMgr := state.NewManager()
+	fmt.Printf("\nState updated: %s\n", stateMgr.GetStatePath())
+}
+
+// saveJobToState saves a job to state with origin: "observed"
+func saveJobToState(name, id string, rawData json.RawMessage) error {
+	return saveResourceToState("VBRJob", name, id, rawData)
+}
+
 func init() {
 	diffCmd.Flags().BoolVar(&diffAll, "all", false, "Check drift for all jobs in state")
 	addSeverityFlags(diffCmd)
 	jobsCmd.AddCommand(diffCmd)
+
+	snapshotCmd.Flags().BoolVar(&snapshotAll, "all", false, "Snapshot all jobs")
+	jobsCmd.AddCommand(snapshotCmd)
 
 	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input")
 	jobsCmd.Flags().StringVarP(&customTemplate, "template", "t", "", "custom template")

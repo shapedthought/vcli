@@ -162,9 +162,6 @@ stages:
               git config user.name "vcli Bootstrap Pipeline"
 
               # Stage infrastructure specs and state
-              # Azure DevOps checks out a detached HEAD — attach to the actual branch
-              git checkout $(Build.SourceBranchName)
-
               git add infrastructure/
               git add state.json 2>/dev/null || true
 
@@ -183,7 +180,7 @@ stages:
               Exported all backup jobs as YAML specs.
               Snapshotted repositories, SOBRs, encryption, and KMS state."
 
-              git push origin HEAD
+              git push origin HEAD:refs/heads/$(Build.SourceBranchName)
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to push bootstrap commit"
                 exit 1

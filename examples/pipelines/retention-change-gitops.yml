@@ -287,9 +287,6 @@ stages:
               git config user.email "vcli-pipeline@azure-devops.local"
               git config user.name "vcli GitOps Pipeline"
 
-              # Azure DevOps checks out a detached HEAD — attach to the actual branch
-              git checkout $(Build.SourceBranchName)
-
               git add state.json
               git add "$(JOB_FILE)"
 
@@ -305,7 +302,7 @@ stages:
 
               Applied retention overlay and re-exported job spec from VBR."
 
-              git push origin HEAD
+              git push origin HEAD:refs/heads/$(Build.SourceBranchName)
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to push state commit"
                 exit 1

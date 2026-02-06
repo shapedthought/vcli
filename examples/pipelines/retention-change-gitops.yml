@@ -42,6 +42,10 @@ variables:
   - name: vcliBranch
     value: 'master'
 
+  # Ensure vcli writes config and state into the repo checkout
+  - name: VCLI_SETTINGS_PATH
+    value: '$(Build.SourcesDirectory)'
+
 stages:
   # ============================================================
   # Stage 1: Plan - Preview changes without modifying VBR

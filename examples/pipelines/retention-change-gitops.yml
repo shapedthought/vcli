@@ -328,8 +328,9 @@ stages:
 
           - script: |
               cd $(Build.SourcesDirectory)
-              # Pull latest to get the Apply stage commit
-              git pull origin $(Build.SourceBranchName) || true
+              # Checkout the branch to get the Apply stage commit (checkout: self leaves detached HEAD)
+              git fetch origin $(Build.SourceBranchName)
+              git checkout $(Build.SourceBranchName)
             displayName: 'Pull latest state'
 
           - script: |

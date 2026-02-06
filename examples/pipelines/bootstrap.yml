@@ -162,6 +162,9 @@ stages:
               git config user.name "vcli Bootstrap Pipeline"
 
               # Stage infrastructure specs and state
+              # Azure DevOps checks out a detached HEAD — attach to the actual branch
+              git checkout $(Build.SourceBranchName)
+
               git add infrastructure/
               git add state.json 2>/dev/null || true
 

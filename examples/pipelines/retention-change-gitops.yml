@@ -287,6 +287,9 @@ stages:
               git config user.email "vcli-pipeline@azure-devops.local"
               git config user.name "vcli GitOps Pipeline"
 
+              # Azure DevOps checks out a detached HEAD — attach to the actual branch
+              git checkout $(Build.SourceBranchName)
+
               git add state.json
               git add "$(JOB_FILE)"
 

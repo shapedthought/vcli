@@ -1,0 +1,45 @@
+services:
+  azure-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Uncomment to force a specific platform (useful for testing)
+      # platform: linux/amd64
+      args:
+        # Pin to a specific agent version for consistency
+        AGENT_VERSION: 4.268.0
+    container_name: vcli-azure-agent
+    # Uncomment to force a specific platform at runtime
+    # platform: linux/amd64
+    environment:
+      # Azure DevOps configuration
+      - AZP_URL=${AZP_URL}
+      - AZP_TOKEN=${AZP_TOKEN}
+      - AZP_POOL=${AZP_POOL:-Default}
+      - AZP_AGENT_NAME=${AZP_AGENT_NAME:-vcli-docker-agent}
+
+      # vcli credentials for pipeline testing
+      - VCLI_USERNAME=${VCLI_USERNAME}
+      - VCLI_PASSWORD=${VCLI_PASSWORD}
+      - VCLI_URL=${VCLI_URL}
+    volumes:
+      # Persistent workspace (so pipelines can write artifacts)
+      - agent-work:/home/agent/work
+
+      # Optional: Mount vcli config if you want to test with existing profiles
+      # - ~/.vcli:/home/agent/.vcli:ro
+
+      # Optional: Mount local vcli source for faster development iteration
+      # Note: Pipelines should use 'git clone' for realistic testing
+      # - ../../:/home/agent/local-vcli:ro
+    restart: unless-stopped
+    networks:
+      - vcli-test
+
+networks:
+  vcli-test:
+    driver: bridge
+
+volumes:
+  agent-work:
+    driver: local

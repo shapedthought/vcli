@@ -1,6 +1,6 @@
-# Init Command Examples (v0.11.0+)
+# Init Command Examples
 
-Quick reference for the new non-interactive `init` command introduced in v0.11.0.
+Quick reference for the non-interactive `init` command.
 
 ## Basic Usage
 
@@ -459,7 +459,7 @@ Use Creds file mode? (y/N): n
 Initialized, ensure all environment variables are set.
 ```
 
-**Note:** Interactive mode will be removed in v0.12.0. Update scripts to use non-interactive mode.
+**Note:** Non-interactive mode is the recommended approach. Update scripts to use non-interactive mode.
 
 ## Command Reference
 
@@ -484,7 +484,7 @@ vcli init profiles [flags]     # Initialize only profiles.json
 
 ## See Also
 
-- [v0.11 Migration Guide](../docs/v0.11-migration-guide.md) - Migrating from v0.10.x
+- [Migration Guide](../docs/migration-v0.10-to-v0.11.md) - Migrating from v0.10.x
 - [Getting Started](../docs/getting-started.md) - Complete setup guide
 - [Authentication Guide](../docs/authentication.md) - Authentication workflows
 - [Azure DevOps Integration](../docs/azure-devops-integration.md) - CI/CD pipeline templates

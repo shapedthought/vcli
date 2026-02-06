@@ -83,7 +83,7 @@ Create the configuration files non-interactively:
 ./vcli init --insecure
 ```
 
-**New in v0.11.0:** Init is now non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./vcli init --interactive` (deprecated, will be removed in v0.12.0).
+Init is non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./vcli init --interactive`.
 
 This creates:
 - `settings.json` - vcli settings
@@ -96,7 +96,7 @@ This creates:
 **Available Flags:**
 - `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
 - `--output-dir <path>` - Specify where to write config files
-- `--interactive` - Use legacy interactive prompts (deprecated)
+- `--interactive` - Use legacy interactive prompts
 
 **Subcommands:**
 ```bash
@@ -145,7 +145,7 @@ Set the Veeam product you're connecting to:
 ./vcli profile --get
 ```
 
-**New in v0.11.0:** Profile commands now require explicit arguments and return clean output for scripting.
+Profile commands require explicit arguments and return clean output for scripting.
 
 **Available Profiles:**
 - `vbr` - Veeam Backup & Replication (port 9419)
@@ -164,7 +164,7 @@ Authenticate with the Veeam API:
 ./vcli login
 ```
 
-**New in v0.11.0:** Tokens are stored securely:
+Tokens are stored securely:
 - **Interactive sessions:** System keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - **CI/CD pipelines:** Auto-authentication using environment variables (no keychain interaction)
 

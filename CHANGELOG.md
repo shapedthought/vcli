@@ -7,13 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1-beta1] - 2026-02-06
+
+### Fixed
+- Fix job diff to use raw JSON instead of typed struct (#89)
+  - Resolves false-positive drift caused by Go struct serialization differences
+  - Job diff now compares raw JSON from state against raw JSON from VBR API
+
+## [0.12.0-beta1] - 2026-02-05
+
+### Added
+- Add diff preview to plan and apply --dry-run commands (#82)
+  - `job plan` and `job apply --dry-run` now show a field-by-field diff preview
+- Add job snapshot command to capture existing jobs into state (#84)
+  - `vcli job snapshot <name>` / `--all` to baseline job state without applying
+
+### Changed
+- Expand severity maps for repositories, SOBRs, and KMS servers (#86, #87)
+  - Repositories, SOBRs, and KMS servers now have full value-aware severity classification
+  - Matches the depth of job severity maps
+- Update documentation for expanded severity maps (#86)
+
+### Fixed
+- Fix plan command to display full export format
+- Fix encryption format mismatch in job apply/export
+
 ## [0.11.0-beta1] - 2026-02-04
 
 ### Epic #66: Modernized Authentication & Automation
 
 This release delivers major improvements to security, automation workflows, and CI/CD integration through a **clean break** from v0.10.x configuration format.
 
-⚠️ **BREAKING CHANGES** - See [Breaking Changes](docs/breaking-changes-v0.11.md) | [Upgrade Guide](UPGRADING.md)
+⚠️ **BREAKING CHANGES** - See [Migration Guide](docs/migration-v0.10-to-v0.11.md)
 
 **Quick upgrade:**
 ```bash
@@ -127,8 +152,7 @@ vcli login          # Done!
 - Added Getting Started guide for new users
 - Created Command Reference quick lookup guide
 - Transformed user_guide.md into navigable index page
-- **New:** Breaking changes documentation (docs/breaking-changes-v0.11.md)
-- **New:** Upgrade guide (UPGRADING.md)
+- **New:** Migration guide (docs/migration-v0.10-to-v0.11.md)
 - CI/CD pipeline migration guide
 - Troubleshooting common upgrade issues
 
@@ -158,8 +182,7 @@ We chose a clean break over backward compatibility:
 - See [Azure DevOps Integration Guide](docs/azure-devops-integration.md)
 
 **Detailed guidance:**
-- [Breaking Changes Documentation](docs/breaking-changes-v0.11.md)
-- [Upgrade Guide](UPGRADING.md)
+- [Migration Guide](docs/migration-v0.10-to-v0.11.md)
 
 ## [0.10.0-beta1] - 2024-01-15
 

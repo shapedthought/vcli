@@ -1,0 +1,463 @@
+# Retention Change Pipeline
+#
+# Demonstrates declarative backup job management using vcli overlays.
+# This pipeline shows how to change a backup job's retention policy
+# through a GitOps workflow: export → overlay → plan → apply → verify.
+#
+# Use Case:
+#   Your compliance team requires backup retention to increase from 7 to 30 days.
+#   Instead of logging into VBR and clicking through the UI, you define the change
+#   in a YAML overlay and let the pipeline apply it with full audit trail.
+#
+# How It Works:
+#   1. Export   - Capture current job config as the base YAML
+#   2. Overlay  - Define only the fields you want to change (retention)
+#   3. Plan     - Preview what will change before applying (dry-run)
+#   4. Apply    - Apply the merged configuration to VBR
+#   5. Verify   - Confirm VBR matches the desired state (drift check)
+#
+# Prerequisites:
+#   - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+#   - A backup job already exists in VBR (set JOB_NAME variable below)
+#   - For self-signed certs: use --insecure flag on vcli init
+#
+# Usage:
+#   1. Copy this file to your repository
+#   2. Update JOB_NAME to match your backup job
+#   3. Adjust DESIRED_RETENTION_DAYS to your target retention
+#   4. Create the pipeline in Azure DevOps and run it
+
+trigger: none  # Manual trigger only
+
+pool:
+  name: 'Default'
+
+variables:
+  - group: 'veeam-credentials'
+
+  # Job to manage - change this to match your environment
+  - name: JOB_NAME
+    value: 'Backup Job 1'
+
+  # Desired retention settings
+  - name: DESIRED_RETENTION_DAYS
+    value: '30'
+
+  # vcli source (for self-hosted agent building from source)
+  - name: vcliRepo
+    value: 'https://github.com/shapedthought/vcli.git'
+  - name: vcliBranch
+    value: 'master'
+
+stages:
+  # ============================================================
+  # Stage 1: Setup - Build vcli and authenticate
+  # ============================================================
+  - stage: Setup
+    displayName: 'Setup vcli'
+    jobs:
+      - job: BuildAndAuth
+        displayName: 'Build vcli and verify connectivity'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              echo "=========================================="
+              echo "Building vcli from source"
+              echo "=========================================="
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+              echo "Build successful"
+              echo ""
+
+              echo "Initializing vcli..."
+              ./vcli init --insecure
+
+              echo ""
+              echo "Logging in to VBR..."
+              ./vcli login
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
+                exit 1
+              fi
+              echo "Authentication successful"
+            displayName: 'Build and authenticate'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+  # ============================================================
+  # Stage 2: Export - Capture current job configuration
+  # ============================================================
+  - stage: Export
+    displayName: 'Export Current Config'
+    dependsOn: Setup
+    jobs:
+      - job: ExportJob
+        displayName: 'Export job and snapshot state'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+              ./vcli init --insecure
+            displayName: 'Build vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Exporting current configuration"
+              echo "=========================================="
+              echo "Job: $(JOB_NAME)"
+              echo ""
+
+              # The export command requires a job ID (UUID), not a name.
+              # Look up the ID by querying all jobs and matching by name.
+              echo "Looking up job ID..."
+              JOB_ID=$(./vcli get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
+
+              if [ -z "$JOB_ID" ]; then
+                echo "##vso[task.logissue type=error]Job '$(JOB_NAME)' not found in VBR"
+                exit 1
+              fi
+              echo "Found job ID: $JOB_ID"
+              echo ""
+
+              # Export the full job configuration as the base
+              ./vcli export "$JOB_ID" > base-job.yaml
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to export job '$(JOB_NAME)'"
+                exit 1
+              fi
+
+              echo "Current configuration exported to base-job.yaml"
+              echo ""
+
+              # Show current retention settings
+              echo "Current retention settings:"
+              grep -A 3 "retentionPolicy:" base-job.yaml
+              echo ""
+
+              # Snapshot the current state as baseline for drift detection
+              echo "Snapshotting current state..."
+              ./vcli job snapshot "$(JOB_NAME)"
+              echo ""
+              echo "State baseline captured"
+            displayName: 'Export job and snapshot'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Creating retention overlay"
+              echo "=========================================="
+              echo ""
+              echo "Desired retention: $(DESIRED_RETENTION_DAYS) days"
+              echo ""
+
+              # Create the overlay - only the fields we want to change.
+              # The overlay is merged with the base during apply, so we only
+              # need to specify fields that should differ from the exported base.
+              cat > retention-overlay.yaml <<EOF
+              # Retention Policy Overlay
+              # Changes only the retention settings, all other job config is preserved.
+              #
+              # Apply with: vcli job apply base-job.yaml -o retention-overlay.yaml
+
+              apiVersion: vcli.veeam.com/v1
+              kind: VBRJob
+              metadata:
+                name: $(JOB_NAME)
+              spec:
+                description: "$(JOB_NAME) - $(DESIRED_RETENTION_DAYS)-day retention"
+                storage:
+                  retentionPolicy:
+                    type: Days
+                    quantity: $(DESIRED_RETENTION_DAYS)
+              EOF
+
+              # Strip leading whitespace from heredoc indentation
+              sed -i 's/^              //' retention-overlay.yaml
+
+              echo "Overlay created:"
+              echo "---"
+              cat retention-overlay.yaml
+              echo "---"
+            displayName: 'Create retention overlay'
+
+          # Publish the files as artifacts for subsequent stages
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+              mkdir -p $(Build.ArtifactStagingDirectory)/specs
+              cp base-job.yaml $(Build.ArtifactStagingDirectory)/specs/
+              cp retention-overlay.yaml $(Build.ArtifactStagingDirectory)/specs/
+              cp state.json $(Build.ArtifactStagingDirectory)/specs/ 2>/dev/null || true
+            displayName: 'Stage artifacts'
+
+          - publish: $(Build.ArtifactStagingDirectory)/specs
+            artifact: job-specs
+            displayName: 'Publish job specs'
+
+  # ============================================================
+  # Stage 3: Plan - Preview changes before applying
+  # ============================================================
+  - stage: Plan
+    displayName: 'Plan Changes (Dry Run)'
+    dependsOn: Export
+    jobs:
+      - job: DryRun
+        displayName: 'Preview retention change'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - download: current
+            artifact: job-specs
+            displayName: 'Download job specs'
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+              ./vcli init --insecure
+
+              # Restore specs and state
+              cp $(Pipeline.Workspace)/job-specs/base-job.yaml .
+              cp $(Pipeline.Workspace)/job-specs/retention-overlay.yaml .
+              cp $(Pipeline.Workspace)/job-specs/state.json ~/.vcli/state.json 2>/dev/null || true
+            displayName: 'Build vcli and restore specs'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Dry Run: Previewing Changes"
+              echo "=========================================="
+              echo ""
+              echo "This shows what WOULD change without applying anything."
+              echo ""
+
+              # Plan shows the diff between current and desired state
+              ./vcli job apply base-job.yaml -o retention-overlay.yaml --dry-run
+              DRY_RUN_EXIT=$?
+
+              echo ""
+              echo "=========================================="
+
+              if [ $DRY_RUN_EXIT -eq 0 ]; then
+                echo "Dry run successful - changes are valid"
+                echo "Ready to apply in next stage"
+              elif [ $DRY_RUN_EXIT -eq 5 ]; then
+                echo "Dry run successful with notes"
+                echo "Some read-only fields will be skipped (this is normal)"
+              else
+                echo "##vso[task.logissue type=error]Dry run failed (exit code: $DRY_RUN_EXIT)"
+                exit 1
+              fi
+            displayName: 'Preview retention change'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+  # ============================================================
+  # Stage 4: Apply - Make the change
+  # ============================================================
+  - stage: Apply
+    displayName: 'Apply Retention Change'
+    dependsOn: Plan
+    jobs:
+      - job: ApplyChange
+        displayName: 'Apply retention overlay'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - download: current
+            artifact: job-specs
+            displayName: 'Download job specs'
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+              ./vcli init --insecure
+
+              # Restore specs and state
+              cp $(Pipeline.Workspace)/job-specs/base-job.yaml .
+              cp $(Pipeline.Workspace)/job-specs/retention-overlay.yaml .
+              cp $(Pipeline.Workspace)/job-specs/state.json ~/.vcli/state.json 2>/dev/null || true
+            displayName: 'Build vcli and restore specs'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Applying Retention Change"
+              echo "=========================================="
+              echo ""
+              echo "Job: $(JOB_NAME)"
+              echo "Target retention: $(DESIRED_RETENTION_DAYS) days"
+              echo ""
+
+              # Apply the overlay to the base config
+              ./vcli job apply base-job.yaml -o retention-overlay.yaml
+              APPLY_EXIT=$?
+
+              echo ""
+
+              case $APPLY_EXIT in
+                0)
+                  echo "Successfully applied retention change"
+                  ;;
+                5)
+                  echo "Applied with notes (some read-only fields skipped)"
+                  echo "##vso[task.logissue type=warning]Partial apply - some fields are immutable"
+                  ;;
+                6)
+                  echo "##vso[task.logissue type=error]Job '$(JOB_NAME)' not found in VBR"
+                  exit 1
+                  ;;
+                *)
+                  echo "##vso[task.logissue type=error]Apply failed (exit code: $APPLY_EXIT)"
+                  exit 1
+                  ;;
+              esac
+            displayName: 'Apply retention change'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+  # ============================================================
+  # Stage 5: Verify - Confirm VBR matches desired state
+  # ============================================================
+  - stage: Verify
+    displayName: 'Verify Change'
+    dependsOn: Apply
+    jobs:
+      - job: VerifyDrift
+        displayName: 'Verify no drift after apply'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+              ./vcli init --insecure
+            displayName: 'Build vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Post-Apply Verification"
+              echo "=========================================="
+              echo ""
+
+              # Snapshot the new state after apply
+              echo "Snapshotting post-apply state..."
+              ./vcli job snapshot "$(JOB_NAME)"
+              echo ""
+
+              # Check for any remaining drift
+              echo "Checking for drift..."
+              ./vcli job diff "$(JOB_NAME)"
+              DIFF_EXIT=$?
+
+              echo ""
+              echo "=========================================="
+
+              case $DIFF_EXIT in
+                0)
+                  echo "VERIFIED: No drift - VBR matches desired state"
+                  echo "Retention is now set to $(DESIRED_RETENTION_DAYS) days"
+                  ;;
+                3)
+                  echo "##vso[task.logissue type=warning]Minor drift detected after apply"
+                  echo "This may indicate read-only fields that cannot be changed via API"
+                  ;;
+                4)
+                  echo "##vso[task.logissue type=error]CRITICAL drift after apply - change may not have taken effect"
+                  exit 1
+                  ;;
+                *)
+                  echo "##vso[task.logissue type=error]Verification failed (exit code: $DIFF_EXIT)"
+                  exit 1
+                  ;;
+              esac
+            displayName: 'Verify retention change applied'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Final State Verification"
+              echo "=========================================="
+              echo ""
+
+              # Confirm the actual value from VBR
+              echo "Exporting final job configuration..."
+              JOB_ID=$(./vcli get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
+              ./vcli export "$JOB_ID" --as-overlay > final-state.yaml
+
+              echo ""
+              echo "Final retention settings:"
+              grep -A 3 "retentionPolicy:" final-state.yaml
+
+              echo ""
+              echo "=========================================="
+              echo "Pipeline Complete"
+              echo "=========================================="
+              echo ""
+              echo "Summary:"
+              echo "  Job:       $(JOB_NAME)"
+              echo "  Change:    Retention updated to $(DESIRED_RETENTION_DAYS) days"
+              echo "  Status:    Applied and verified"
+              echo ""
+              echo "The change is now tracked in VBR and can be"
+              echo "monitored for drift using: vcli job diff \"$(JOB_NAME)\""
+              echo "=========================================="
+            displayName: 'Show final state'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)

@@ -6,6 +6,9 @@ Ready-to-use Azure DevOps pipeline templates for VBR configuration management wi
 
 | Template | Purpose | Trigger |
 |----------|---------|---------|
+| [bootstrap.yml](bootstrap.yml) | Capture current VBR state into Git (run once) | Manual |
+| [retention-change.yml](retention-change.yml) | Declarative retention change walkthrough | Manual |
+| [retention-change-gitops.yml](retention-change-gitops.yml) | GitOps retention change (reads/commits to Git) | Manual |
 | [detect-remediate.yml](detect-remediate.yml) | Detect drift and auto-remediate | Scheduled (weekday 6AM UTC) |
 | [pr-validation.yml](pr-validation.yml) | Validate spec changes before merge | Pull requests |
 | [deployment.yml](deployment.yml) | Multi-stage deployment with approval gates | Push to master / manual |
@@ -48,15 +51,17 @@ infrastructure/
 
 Bootstrap from existing VBR configuration:
 
+**Option 1: Use the bootstrap pipeline (recommended)**
+
+Run [bootstrap.yml](bootstrap.yml) once — it exports all jobs, snapshots all resources, and commits everything to Git automatically.
+
+**Option 2: Manual bootstrap**
+
 ```bash
 # Export current configuration as YAML specs
-vcli job export --all -o infrastructure/jobs/
-vcli repo export --all -o infrastructure/repos/
-vcli repo sobr-export --all -o infrastructure/sobrs/
-vcli encryption kms-export --all -o infrastructure/kms/
+vcli export --all -d infrastructure/jobs/
 
 # Snapshot current state (records baseline in state.json)
-vcli job diff --all  # Creates state entries for jobs
 vcli repo snapshot --all
 vcli repo sobr-snapshot --all
 vcli encryption snapshot --all
@@ -119,6 +124,96 @@ vcli exit codes determine pipeline outcomes:
 | `1` | Error | Fails |
 
 ## Template Details
+
+### bootstrap.yml
+
+**Purpose:** Run-once pipeline to capture the current VBR environment into Git
+
+This pipeline exports all backup jobs as YAML files and snapshots all resource types (repositories, SOBRs, encryption passwords, KMS servers) into `state.json`. Run this once to establish the GitOps baseline before using other pipelines.
+
+**Single stage:**
+1. **Bootstrap** - Build vcli, export all jobs, snapshot all resources, commit to Git
+
+**Result in repo:**
+```
+infrastructure/
+└── jobs/
+    ├── backup-job-1.yaml
+    ├── weekly-full.yaml
+    └── ...
+state.json    ← contains state for ALL resource types
+```
+
+**Requirements:**
+- Self-hosted agent with Go installed
+- Git repo with write permissions (uses `persistCredentials: true`)
+
+**Notes:**
+- Commits with `[skip ci]` to prevent pipeline trigger loops
+- Safe to re-run: if no changes are detected, the commit is skipped
+- Only jobs have YAML export; repos, SOBRs, encryption, and KMS are captured in `state.json` only
+
+### retention-change.yml
+
+**Purpose:** Step-by-step walkthrough of declarative job management
+
+This pipeline demonstrates the complete GitOps workflow for changing a backup job's retention policy. It is designed as a learning resource and starting point for teams adopting declarative configuration management.
+
+**Stages:**
+1. **Setup** - Build vcli and verify VBR connectivity
+2. **Export** - Capture current job config as base YAML and snapshot state
+3. **Plan** - Preview the retention change with dry-run (no changes made)
+4. **Apply** - Apply the retention overlay to VBR
+5. **Verify** - Confirm VBR matches desired state (drift check)
+
+**Customization:**
+```yaml
+variables:
+  # Change these to match your environment
+  - name: JOB_NAME
+    value: 'My Backup Job'        # Name of the job to modify
+  - name: DESIRED_RETENTION_DAYS
+    value: '30'                    # Target retention in days
+```
+
+**What It Demonstrates:**
+- Exporting live VBR configuration as YAML
+- Creating minimal overlays (only the fields you want to change)
+- Dry-run to preview changes before applying
+- Apply with overlay merge (base + overlay = desired state)
+- Post-apply verification with drift detection
+- Exit code handling for CI/CD integration
+
+### retention-change-gitops.yml
+
+**Purpose:** GitOps deployment pipeline that reads from and commits back to Git
+
+Unlike `retention-change.yml` (which is ephemeral), this pipeline treats Git as the single source of truth. It reads job YAML and `state.json` from the repo, applies changes to VBR, then commits the updated state and re-exported job spec back to Git.
+
+**Prerequisites:**
+- Run `bootstrap.yml` first to populate `infrastructure/` and `state.json`
+- Self-hosted agent with Go installed
+
+**Stages:**
+1. **Plan** - Validate prerequisites, create overlay, dry-run (read-only)
+2. **Apply and Commit** - Apply to VBR, re-export job YAML, commit updated state to Git
+3. **Verify** - Pull latest commit and confirm zero drift
+
+**Customization:**
+```yaml
+variables:
+  - name: JOB_NAME
+    value: 'My Backup Job'        # Must match a bootstrapped job
+  - name: DESIRED_RETENTION_DAYS
+    value: '30'                    # Target retention in days
+```
+
+**What It Demonstrates:**
+- Reading job specs and state from Git (not live VBR export)
+- Deriving job filenames using the same sanitization as `vcli export`
+- Committing updated state and job YAML back to Git with `[skip ci]`
+- Re-exporting from VBR after apply to capture authoritative state
+- End-to-end verification that VBR matches the committed Git state
 
 ### detect-remediate.yml
 

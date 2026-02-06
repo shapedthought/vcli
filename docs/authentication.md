@@ -15,7 +15,7 @@ This guide covers initializing vcli, managing profiles, and setting up authentic
 
 ### Initialize vcli
 
-**New in v0.11.0:** Init is now non-interactive by default for GitOps/CI/CD compatibility.
+Init is non-interactive by default for GitOps/CI/CD compatibility.
 
 Run the init command to create configuration files:
 
@@ -26,14 +26,14 @@ Run the init command to create configuration files:
 # With specific settings
 ./vcli init --insecure --output-dir ~/.vcli/
 
-# Legacy interactive mode (deprecated, will be removed in v0.12.0)
+# Legacy interactive mode
 ./vcli init --interactive
 ```
 
 **Available Flags:**
 - `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
 - `--output-dir <path>` - Specify config file directory
-- `--interactive` - Use legacy interactive prompts (deprecated)
+- `--interactive` - Use legacy interactive prompts
 
 **Files created:**
 - `settings.json` - vcli settings and preferences
@@ -97,7 +97,7 @@ Profiles define connection settings for each Veeam product. Each profile contain
 
 ### Profile Commands
 
-**New in v0.11.0:** Profile commands now require explicit arguments (no interactive prompts).
+Profile commands require explicit arguments (no interactive prompts).
 
 ```bash
 # List all available profiles
@@ -121,7 +121,7 @@ Profiles define connection settings for each Veeam product. Each profile contain
 
 ### Profile Structure (v1.0 Format)
 
-**New in v0.11.0:** profiles.json now uses versioned format with all profiles in one file.
+profiles.json uses versioned format with all profiles in one file.
 
 Example structure:
 
@@ -164,7 +164,7 @@ Example structure:
 }
 ```
 
-**Note:** Credentials are never stored in profiles.json (v0.11.0+). Always use environment variables.
+**Note:** Credentials are never stored in profiles.json. Always use environment variables.
 
 ### API Versions
 
@@ -186,7 +186,7 @@ Current default versions (as of October 2023):
 
 ## Credentials and Token Storage
 
-**v0.11.0:** Credentials always from environment variables. Tokens stored securely in system keychain.
+Credentials always come from environment variables. Tokens are stored securely in the system keychain.
 
 ### Setting Credentials
 
@@ -223,7 +223,7 @@ $env:VCLI_SETTINGS_PATH = "$HOME\.vcli\"  # Optional
 
 ### Secure Token Storage
 
-**New in v0.11.0:** Authentication tokens are stored in your system's secure keychain instead of plaintext files.
+Authentication tokens are stored in your system's secure keychain instead of plaintext files.
 
 #### Token Resolution Priority
 
@@ -343,7 +343,7 @@ After setting up credentials and selecting a profile, authenticate:
 **OAuth (most products):**
 - VBR, VB365, VONE, AWS, Azure, GCP
 - Uses Bearer token
-- Token stored in system keychain (v0.11.0+)
+- Token stored in system keychain
 
 **Basic Auth (Enterprise Manager only):**
 - Enterprise Manager uses session-based authentication

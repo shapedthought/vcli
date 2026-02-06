@@ -127,7 +127,7 @@ vbr-infrastructure/
 
 ✅ **Always Commit:**
 - Configuration specs (all YAML files in `specs/` and `overlays/`)
-- `profiles.json` - API configuration (no credentials in v0.11.0+)
+- `profiles.json` - API configuration (no credentials)
 - `settings.json` - vcli behavior settings
 - Pipeline definitions (`.github/workflows/`, `.azure-pipelines/`, `.gitlab-ci.yml`)
 - Helper scripts
@@ -137,7 +137,7 @@ vbr-infrastructure/
 - `state.json` - See [State Management](#state-management-in-gitops) section
 - Credentials or tokens
 - `.env` files with secrets
-- `headers.json` (doesn't exist in v0.11.0+)
+- `headers.json` (no longer exists)
 
 ⚠️ **Optional (Team Decision):**
 - `state.json` - Provides audit trail but creates merge conflicts (see guidance below)
@@ -175,7 +175,7 @@ Thumbs.db
 
 ### profiles.json in Version Control
 
-**v0.11.0+ Format** (safe to commit):
+**Current Format** (safe to commit):
 
 ```json
 {
@@ -1457,13 +1457,13 @@ VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}  # Correct
     ./vcli login
 ```
 
-**v0.11.0+ requires explicit argument:**
+**Profile commands require explicit argument:**
 ```bash
 # ❌ OLD (v0.10.x) - Interactive
 vcli profile --set
 # Waited for input: _
 
-# ✅ NEW (v0.11.0+) - Non-interactive
+# ✅ Correct - Non-interactive
 vcli profile --set vbr
 ```
 

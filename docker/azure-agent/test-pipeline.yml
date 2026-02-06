@@ -1,0 +1,300 @@
+# Test pipeline for local Azure DevOps agent
+# This pipeline verifies the agent is working and tests basic vcli functionality
+
+trigger: none
+
+# Manual trigger only - click "Run pipeline" to test
+pr: none
+
+pool:
+  name: 'Default'  # Change to match your AZP_POOL value
+  # No architecture demand - works on both ARM64 (Apple Silicon) and X64 (Intel)
+
+variables:
+  # vcli repository to test with
+  - name: vcliRepo
+    value: 'https://github.com/shapedthought/vcli.git'
+  - name: vcliBranch
+    value: 'master'
+
+stages:
+  - stage: Verify
+    displayName: 'Verify Agent Environment'
+    jobs:
+      - job: CheckEnv
+        displayName: 'Check environment'
+        workspace:
+          clean: all  # Clean workspace before each run
+        steps:
+          - checkout: none  # Don't automatically checkout
+
+          - script: |
+              echo "=========================================="
+              echo "Agent Information"
+              echo "=========================================="
+              echo "Agent Name: $(Agent.Name)"
+              echo "Agent OS: $(Agent.OS)"
+              echo "Agent Architecture: $(Agent.OSArchitecture)"
+              echo "Working Directory: $(Agent.WorkFolder)"
+              echo "Build Directory: $(Build.SourcesDirectory)"
+              echo ""
+              echo "=========================================="
+              echo "Installed Tools"
+              echo "=========================================="
+              echo "Go version:"
+              go version
+              echo ""
+              echo "Git version:"
+              git --version
+              echo ""
+              echo "JQ version:"
+              jq --version
+              echo "=========================================="
+            displayName: 'Show environment info'
+
+  - stage: Build
+    displayName: 'Build vcli'
+    dependsOn: Verify
+    jobs:
+      - job: BuildVcli
+        displayName: 'Build vcli from source'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              echo "Cloning vcli repository..."
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              echo ""
+              echo "Repository info:"
+              git log -1 --oneline
+              echo ""
+              echo "Building vcli..."
+              go build -o vcli
+              echo ""
+              echo "Build successful!"
+              ./vcli --version || echo "vcli version command not available"
+              ls -lh vcli
+            displayName: 'Clone and build vcli'
+
+  - stage: TestImperative
+    displayName: 'Test Imperative Mode'
+    dependsOn: Build
+    jobs:
+      - job: TestCommands
+        displayName: 'Test vcli commands'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+
+              # Initialize vcli (creates config files in current directory)
+              echo "Initializing vcli..."
+              ./vcli init --insecure
+
+              echo ""
+              echo "Available profiles:"
+              ./vcli profile --list
+            displayName: 'Clone, build, and initialize vcli'
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+              echo "Setting VBR profile..."
+              ./vcli profile --set vbr
+
+              echo ""
+              echo "Attempting login to VBR..."
+              ./vcli login
+
+              if [ $? -eq 0 ]; then
+                echo "Login successful"
+              else
+                echo "Login failed"
+                echo "Check VCLI_USERNAME, VCLI_PASSWORD, and VCLI_URL in pipeline variables"
+                exit 1
+              fi
+            displayName: 'Test VBR login'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+            continueOnError: true  # Don't fail if VBR is not reachable
+
+  - stage: TestDeclarative
+    displayName: 'Test Declarative Mode'
+    dependsOn: TestImperative
+    condition: succeeded()  # Only run if login succeeded
+    jobs:
+      - job: TestDrift
+        displayName: 'Test drift detection'
+        workspace:
+          clean: all
+        steps:
+          - checkout: none
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/vcli
+              go build -o vcli
+
+              # Initialize and login
+              echo "Initializing vcli..."
+              ./vcli init --insecure
+              ./vcli profile --set vbr
+
+              echo "Logging in to VBR..."
+              ./vcli login
+            displayName: 'Clone, build, and setup vcli'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Snapshotting Current State as Baseline"
+              echo "=========================================="
+
+              echo "Snapshotting all jobs..."
+              ./vcli job snapshot --all || true
+
+              echo ""
+              echo "Snapshotting repositories..."
+              ./vcli repo snapshot --all || true
+
+              echo ""
+              echo "Snapshotting scale-out repositories..."
+              ./vcli repo sobr-snapshot --all || true
+
+              echo ""
+              echo "Snapshotting encryption passwords..."
+              ./vcli encryption snapshot --all || true
+
+              echo ""
+              echo "Snapshotting KMS servers..."
+              ./vcli encryption kms-snapshot --all || true
+
+              echo ""
+              echo "State file created:"
+              ls -lh state.json 2>/dev/null || echo "No state file found"
+            displayName: 'Snapshot current VBR state as baseline'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Testing Job Drift Detection"
+              echo "=========================================="
+
+              ./vcli job diff --all
+              JOB_EXIT=$?
+
+              echo ""
+              echo "Job diff exit code: $JOB_EXIT"
+
+              case $JOB_EXIT in
+                0)
+                  echo "No drift detected"
+                  ;;
+                3)
+                  echo "Warning-level drift detected"
+                  echo "##vso[task.logissue type=warning]Non-critical job drift detected"
+                  ;;
+                4)
+                  echo "CRITICAL drift detected"
+                  echo "##vso[task.logissue type=error]CRITICAL job drift detected"
+                  ;;
+                *)
+                  echo "Error occurred (exit code: $JOB_EXIT)"
+                  ;;
+              esac
+            displayName: 'Test job diff'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+            continueOnError: true
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Testing Repository Drift Detection"
+              echo "=========================================="
+
+              ./vcli repo diff --all
+              REPO_EXIT=$?
+
+              echo ""
+              echo "Repository diff exit code: $REPO_EXIT"
+            displayName: 'Test repo diff'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+            continueOnError: true
+
+          - script: |
+              cd $(Build.SourcesDirectory)/vcli
+
+              echo "=========================================="
+              echo "Testing Security-Only Filtering"
+              echo "=========================================="
+
+              ./vcli job diff --all --security-only
+              EXIT_CODE=$?
+
+              if [ $EXIT_CODE -eq 4 ]; then
+                echo "##vso[task.logissue type=error]CRITICAL security drift detected"
+                echo "##vso[build.addbuildtag]critical-drift"
+                echo "This would fail a CI/CD pipeline"
+              elif [ $EXIT_CODE -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Security drift detected (non-critical)"
+                echo "##vso[task.complete result=SucceededWithIssues;]Drift detected"
+              else
+                echo "No security drift detected"
+              fi
+            displayName: 'Test security drift filtering'
+            env:
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+            continueOnError: true
+
+  - stage: Summary
+    displayName: 'Test Summary'
+    dependsOn:
+      - Verify
+      - Build
+      - TestImperative
+      - TestDeclarative
+    condition: always()
+    jobs:
+      - job: ShowResults
+        displayName: 'Show test results'
+        steps:
+          - script: |
+              echo "=========================================="
+              echo "Test Pipeline Summary"
+              echo "=========================================="
+              echo "Pipeline: $(Build.DefinitionName)"
+              echo "Build Number: $(Build.BuildNumber)"
+              echo "Agent: $(Agent.Name)"
+              echo ""
+              echo "Agent verification: Complete"
+              echo "vcli build: Check previous stages"
+              echo "Imperative mode tests: Check previous stages"
+              echo "Declarative mode tests: Check previous stages"
+              echo "=========================================="
+              echo ""
+              echo "Next steps:"
+              echo "1. Check the 'Tests' tab for detailed results"
+              echo "2. Review logs for any warnings or errors"
+              echo "3. Try the example pipelines in examples/pipelines/"
+              echo "=========================================="
+            displayName: 'Summary'

@@ -1,0 +1,202 @@
+# Bootstrap Pipeline
+#
+# Run-once pipeline that captures the current VBR environment into Git.
+# This creates the foundation for GitOps workflows by exporting all jobs
+# as YAML files and snapshotting all resource types into state.json.
+#
+# After running this pipeline, your repo will contain:
+#   infrastructure/
+#   └── jobs/
+#       ├── backup-job-1.yaml
+#       ├── kms-encrypted-backup.yaml
+#       └── ...
+#   state.json    ← contains state for ALL resource types
+#
+# Prerequisites:
+#   - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+#   - Self-hosted agent with Go installed (for building from source)
+#   - Git repo with write permissions (persistCredentials enabled)
+#
+# Usage:
+#   1. Copy this file to your repository
+#   2. Create the pipeline in Azure DevOps
+#   3. Run it once to bootstrap your GitOps state
+#   4. Subsequent changes use retention-change-gitops.yml or similar pipelines
+
+trigger: none  # Manual trigger only - run once to bootstrap
+
+pool:
+  name: 'Default'
+
+variables:
+  - group: 'veeam-credentials'
+
+  # vcli source (for self-hosted agent building from source)
+  - name: vcliRepo
+    value: 'https://github.com/shapedthought/vcli.git'
+  - name: vcliBranch
+    value: 'master'
+
+stages:
+  - stage: Bootstrap
+    displayName: 'Bootstrap VBR State into Git'
+    jobs:
+      - job: CaptureAndCommit
+        displayName: 'Export jobs, snapshot state, and commit'
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - script: |
+              echo "=========================================="
+              echo "Building vcli from source"
+              echo "=========================================="
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
+              cd $(Agent.TempDirectory)/vcli-src
+              go build -o $(Build.SourcesDirectory)/vcli
+              echo "Build successful"
+            displayName: 'Build vcli'
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "Initializing vcli..."
+              ./vcli init --insecure
+
+              echo "Logging in to VBR..."
+              ./vcli login
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
+                exit 1
+              fi
+              echo "Authentication successful"
+            displayName: 'Initialize and authenticate'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Exporting all jobs as YAML"
+              echo "=========================================="
+              mkdir -p infrastructure/jobs
+              ./vcli export --all -d infrastructure/jobs/
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to export jobs"
+                exit 1
+              fi
+
+              echo ""
+              echo "Exported jobs:"
+              ls -la infrastructure/jobs/
+            displayName: 'Export all jobs'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Snapshotting all resource types"
+              echo "=========================================="
+              set +e  # Continue on individual failures
+
+              echo ""
+              echo "--- Snapshotting repositories ---"
+              ./vcli repo snapshot --all
+              REPO_EXIT=$?
+
+              echo ""
+              echo "--- Snapshotting scale-out repositories ---"
+              ./vcli repo sobr-snapshot --all
+              SOBR_EXIT=$?
+
+              echo ""
+              echo "--- Snapshotting encryption passwords ---"
+              ./vcli encryption snapshot --all
+              ENC_EXIT=$?
+
+              echo ""
+              echo "--- Snapshotting KMS servers ---"
+              ./vcli encryption kms-snapshot --all
+              KMS_EXIT=$?
+
+              set -e
+
+              echo ""
+              echo "=========================================="
+              echo "Snapshot Summary"
+              echo "=========================================="
+              echo "  Repositories:    exit $REPO_EXIT"
+              echo "  SOBRs:           exit $SOBR_EXIT"
+              echo "  Encryption:      exit $ENC_EXIT"
+              echo "  KMS Servers:     exit $KMS_EXIT"
+
+              if [ ! -f state.json ]; then
+                echo ""
+                echo "##vso[task.logissue type=warning]state.json was not created - VBR may have no resources to snapshot"
+              else
+                echo ""
+                echo "State file created:"
+                ls -la state.json
+              fi
+            displayName: 'Snapshot all resources'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Committing bootstrap state to Git"
+              echo "=========================================="
+
+              git config user.email "vcli-pipeline@azure-devops.local"
+              git config user.name "vcli Bootstrap Pipeline"
+
+              # Stage infrastructure specs and state
+              git add infrastructure/
+              git add state.json 2>/dev/null || true
+
+              # Verify there are changes to commit
+              if git diff --cached --quiet; then
+                echo "No changes to commit - repository may already be bootstrapped"
+                exit 0
+              fi
+
+              echo ""
+              echo "Files to commit:"
+              git diff --cached --name-only
+
+              git commit -m "Bootstrap VBR declarative management [skip ci]
+
+              Exported all backup jobs as YAML specs.
+              Snapshotted repositories, SOBRs, encryption, and KMS state."
+
+              git push origin HEAD
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to push bootstrap commit"
+                exit 1
+              fi
+
+              echo ""
+              echo "=========================================="
+              echo "Bootstrap Complete"
+              echo "=========================================="
+              echo ""
+              echo "Your repository now contains:"
+              echo "  infrastructure/jobs/  - Backup job YAML specs"
+              echo "  state.json            - Baseline state for drift detection"
+              echo ""
+              echo "Next steps:"
+              echo "  1. Review the committed files"
+              echo "  2. Use retention-change-gitops.yml to make changes"
+              echo "  3. Use detect-remediate.yml for ongoing drift monitoring"
+            displayName: 'Commit and push'

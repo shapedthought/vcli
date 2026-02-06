@@ -113,7 +113,7 @@ vcli profile --set vbr
 vcli login
 ```
 
-### Token Storage Issues (v0.11.0+)
+### Token Storage Issues
 
 **Problem:** `failed to open keyring` or `no authentication method available`
 
@@ -177,7 +177,7 @@ vcli login
 vcli get jobs
 ```
 
-### Profile Command Requires Argument (v0.11.0+)
+### Profile Command Requires Argument
 
 **Problem:** `vcli profile --set` hangs or returns "profile name required" error
 
@@ -189,7 +189,7 @@ vcli profile --set
 # Prompted: Enter profile name: _
 ```
 
-**New command (v0.11.0+):**
+**New command:**
 ```bash
 vcli profile --set vbr  # Provide argument
 vcli profile -s vbr     # Short form
@@ -373,7 +373,7 @@ mkdir -p ~/.vcli
 mv settings.json profiles.json ~/.vcli/
 export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 
-# Note: headers.json no longer exists in v0.11.0+
+# Note: headers.json no longer exists
 # Tokens stored in system keychain instead
 ```
 

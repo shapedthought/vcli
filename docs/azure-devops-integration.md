@@ -15,7 +15,7 @@ Ready-to-use pipeline templates are available in [`examples/pipelines/`](../exam
 
 See the [pipeline README](../examples/pipelines/README.md) for setup instructions.
 
-## Current Integration (v0.11.0)
+## Current Integration (v0.12.1)
 
 ### What Works Today
 
@@ -61,7 +61,7 @@ variables:
 
 steps:
   - script: |
-      curl -L https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
+      curl -L https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
       chmod +x vcli
     displayName: 'Install vcli'
 
@@ -213,7 +213,7 @@ stages:
         displayName: 'Scan all resources'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
+              curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
               chmod +x vcli
               ./vcli init && ./vcli profile --set vbr && ./vcli login
             displayName: 'Setup vcli'
@@ -305,7 +305,7 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.11.0/vcli-linux-amd64 -o vcli
+      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
       chmod +x vcli
       ./vcli init && ./vcli profile --set vbr && ./vcli login
     displayName: 'Setup vcli'
@@ -570,7 +570,7 @@ With Epic #23 Phases 2-4 complete, drift scans and remediation cover the entire 
 ```yaml
 steps:
   - script: |
-      # Current (v0.11.0)
+      # Current
       ./vcli job diff --all --security-only
       ./vcli repo diff --all --security-only
       ./vcli repo sobr-diff --all --security-only

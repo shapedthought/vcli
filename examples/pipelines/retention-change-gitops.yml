@@ -1,0 +1,400 @@
+# Retention Change GitOps Pipeline
+#
+# A GitOps deployment pipeline that reads job YAML files and state.json
+# from the repo, applies a retention change to VBR, and commits the
+# updated state and job spec back to Git.
+#
+# Unlike retention-change.yml (which is ephemeral), this pipeline treats
+# Git as the single source of truth:
+#   - Reads:  infrastructure/jobs/<name>.yaml and state.json
+#   - Writes: Updated job YAML and state.json committed back to Git
+#
+# Prerequisites:
+#   - Run bootstrap.yml first to populate infrastructure/ and state.json
+#   - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+#   - Self-hosted agent with Go installed
+#
+# Usage:
+#   1. Copy this file to your repository
+#   2. Ensure bootstrap.yml has been run (infrastructure/ and state.json exist)
+#   3. Set JOB_NAME and DESIRED_RETENTION_DAYS variables
+#   4. Create the pipeline in Azure DevOps and run it
+
+trigger: none  # Manual trigger only
+
+pool:
+  name: 'Default'
+
+variables:
+  - group: 'veeam-credentials'
+
+  # Job to manage - change this to match your environment
+  - name: JOB_NAME
+    value: 'Backup Job 1'
+
+  # Desired retention settings
+  - name: DESIRED_RETENTION_DAYS
+    value: '30'
+
+  # vcli source (for self-hosted agent building from source)
+  - name: vcliRepo
+    value: 'https://github.com/shapedthought/vcli.git'
+  - name: vcliBranch
+    value: 'master'
+
+stages:
+  # ============================================================
+  # Stage 1: Plan - Preview changes without modifying VBR
+  # ============================================================
+  - stage: Plan
+    displayName: 'Plan Changes (Dry Run)'
+    jobs:
+      - job: DryRun
+        displayName: 'Preview retention change'
+        steps:
+          - checkout: self
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
+              cd $(Agent.TempDirectory)/vcli-src
+              go build -o $(Build.SourcesDirectory)/vcli
+            displayName: 'Build vcli'
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+              ./vcli init --insecure
+              ./vcli login
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
+                exit 1
+              fi
+            displayName: 'Initialize and authenticate'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Validating GitOps prerequisites"
+              echo "=========================================="
+
+              # Check that bootstrap has been run
+              if [ ! -f state.json ]; then
+                echo "##vso[task.logissue type=error]state.json not found - run the bootstrap pipeline first"
+                exit 1
+              fi
+              echo "Found state.json"
+
+              # Derive the job filename using the same logic as vcli export
+              # (see cmd/export.go sanitizeFilename)
+              JOB_FILE="infrastructure/jobs/$(echo "$(JOB_NAME)" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[<>:"\/\\|?*]/-/g; s/-\+/-/g; s/^-//; s/-$//').yaml"
+
+              if [ ! -f "$JOB_FILE" ]; then
+                echo "##vso[task.logissue type=error]Job file not found: $JOB_FILE"
+                echo "Available job files:"
+                ls infrastructure/jobs/ 2>/dev/null || echo "  (no files)"
+                exit 1
+              fi
+              echo "Found job file: $JOB_FILE"
+              echo "##vso[task.setvariable variable=JOB_FILE;isOutput=true]$JOB_FILE"
+
+              echo ""
+              echo "Current retention settings:"
+              grep -A 3 "retentionPolicy:" "$JOB_FILE" || echo "  (not found in YAML)"
+            displayName: 'Validate prerequisites'
+            name: validate
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              JOB_FILE=$(validate.JOB_FILE)
+
+              echo "=========================================="
+              echo "Creating retention overlay"
+              echo "=========================================="
+
+              cat > retention-overlay.yaml <<EOF
+              apiVersion: vcli.veeam.com/v1
+              kind: VBRJob
+              metadata:
+                name: $(JOB_NAME)
+              spec:
+                description: "$(JOB_NAME) - $(DESIRED_RETENTION_DAYS)-day retention"
+                storage:
+                  retentionPolicy:
+                    type: Days
+                    quantity: $(DESIRED_RETENTION_DAYS)
+              EOF
+
+              # Strip leading whitespace from heredoc indentation
+              sed -i 's/^              //' retention-overlay.yaml
+
+              echo "Overlay:"
+              cat retention-overlay.yaml
+              echo ""
+
+              echo "=========================================="
+              echo "Dry Run: Previewing Changes"
+              echo "=========================================="
+
+              ./vcli job apply "$JOB_FILE" -o retention-overlay.yaml --dry-run
+              DRY_RUN_EXIT=$?
+
+              echo ""
+              if [ $DRY_RUN_EXIT -eq 0 ]; then
+                echo "Dry run successful - changes are valid"
+              elif [ $DRY_RUN_EXIT -eq 5 ]; then
+                echo "Dry run successful (some read-only fields will be skipped)"
+              else
+                echo "##vso[task.logissue type=error]Dry run failed (exit code: $DRY_RUN_EXIT)"
+                exit 1
+              fi
+            displayName: 'Dry run with overlay'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+  # ============================================================
+  # Stage 2: Apply - Modify VBR and commit state back to Git
+  # ============================================================
+  - stage: Apply
+    displayName: 'Apply and Commit'
+    dependsOn: Plan
+    variables:
+      JOB_FILE: $[ stageDependencies.Plan.DryRun.outputs['validate.JOB_FILE'] ]
+    jobs:
+      - job: ApplyAndCommit
+        displayName: 'Apply change and commit state'
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
+              cd $(Agent.TempDirectory)/vcli-src
+              go build -o $(Build.SourcesDirectory)/vcli
+            displayName: 'Build vcli'
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+              ./vcli init --insecure
+              ./vcli login
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
+                exit 1
+              fi
+            displayName: 'Initialize and authenticate'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Creating retention overlay"
+              echo "=========================================="
+
+              cat > retention-overlay.yaml <<EOF
+              apiVersion: vcli.veeam.com/v1
+              kind: VBRJob
+              metadata:
+                name: $(JOB_NAME)
+              spec:
+                description: "$(JOB_NAME) - $(DESIRED_RETENTION_DAYS)-day retention"
+                storage:
+                  retentionPolicy:
+                    type: Days
+                    quantity: $(DESIRED_RETENTION_DAYS)
+              EOF
+
+              sed -i 's/^              //' retention-overlay.yaml
+
+              echo "=========================================="
+              echo "Applying Retention Change"
+              echo "=========================================="
+              echo "Job: $(JOB_NAME)"
+              echo "File: $(JOB_FILE)"
+              echo "Target retention: $(DESIRED_RETENTION_DAYS) days"
+              echo ""
+
+              ./vcli job apply "$(JOB_FILE)" -o retention-overlay.yaml
+              APPLY_EXIT=$?
+
+              case $APPLY_EXIT in
+                0)
+                  echo "Successfully applied retention change"
+                  ;;
+                5)
+                  echo "Applied with notes (some read-only fields skipped)"
+                  echo "##vso[task.logissue type=warning]Partial apply - some fields are immutable"
+                  ;;
+                6)
+                  echo "##vso[task.logissue type=error]Job '$(JOB_NAME)' not found in VBR"
+                  exit 1
+                  ;;
+                *)
+                  echo "##vso[task.logissue type=error]Apply failed (exit code: $APPLY_EXIT)"
+                  exit 1
+                  ;;
+              esac
+            displayName: 'Apply retention change'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Updating state and re-exporting job"
+              echo "=========================================="
+
+              # Snapshot the updated state
+              echo "Snapshotting updated state..."
+              ./vcli job snapshot "$(JOB_NAME)"
+
+              # Re-export the job YAML to reflect VBR's authoritative state
+              echo ""
+              echo "Re-exporting job from VBR..."
+              JOB_ID=$(./vcli get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
+
+              if [ -z "$JOB_ID" ]; then
+                echo "##vso[task.logissue type=warning]Could not look up job ID for re-export"
+              else
+                ./vcli export "$JOB_ID" -o "$(JOB_FILE)"
+                echo "Re-exported: $(JOB_FILE)"
+              fi
+            displayName: 'Update state and re-export'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Committing updated state to Git"
+              echo "=========================================="
+
+              git config user.email "vcli-pipeline@azure-devops.local"
+              git config user.name "vcli GitOps Pipeline"
+
+              git add state.json
+              git add "$(JOB_FILE)"
+
+              if git diff --cached --quiet; then
+                echo "No changes to commit"
+                exit 0
+              fi
+
+              echo "Files changed:"
+              git diff --cached --name-only
+
+              git commit -m "Update $(JOB_NAME) retention to $(DESIRED_RETENTION_DAYS) days [skip ci]
+
+              Applied retention overlay and re-exported job spec from VBR."
+
+              git push origin HEAD
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to push state commit"
+                exit 1
+              fi
+              echo "State committed and pushed"
+            displayName: 'Commit and push'
+
+  # ============================================================
+  # Stage 3: Verify - Confirm VBR matches Git state
+  # ============================================================
+  - stage: Verify
+    displayName: 'Verify Change'
+    dependsOn: Apply
+    jobs:
+      - job: VerifyDrift
+        displayName: 'Verify no drift after apply'
+        steps:
+          - checkout: self
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+              # Pull latest to get the Apply stage commit
+              git pull origin $(Build.SourceBranchName) || true
+            displayName: 'Pull latest state'
+
+          - script: |
+              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
+              cd $(Agent.TempDirectory)/vcli-src
+              go build -o $(Build.SourcesDirectory)/vcli
+            displayName: 'Build vcli'
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+              ./vcli init --insecure
+              ./vcli login
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
+                exit 1
+              fi
+            displayName: 'Initialize and authenticate'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)
+
+          - script: |
+              cd $(Build.SourcesDirectory)
+
+              echo "=========================================="
+              echo "Post-Apply Verification"
+              echo "=========================================="
+              echo ""
+
+              ./vcli job diff "$(JOB_NAME)"
+              DIFF_EXIT=$?
+
+              echo ""
+              echo "=========================================="
+
+              case $DIFF_EXIT in
+                0)
+                  echo "VERIFIED: No drift - VBR matches Git state"
+                  echo "Retention is now $(DESIRED_RETENTION_DAYS) days"
+                  ;;
+                3)
+                  echo "##vso[task.logissue type=warning]Minor drift detected after apply"
+                  echo "This may indicate read-only fields that cannot be changed via API"
+                  ;;
+                4)
+                  echo "##vso[task.logissue type=error]CRITICAL drift after apply - change may not have taken effect"
+                  exit 1
+                  ;;
+                *)
+                  echo "##vso[task.logissue type=error]Verification failed (exit code: $DIFF_EXIT)"
+                  exit 1
+                  ;;
+              esac
+
+              echo ""
+              echo "=========================================="
+              echo "Pipeline Complete"
+              echo "=========================================="
+              echo ""
+              echo "Summary:"
+              echo "  Job:       $(JOB_NAME)"
+              echo "  Change:    Retention updated to $(DESIRED_RETENTION_DAYS) days"
+              echo "  Status:    Applied, committed to Git, and verified"
+              echo ""
+              echo "Git now contains the updated job spec and state."
+              echo "Future drift checks will compare against this baseline."
+            displayName: 'Verify no drift'
+            env:
+              VCLI_USERNAME: $(VCLI_USERNAME)
+              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              VCLI_URL: $(VCLI_URL)

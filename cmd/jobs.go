@@ -402,18 +402,13 @@ func diffSingleJob(jobName string) {
 	}
 	fmt.Printf("Checking drift for job: %s%s\n\n", jobName, originLabel)
 
-	// Fetch current from VBR
+	// Fetch current from VBR as raw JSON (matches snapshot storage format)
 	endpoint := fmt.Sprintf("jobs/%s", resource.ID)
-	current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+	currentRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-	// Convert current job to map for comparison
-	currentBytes, err := json.Marshal(current)
-	if err != nil {
-		log.Fatalf("Failed to marshal current job for drift detection: %v", err)
-	}
 	var currentMap map[string]interface{}
-	if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
-		log.Fatalf("Failed to unmarshal current job into map for drift detection: %v", err)
+	if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
+		log.Fatalf("Failed to unmarshal current job data: %v", err)
 	}
 
 	// Compare, classify, enhance, filter
@@ -482,18 +477,12 @@ func diffAllJobs() {
 	var allDrifts []Drift
 
 	for _, resource := range resources {
-		// Fetch current from VBR
+		// Fetch current from VBR as raw JSON (matches snapshot storage format)
 		endpoint := fmt.Sprintf("jobs/%s", resource.ID)
-		current := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+		currentRaw := vhttp.GetData[json.RawMessage](endpoint, profile)
 
-		// Convert to map for comparison
-		currentBytes, err := json.Marshal(current)
-		if err != nil {
-			fmt.Printf("  %s: Failed to marshal job data: %v\n", resource.Name, err)
-			continue
-		}
 		var currentMap map[string]interface{}
-		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+		if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
 			fmt.Printf("  %s: Failed to unmarshal job data: %v\n", resource.Name, err)
 			continue
 		}

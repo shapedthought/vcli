@@ -329,7 +329,7 @@ owlctl tracks applied configurations in a **state file** and detects when VBR ha
 
 | Resource | Snapshot | Drift Check |
 |----------|----------|-------------|
-| Backup Jobs | `owlctl job apply` | `owlctl job diff --all` |
+| Backup Jobs | `owlctl job snapshot --all` | `owlctl job diff --all` |
 | Repositories | `owlctl repo snapshot --all` | `owlctl repo diff --all` |
 | Scale-Out Repos | `owlctl repo sobr-snapshot --all` | `owlctl repo sobr-diff --all` |
 | Encryption | `owlctl encryption snapshot --all` | `owlctl encryption diff --all` |

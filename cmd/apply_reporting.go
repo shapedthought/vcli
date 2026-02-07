@@ -316,7 +316,7 @@ func BuildJobGuidance(resourceName, origin string) RemediationGuidance {
 		ResourceType: "job",
 		ResourceName: resourceName,
 		ApplyCmd:     fmt.Sprintf("owlctl job apply jobs/%s.yaml", sanitizeFileName(resourceName)),
-		ExportCmd:    fmt.Sprintf("owlctl job export \"%s\" -o jobs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		ExportCmd:    fmt.Sprintf("owlctl export \"%s\" -o jobs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
 		AdoptCmd:     fmt.Sprintf("owlctl job adopt jobs/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }

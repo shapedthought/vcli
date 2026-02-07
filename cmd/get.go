@@ -18,10 +18,10 @@ var getCmd = &cobra.Command{
 	Short: "Gets data from the API",
 	Long: `Sends a GET request to a specified endpoint.
 
-Returns an the data in json format.
+Returns the data in JSON format.
 
-owlctl get <command> - use the end of the API request after the version e.g. /v4/ 
-It will print to stdout in json by default, --yaml will print out to yaml.
+owlctl get <command> - use the end of the API request after the version e.g. /v4/
+It will print to stdout in JSON by default, --yaml will print out to YAML.
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {

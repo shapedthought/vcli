@@ -218,11 +218,13 @@ func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
 			Schedule:        mergedJob.Schedule,
 		}
 
-		// Debug: Print what we're sending
-		debugBytes, _ := json.MarshalIndent(jobForPut, "", "  ")
-		_ = os.WriteFile("/tmp/owlctl-debug-request.json", debugBytes, 0644)
-		fmt.Printf("\nDEBUG: Full request saved to /tmp/owlctl-debug-request.json\n")
-		fmt.Printf("Job ID in body: %s\n", jobForPut.ID)
+		// Debug: Print what we're sending (only when OWLCTL_DEBUG is set)
+		if os.Getenv("OWLCTL_DEBUG") != "" {
+			debugBytes, _ := json.MarshalIndent(jobForPut, "", "  ")
+			_ = os.WriteFile("/tmp/owlctl-debug-request.json", debugBytes, 0600)
+			fmt.Fprintf(os.Stderr, "\nDEBUG: Full request saved to /tmp/owlctl-debug-request.json\n")
+			fmt.Fprintf(os.Stderr, "Job ID in body: %s\n", jobForPut.ID)
+		}
 
 		endpoint := fmt.Sprintf("jobs/%s", existingJob.ID)
 		vhttp.PutData(endpoint, jobForPut, profile)

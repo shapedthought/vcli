@@ -303,11 +303,13 @@ rm -rf /tmp/owlctl-test/
 
 ### Option 2: Downgrade to v0.10.x
 
+v0.10.x predates the rebrand, so it uses `vcli` and `~/.vcli`:
+
 ```bash
-cp -r ~/.owlctl.old ~/.owlctl
-wget https://github.com/shapedthought/owlctl/releases/download/v0.10.0-beta1/owlctl-linux
-chmod +x owlctl-linux
-./owlctl-linux get jobs
+cp -r ~/.owlctl.old ~/.vcli
+wget https://github.com/shapedthought/owlctl/releases/download/v0.10.0-beta1/vcli-linux
+chmod +x vcli-linux
+./vcli-linux get jobs
 ```
 
 **Warning:** v0.10.x is no longer maintained.

@@ -564,3 +564,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.11.0-beta1 | **Modernized Authentication & Automation**: Non-interactive init, secure token storage (system keychain), profiles.json v1.0 format, credentials from environment variables, profile commands take arguments. Clean break from v0.10.x. See [Migration Guide](docs/migration-v0.10-to-v0.11.md) |
 | 0.12.0-beta1 | **Diff Preview & Expanded Severity**: Diff preview in plan/dry-run commands, job snapshot command, expanded severity maps for repos/SOBRs/KMS servers. |
 | 0.12.1-beta1 | **Raw JSON Diff**: Fix job diff to use raw JSON instead of typed struct (#89). |
+| 1.0.0 | **Rebrand: vcli → owlctl**. Renamed binary, env vars (`VCLI_*` → `OWLCTL_*`), config dir (`~/.owlctl`), API version string. First stable release. See [Migration Guide](docs/migration-vcli-to-owlctl.md). |

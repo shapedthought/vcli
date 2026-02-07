@@ -2,11 +2,11 @@
 
 ## Executive Summary
 
-vcli is an open-source, community-supported CLI tool that brings GitOps workflows to Veeam Backup & Replication. It enables teams to manage backup infrastructure declaratively -- exporting configurations as YAML, tracking state, detecting drift, and remediating changes through CI/CD pipelines.
+owlctl is an open-source, community-supported CLI tool that brings GitOps workflows to Veeam Backup & Replication. It enables teams to manage backup infrastructure declaratively -- exporting configurations as YAML, tracking state, detecting drift, and remediating changes through CI/CD pipelines.
 
-This document explains why API-driven GitOps for backup infrastructure is a natural extension of modern DevOps practice, how vcli enables this for Veeam environments through Azure DevOps, and how this approach aligns with industry-wide patterns already established across the infrastructure ecosystem.
+This document explains why API-driven GitOps for backup infrastructure is a natural extension of modern DevOps practice, how owlctl enables this for Veeam environments through Azure DevOps, and how this approach aligns with industry-wide patterns already established across the infrastructure ecosystem.
 
-**vcli is not an official Veeam product.** It is a community open-source project that uses Veeam's publicly documented REST APIs. It is not supported by Veeam R&D, QA, or product support. This is consistent with how the broader backup and infrastructure industry operates -- vendor APIs are public, and the ecosystem of tools built on them is largely open-source and community-driven.
+**owlctl is not an official Veeam product.** It is a community open-source project that uses Veeam's publicly documented REST APIs. It is not supported by Veeam R&D, QA, or product support. This is consistent with how the broader backup and infrastructure industry operates -- vendor APIs are public, and the ecosystem of tools built on them is largely open-source and community-driven.
 
 ---
 
@@ -76,7 +76,7 @@ The same logic applies to backup infrastructure automation. The APIs are provide
 
 ## Backup Vendors and Open-Source Automation
 
-vcli is not an anomaly. Every major backup vendor has community-driven, open-source automation tooling built on their APIs. This is the normal way that backup automation ecosystems develop.
+owlctl is not an anomaly. Every major backup vendor has community-driven, open-source automation tooling built on their APIs. This is the normal way that backup automation ecosystems develop.
 
 ### Industry Landscape
 
@@ -93,9 +93,9 @@ vcli is not an anomaly. Every major backup vendor has community-driven, open-sou
 
 **Every vendor follows the same model.** The vendor provides REST APIs and documentation. The community (which often includes vendor employees acting in a community capacity) builds SDKs, CLI tools, Terraform providers, and Ansible modules on top of those APIs. These tools are published on GitHub under community-supported licenses.
 
-**Rubrik is the closest comparison.** Rubrik's ecosystem includes official and community SDKs across PowerShell, Python, and Go, plus Terraform providers for both their on-premises (CDM) and cloud (Polaris/RSC) platforms. Their CDM SDKs and Terraform provider are community/best-effort supported -- the same model as vcli.
+**Rubrik is the closest comparison.** Rubrik's ecosystem includes official and community SDKs across PowerShell, Python, and Go, plus Terraform providers for both their on-premises (CDM) and cloud (Polaris/RSC) platforms. Their CDM SDKs and Terraform provider are community/best-effort supported -- the same model as owlctl.
 
-**No backup vendor provides a fully supported GitOps tool.** Terraform providers exist for Rubrik, Commvault, and Cohesity, enabling basic IaC workflows. But none of them provide security-aware drift detection, value-aware severity classification, cross-resource validation, or CI/CD-ready exit codes. These are the capabilities that differentiate vcli.
+**No backup vendor provides a fully supported GitOps tool.** Terraform providers exist for Rubrik, Commvault, and Cohesity, enabling basic IaC workflows. But none of them provide security-aware drift detection, value-aware severity classification, cross-resource validation, or CI/CD-ready exit codes. These are the capabilities that differentiate owlctl.
 
 ### VeeamHub: Veeam's Community Ecosystem
 
@@ -111,13 +111,13 @@ Veeam actively encourages API-driven automation. The VeeamHub GitHub organisatio
 
 VeeamHub projects are explicitly described as community-supported: "Scripts in this repository are community driven projects and are not created by Veeam R&D or validated by Veeam Q&A. They are maintained by community members which may or not be Veeam employees."
 
-vcli sits alongside these projects in the Veeam community ecosystem. It uses the same publicly documented VBR REST API (port 9419, OAuth2 authentication, OpenAPI3 specification) that Veeam introduced in v11 specifically to enable automation.
+owlctl sits alongside these projects in the Veeam community ecosystem. It uses the same publicly documented VBR REST API (port 9419, OAuth2 authentication, OpenAPI3 specification) that Veeam introduced in v11 specifically to enable automation.
 
 ---
 
-## What vcli Enables for Azure DevOps
+## What owlctl Enables for Azure DevOps
 
-vcli brings the declare/compare/apply pattern to Veeam backup infrastructure, with first-class Azure DevOps integration.
+owlctl brings the declare/compare/apply pattern to Veeam backup infrastructure, with first-class Azure DevOps integration.
 
 ### Declarative Backup Management
 
@@ -126,7 +126,7 @@ Instead of manually configuring backup jobs through the VBR console, teams decla
 ```yaml
 # infrastructure/jobs/database-backup.yaml
 name: "Database Daily Backup"
-description: "Production database backup - managed by vcli"
+description: "Production database backup - managed by owlctl"
 isDisabled: false
 storage:
   backupRepositoryId: "repo-uuid"
@@ -146,15 +146,15 @@ This file is version-controlled, peer-reviewed through pull requests, and applie
 
 | Stage | Command | What It Does |
 |-------|---------|-------------|
-| **Export** | `vcli export --all` | Captures current VBR configuration as YAML specs |
-| **Snapshot** | `vcli repo snapshot --all` | Records current state as the desired baseline |
-| **Apply** | `vcli job apply spec.yaml` | Applies desired configuration to VBR via API |
-| **Diff** | `vcli job diff --all` | Compares desired state against live VBR configuration |
-| **Plan** | `vcli job plan spec.yaml` | Previews changes without applying |
+| **Export** | `owlctl export --all` | Captures current VBR configuration as YAML specs |
+| **Snapshot** | `owlctl repo snapshot --all` | Records current state as the desired baseline |
+| **Apply** | `owlctl job apply spec.yaml` | Applies desired configuration to VBR via API |
+| **Diff** | `owlctl job diff --all` | Compares desired state against live VBR configuration |
+| **Plan** | `owlctl job plan spec.yaml` | Previews changes without applying |
 
 ### Security-Aware Drift Detection
 
-vcli does not simply compare fields. It understands the security implications of changes:
+owlctl does not simply compare fields. It understands the security implications of changes:
 
 | Change | Severity | Why |
 |--------|----------|-----|
@@ -165,11 +165,11 @@ vcli does not simply compare fields. It understands the security implications of
 | Job re-enabled | **WARNING** | Operational change, positive direction |
 | Description changed | **INFO** | No security impact |
 
-The system considers the *direction* of change, not just whether a field changed. Disabling encryption is CRITICAL. Enabling encryption is INFO. This value-aware severity classification is unique to vcli -- no other backup automation tool provides this level of security intelligence.
+The system considers the *direction* of change, not just whether a field changed. Disabling encryption is CRITICAL. Enabling encryption is INFO. This value-aware severity classification is unique to owlctl -- no other backup automation tool provides this level of security intelligence.
 
 ### CI/CD-Ready Exit Codes
 
-vcli's exit codes map directly to Azure DevOps pipeline outcomes:
+owlctl's exit codes map directly to Azure DevOps pipeline outcomes:
 
 | Exit Code | Meaning | Pipeline Result |
 |-----------|---------|----------------|
@@ -185,7 +185,7 @@ These exit codes enable automated pipeline gates:
 ```yaml
 # In an Azure DevOps pipeline
 - script: |
-    ./vcli job diff --all --security-only
+    ./owlctl job diff --all --security-only
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 4 ]; then
       echo "##vso[task.logissue type=error]CRITICAL security drift detected"
@@ -196,7 +196,7 @@ These exit codes enable automated pipeline gates:
 
 ### Azure DevOps Pipeline Templates
 
-vcli includes ready-to-use Azure DevOps pipeline templates:
+owlctl includes ready-to-use Azure DevOps pipeline templates:
 
 | Template | Purpose |
 |----------|---------|
@@ -223,38 +223,38 @@ These templates follow the same patterns that teams already use for application 
 
 ### What GitOps Provides That GUIs Cannot
 
-| Capability | GUI Console | GitOps with vcli |
+| Capability | GUI Console | GitOps with owlctl |
 |-----------|-------------|------------------|
 | **Change history** | Veeam audit log (limited detail) | Full Git history with diffs, commit messages, PR reviews |
 | **Change approval** | Manual process / external tickets | Pull request reviews with required approvals |
-| **Rollback** | Manual reconfiguration | `git revert` + `vcli job apply` |
+| **Rollback** | Manual reconfiguration | `git revert` + `owlctl job apply` |
 | **Multi-environment promotion** | Manual replication | YAML overlays: base config + environment-specific patches |
 | **Drift detection** | Manual comparison | Automated scheduled scans with severity classification |
 | **Compliance evidence** | Screenshots / manual documentation | Pipeline artifacts, build history, Git audit trail |
-| **Disaster recovery of config** | Re-enter everything manually | `vcli job apply` from Git-tracked specs |
+| **Disaster recovery of config** | Re-enter everything manually | `owlctl job apply` from Git-tracked specs |
 | **Peer review** | Informal / verbal | Mandatory PR reviews before changes reach production |
 
 ### Real-World Scenarios
 
 **Scenario 1: Someone disables encryption on a production backup job.**
-- Without vcli: Change goes unnoticed until the next audit (weeks or months).
-- With vcli: Nightly drift scan detects CRITICAL severity change, alerts the security team, and optionally auto-remediates by re-applying the desired state from Git.
+- Without owlctl: Change goes unnoticed until the next audit (weeks or months).
+- With owlctl: Nightly drift scan detects CRITICAL severity change, alerts the security team, and optionally auto-remediates by re-applying the desired state from Git.
 
 **Scenario 2: A new environment needs the same backup configuration as production.**
-- Without vcli: Manually recreate every job, repository, and setting. Hope nothing is missed.
-- With vcli: Apply the same YAML specs with an environment-specific overlay. Identical configuration, guaranteed.
+- Without owlctl: Manually recreate every job, repository, and setting. Hope nothing is missed.
+- With owlctl: Apply the same YAML specs with an environment-specific overlay. Identical configuration, guaranteed.
 
 **Scenario 3: An audit requires evidence of backup configuration compliance.**
-- Without vcli: Manually document current settings. No history of changes.
-- With vcli: Git history shows every change, who approved it, and when. Pipeline artifacts show nightly compliance scan results.
+- Without owlctl: Manually document current settings. No history of changes.
+- With owlctl: Git history shows every change, who approved it, and when. Pipeline artifacts show nightly compliance scan results.
 
 ---
 
 ## How This Compares
 
-### vcli vs. Other Backup Vendor Tools
+### owlctl vs. Other Backup Vendor Tools
 
-| Capability | vcli (Veeam) | Rubrik Terraform | Commvault Terraform | Cohesity Ansible |
+| Capability | owlctl (Veeam) | Rubrik Terraform | Commvault Terraform | Cohesity Ansible |
 |-----------|-------------|-----------------|--------------------|-----------------|
 | **Declarative YAML specs** | Yes | HCL (Terraform) | HCL (Terraform) | YAML (Ansible) |
 | **State management** | Yes (state.json) | Yes (tfstate) | Yes (tfstate) | No |
@@ -266,7 +266,7 @@ These templates follow the same patterns that teams already use for application 
 | **Configuration overlays** | Yes | Terraform workspaces | Terraform workspaces | Variable files |
 | **Purpose-built for backup** | Yes | Partially | Partially | Partially |
 
-vcli's security-aware drift detection -- understanding that disabling encryption is CRITICAL while enabling it is INFO, or that moving a job off a hardened repository is more significant than changing a description -- is unique in the backup automation space. Generic IaC tools like Terraform detect that a field changed but cannot classify the security implications.
+owlctl's security-aware drift detection -- understanding that disabling encryption is CRITICAL while enabling it is INFO, or that moving a job off a hardened repository is more significant than changing a description -- is unique in the backup automation space. Generic IaC tools like Terraform detect that a field changed but cannot classify the security implications.
 
 ---
 
@@ -281,25 +281,25 @@ vcli's security-aware drift detection -- understanding that disabling encryption
 ### Day 1: Establish Baseline
 
 ```bash
-# Install vcli
-curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-chmod +x vcli
+# Install owlctl
+curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+chmod +x owlctl
 
 # Authenticate
-./vcli init && ./vcli profile --set vbr && ./vcli login
+./owlctl init && ./owlctl profile --set vbr && ./owlctl login
 
 # Export current VBR configuration as YAML
-./vcli export --all -d infrastructure/jobs/
-./vcli repo export --all -d infrastructure/repos/
-./vcli repo sobr-export --all -d infrastructure/sobrs/
-./vcli encryption export --all -d infrastructure/encryption/
-./vcli encryption kms-export --all -d infrastructure/kms/
+./owlctl export --all -d infrastructure/jobs/
+./owlctl repo export --all -d infrastructure/repos/
+./owlctl repo sobr-export --all -d infrastructure/sobrs/
+./owlctl encryption export --all -d infrastructure/encryption/
+./owlctl encryption kms-export --all -d infrastructure/kms/
 
 # Snapshot current state as desired baseline
-./vcli repo snapshot --all
-./vcli repo sobr-snapshot --all
-./vcli encryption snapshot --all
-./vcli encryption kms-snapshot --all
+./owlctl repo snapshot --all
+./owlctl repo sobr-snapshot --all
+./owlctl encryption snapshot --all
+./owlctl encryption kms-snapshot --all
 
 # Commit to Git
 git add infrastructure/ state.json
@@ -329,7 +329,7 @@ This is the same workflow teams already use for application code and infrastruct
 
 Using APIs to manage infrastructure declaratively is not new or experimental. It is how modern organisations operate. Kubernetes, Terraform, Helm, ArgoCD, and Ansible are all open-source tools that wrap vendor APIs to enable version-controlled, peer-reviewed, automated infrastructure management. Every major backup vendor -- Rubrik, Commvault, Cohesity, Veritas -- has community-driven open-source tooling built on their APIs.
 
-vcli extends this established pattern to Veeam Backup & Replication. It uses Veeam's publicly documented REST APIs to bring GitOps workflows to backup infrastructure, with first-class Azure DevOps integration. It adds domain-specific intelligence -- security-aware drift detection, value-aware severity classification, cross-resource validation -- that generic IaC tools cannot provide.
+owlctl extends this established pattern to Veeam Backup & Replication. It uses Veeam's publicly documented REST APIs to bring GitOps workflows to backup infrastructure, with first-class Azure DevOps integration. It adds domain-specific intelligence -- security-aware drift detection, value-aware severity classification, cross-resource validation -- that generic IaC tools cannot provide.
 
 The question is not whether backup infrastructure should be managed through APIs and GitOps. The rest of the industry has already answered that. The question is whether your organisation is ready to apply the same rigour to backup configuration that it already applies to application code and cloud infrastructure.
 
@@ -359,8 +359,8 @@ The question is not whether backup infrastructure should be managed through APIs
 - [Ansible](https://github.com/ansible/ansible) -- GPL 3.0, ~63k stars
 - [Crossplane](https://github.com/crossplane/crossplane) -- Apache 2.0, ~9k stars, CNCF graduated
 
-### vcli
-- [vcli GitHub Repository](https://github.com/shapedthought/vcli)
+### owlctl
+- [owlctl GitHub Repository](https://github.com/shapedthought/owlctl)
 - [Azure DevOps Integration Guide](./azure-devops-integration.md)
 - [Drift Detection Guide](./drift-detection.md)
 - [Security Alerting Reference](./security-alerting.md)

@@ -3,8 +3,8 @@ package resources
 import (
 	"fmt"
 
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 )
 
 // Resolver handles name-to-ID resolution for VBR resources

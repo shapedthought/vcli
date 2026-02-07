@@ -1,4 +1,4 @@
-# vcli Configuration System
+# owlctl Configuration System
 
 > **⚠️ Status: Planned Feature - Not Yet Implemented**
 >
@@ -7,39 +7,39 @@
 > **What works today:**
 > ```bash
 > # ✅ Explicit overlay specification works
-> vcli job apply base.yaml -o prod-overlay.yaml
-> vcli repo apply base.yaml -o prod-overlay.yaml
+> owlctl job apply base.yaml -o prod-overlay.yaml
+> owlctl repo apply base.yaml -o prod-overlay.yaml
 > ```
 >
 > **What doesn't work yet:**
 > ```bash
 > # ❌ Environment-based overlay resolution not implemented
-> vcli job apply base.yaml --env production
+> owlctl job apply base.yaml --env production
 >
 > # ❌ Config commands don't exist yet
-> vcli config set-env production
-> vcli config show
+> owlctl config set-env production
+> owlctl config show
 > ```
 >
 > **Current workaround:** Use the `-o/--overlay` flag to explicitly specify overlay files for each command.
 
 ---
 
-The vcli configuration system will enable environment-aware overlay management through a `vcli.yaml` configuration file.
+The owlctl configuration system will enable environment-aware overlay management through a `owlctl.yaml` configuration file.
 
 ## Configuration File Format
 
-The `vcli.yaml` file defines:
+The `owlctl.yaml` file defines:
 - **Current environment**: Which environment is active
 - **Environment configurations**: Overlay files, profiles, and labels for each environment
 - **Default overlay directory**: Base path for relative overlay file paths
 
 ## File Locations
 
-vcli searches for configuration in this order:
-1. Path specified in `VCLI_CONFIG` environment variable
-2. `vcli.yaml` in current directory
-3. `~/.vcli/vcli.yaml` in home directory
+owlctl searches for configuration in this order:
+1. Path specified in `OWLCTL_CONFIG` environment variable
+2. `owlctl.yaml` in current directory
+3. `~/.owlctl/owlctl.yaml` in home directory
 
 ## Configuration Structure
 
@@ -57,7 +57,7 @@ environments:
     profile: vbr-prod                # VBR profile to use
     labels:                          # Labels applied to all resources
       env: production
-      managed-by: vcli
+      managed-by: owlctl
 
   development:
     overlay: dev-overlay.yaml
@@ -74,59 +74,59 @@ When implemented, the following workflows will be available:
 
 ```bash
 # Set current environment
-vcli config set-env production
+owlctl config set-env production
 
 # Apply job (automatically uses production overlay)
-vcli job apply base-job.yaml
+owlctl job apply base-job.yaml
 
 # Switch to development
-vcli config set-env development
+owlctl config set-env development
 
 # Same command now uses development overlay
-vcli job apply base-job.yaml
+owlctl job apply base-job.yaml
 ```
 
 ### 2. Explicit Environment Override (Planned)
 
 ```bash
 # Apply with specific environment (ignores currentEnvironment)
-vcli job apply base-job.yaml --env staging
+owlctl job apply base-job.yaml --env staging
 ```
 
 ### 3. Custom Overlay Override (Works Today)
 
 ```bash
 # Override configured overlay with custom file
-vcli job apply base-job.yaml -o custom-overlay.yaml
+owlctl job apply base-job.yaml -o custom-overlay.yaml
 ```
 
 ### 4. View Configuration (Planned)
 
 ```bash
 # Show current configuration
-vcli config show
+owlctl config show
 
 # List available environments
-vcli config list-envs
+owlctl config list-envs
 
 # Show environment details
-vcli config show-env production
+owlctl config show-env production
 ```
 
 ## Benefits
 
 1. **DRY Configuration**: Define overlays once, reference by environment name
-2. **Team Consistency**: Version-controlled vcli.yaml ensures team uses same overlays
+2. **Team Consistency**: Version-controlled owlctl.yaml ensures team uses same overlays
 3. **Safety**: Current environment is explicit, reducing accidental prod changes
 4. **Flexibility**: Can still override with custom overlays when needed
-5. **Multi-Project**: Different projects can have different vcli.yaml files
+5. **Multi-Project**: Different projects can have different owlctl.yaml files
 
 ## Example Workflows
 
 ### MSP Managing Multiple Customers
 
 ```yaml
-# acme-corp/vcli.yaml
+# acme-corp/owlctl.yaml
 currentEnvironment: customer-acme
 defaultOverlayDir: ../overlays
 
@@ -142,7 +142,7 @@ environments:
 ### Enterprise with Multiple Environments
 
 ```yaml
-# company-backups/vcli.yaml
+# company-backups/owlctl.yaml
 currentEnvironment: production
 defaultOverlayDir: ./config/overlays
 
@@ -173,8 +173,8 @@ environments:
 ## Implementation Status
 
 **Not Yet Implemented:**
-- `vcli.yaml` configuration file parsing
-- `vcli config` command and subcommands
+- `owlctl.yaml` configuration file parsing
+- `owlctl config` command and subcommands
 - `--env` flag for automatic overlay resolution
 - `currentEnvironment` awareness
 - Automatic profile switching based on environment

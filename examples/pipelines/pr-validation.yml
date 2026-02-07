@@ -7,7 +7,7 @@
 # 3. Blocks merge if validation fails
 #
 # Prerequisites:
-# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 # - Configure as required build validation in Branch Policies for master
 # - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs,kms}/*.yaml
 
@@ -30,7 +30,7 @@ pool:
 
 variables:
   - group: 'veeam-credentials'
-  - name: vcliVersion
+  - name: owlctlVersion
     value: 'latest'
 
 stages:
@@ -45,14 +45,14 @@ stages:
             fetchDepth: 0  # Full history for git diff
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               FAILED=0
@@ -77,16 +77,16 @@ stages:
                 # Determine resource type from path
                 case "$file" in
                   */jobs/*)
-                    ./vcli job apply "$file" --dry-run
+                    ./owlctl job apply "$file" --dry-run
                     ;;
                   */repos/*)
-                    ./vcli repo apply "$file" --dry-run
+                    ./owlctl repo apply "$file" --dry-run
                     ;;
                   */sobrs/*)
-                    ./vcli repo sobr-apply "$file" --dry-run
+                    ./owlctl repo sobr-apply "$file" --dry-run
                     ;;
                   */kms/*)
-                    ./vcli encryption kms-apply "$file" --dry-run
+                    ./owlctl encryption kms-apply "$file" --dry-run
                     ;;
                   *)
                     echo "Skipping unknown resource type: $file"
@@ -119,7 +119,7 @@ stages:
               fi
             displayName: 'Dry-run changed specs'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 2: Check for unexpected drift in existing resources
   - stage: DriftCheck
@@ -131,14 +131,14 @@ stages:
         displayName: 'Verify no unexpected drift'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               set +e  # Don't exit on error - we handle exit codes manually
@@ -150,21 +150,21 @@ stages:
               echo ""
 
               # Check critical drift only - warnings are informational
-              ./vcli job diff --all --severity critical 2>&1
+              ./owlctl job diff --all --severity critical 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical job drift detected - review before merge"
                 CRITICAL=1
               fi
 
-              ./vcli repo diff --all --severity critical 2>&1
+              ./owlctl repo diff --all --severity critical 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical repository drift detected - review before merge"
                 CRITICAL=1
               fi
 
-              ./vcli repo sobr-diff --all --severity critical 2>&1
+              ./owlctl repo sobr-diff --all --severity critical 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then
                 echo "##vso[task.logissue type=warning]Critical SOBR drift detected - review before merge"
@@ -180,7 +180,7 @@ stages:
               fi
             displayName: 'Check for drift'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 3: Summary
   - stage: Summary

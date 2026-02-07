@@ -2,7 +2,7 @@
 
 **Date:** February 1, 2026
 **VBR Version:** 13.0 (API v1.3-rev1)
-**vcli Version:** v0.9.0-beta1
+**owlctl Version:** v0.9.0-beta1
 **Test Environment:** Live VBR at 192.168.0.149
 
 ## Test Setup
@@ -19,7 +19,7 @@
 3. **staging.yaml** - 14-day retention, 01:00 schedule
 
 ### Configuration File
-- **vcli.yaml** - Defines 3 environments
+- **owlctl.yaml** - Defines 3 environments
 - **currentEnvironment:** production
 - **defaultOverlayDir:** ./test-demo/overlays
 
@@ -28,7 +28,7 @@
 ### ✅ Test 1: Full Export
 **Command:**
 ```bash
-vcli export c07c7ea3-0471-43a6-af57-c03c0d82354a -o test-demo/base-backup.yaml
+owlctl export c07c7ea3-0471-43a6-af57-c03c0d82354a -o test-demo/base-backup.yaml
 ```
 
 **Result:** PASS
@@ -40,7 +40,7 @@ vcli export c07c7ea3-0471-43a6-af57-c03c0d82354a -o test-demo/base-backup.yaml
 ### ✅ Test 2: Base Configuration Plan (No Overlay)
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml
+owlctl job plan test-demo/base-backup.yaml
 ```
 
 **Result:** PASS
@@ -51,7 +51,7 @@ vcli job plan test-demo/base-backup.yaml
 ### ✅ Test 3: Production Overlay Merge
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml
+owlctl job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml
 ```
 
 **Result:** PASS
@@ -72,7 +72,7 @@ vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml
 ### ✅ Test 4: Development Overlay Merge
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/development.yaml
+owlctl job plan test-demo/base-backup.yaml -o test-demo/overlays/development.yaml
 ```
 
 **Result:** PASS
@@ -85,7 +85,7 @@ vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/development.yaml
 ### ✅ Test 5: Full YAML Output
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml --show-yaml
+owlctl job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml --show-yaml
 ```
 
 **Result:** PASS
@@ -95,11 +95,11 @@ vcli job plan test-demo/base-backup.yaml -o test-demo/overlays/production.yaml -
 - Schedule shows merged values
 - Original base fields preserved
 
-### ✅ Test 6: Automatic Environment Selection (vcli.yaml)
+### ✅ Test 6: Automatic Environment Selection (owlctl.yaml)
 **Setup:** currentEnvironment = production
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml
+owlctl job plan test-demo/base-backup.yaml
 ```
 
 **Result:** PASS
@@ -111,7 +111,7 @@ vcli job plan test-demo/base-backup.yaml
 ### ✅ Test 7: Environment Override with --env Flag
 **Command:**
 ```bash
-vcli job plan test-demo/base-backup.yaml --env development
+owlctl job plan test-demo/base-backup.yaml --env development
 ```
 
 **Result:** PASS
@@ -137,13 +137,13 @@ vcli job plan test-demo/base-backup.yaml --env development
 - [x] Export command example works
 - [x] Overlay creation example works
 - [x] Multi-environment workflow example works
-- [x] vcli.yaml configuration example works
+- [x] owlctl.yaml configuration example works
 - [x] Plan command examples work
 
 ### user_guide.md Examples ✅
 - [x] Full export (300+ fields) documented correctly
 - [x] Strategic merge behavior accurate
-- [x] vcli.yaml structure correct
+- [x] owlctl.yaml structure correct
 - [x] Environment configuration works as documented
 - [x] Overlay resolution priority correct
 
@@ -228,18 +228,18 @@ schedule:
 - ✅ Value override
 
 ### Environment Management
-- ✅ vcli.yaml configuration loading
+- ✅ owlctl.yaml configuration loading
 - ✅ currentEnvironment selection
 - ✅ defaultOverlayDir resolution
 - ✅ Environment-specific overlays
 - ✅ --env flag override
 
 ### CLI Commands
-- ✅ vcli export <job-id> -o file.yaml
-- ✅ vcli job plan base.yaml
-- ✅ vcli job plan base.yaml -o overlay.yaml
-- ✅ vcli job plan base.yaml --env environment
-- ✅ vcli job plan base.yaml --show-yaml
+- ✅ owlctl export <job-id> -o file.yaml
+- ✅ owlctl job plan base.yaml
+- ✅ owlctl job plan base.yaml -o overlay.yaml
+- ✅ owlctl job plan base.yaml --env environment
+- ✅ owlctl job plan base.yaml --show-yaml
 
 ### Overlay Resolution
 - ✅ Priority 1: -o/--overlay flag
@@ -266,7 +266,7 @@ The overlay system implementation is **production-ready** and works exactly as d
 1. **Export** captures complete job configuration
 2. **Overlays** merge correctly with base configurations
 3. **Strategic merge** preserves base values while applying overrides
-4. **vcli.yaml** environment management works seamlessly
+4. **owlctl.yaml** environment management works seamlessly
 5. **Documentation** is accurate and complete
 
 All README.md and user_guide.md examples have been validated against a live VBR environment.
@@ -283,7 +283,7 @@ All README.md and user_guide.md examples have been validated against a live VBR 
 ```
 test-demo/
 ├── base-backup.yaml (319 lines, exported from live VBR)
-├── vcli.yaml (environment configuration)
+├── owlctl.yaml (environment configuration)
 ├── overlays/
 │   ├── production.yaml (30-day retention, 02:00)
 │   ├── development.yaml (3-day retention, 23:00)

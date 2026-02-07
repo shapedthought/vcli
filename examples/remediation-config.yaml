@@ -1,8 +1,8 @@
 # Example remediation-config.yaml
 #
 # Place this file in:
-#   - $VCLI_SETTINGS_PATH/remediation-config.yaml (first priority)
-#   - ~/.vcli/remediation-config.yaml (second priority)
+#   - $OWLCTL_SETTINGS_PATH/remediation-config.yaml (first priority)
+#   - ~/.owlctl/remediation-config.yaml (second priority)
 #
 # Field Policies:
 #   - remediable: Attempt to apply the change to VBR (default)

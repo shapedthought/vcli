@@ -1,4 +1,4 @@
-vcli Declarative Infrastructure Management
+owlctl Declarative Infrastructure Management
 
   Strategic Analysis & Implementation Roadmap
 
@@ -7,11 +7,11 @@ vcli Declarative Infrastructure Management
 
   The Opportunity
 
-  vcli has achieved product-market fit as a lightweight API wrapper for Veeam administrators who
+  owlctl has achieved product-market fit as a lightweight API wrapper for Veeam administrators who
   need simple, cross-platform access to Veeam APIs. With 8 GitHub stars and active community
   usage, it fills a critical gap for Linux/macOS users and environments without PowerShell access.
 
-  However, the infrastructure-as-code (IaC) landscape has evolved dramatically since vcli's last
+  However, the infrastructure-as-code (IaC) landscape has evolved dramatically since owlctl's last
   update (October 2023). Veeam administrators now face:
 
   - Multi-environment complexity: Managing 5-50+ Veeam servers across dev/staging/prod
@@ -20,17 +20,17 @@ vcli Declarative Infrastructure Management
   - Configuration drift: No systematic way to detect when environments diverge
   - Disaster recovery gaps: Backup configurations themselves aren't backed up declaratively
 
-  The job templates feature proves vcli users already want declarative workflows - they're
+  The job templates feature proves owlctl users already want declarative workflows - they're
   extracting jobs to YAML, version controlling them, and recreating jobs from templates. They're
   just doing it manually without tooling support.
 
   Strategic Vision: "Terraform for Veeam"
 
-  Transform vcli from an imperative API wrapper into a declarative infrastructure management
+  Transform owlctl from an imperative API wrapper into a declarative infrastructure management
   platform that enables:
 
   # veeam-prod.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: prod-database-backup
@@ -47,9 +47,9 @@ vcli Declarative Infrastructure Management
       days: 14
 
   # GitOps workflow
-  vcli apply veeam-prod.yaml          # Create or update to match config
-  vcli plan veeam-prod.yaml           # Show what would change
-  vcli diff                           # Detect drift from declared state
+  owlctl apply veeam-prod.yaml          # Create or update to match config
+  owlctl plan veeam-prod.yaml           # Show what would change
+  owlctl diff                           # Detect drift from declared state
   git commit -m "Add prod DB backup"  # Version control
 
   Why Now?
@@ -83,7 +83,7 @@ vcli Declarative Infrastructure Management
   - Month 2: Drift detection + plan/apply workflow
   - Month 3: Multi-resource support (repositories, credentials)
 
-  This positions vcli as the only declarative management tool for Veeam while maintaining its core
+  This positions owlctl as the only declarative management tool for Veeam while maintaining its core
    strength: simple, single-binary CLI with zero dependencies.
 
   ---
@@ -146,7 +146,7 @@ vcli Declarative Infrastructure Management
   Declarative?: No
   Veeam Support: Full
   Limitations: Manual, GUI-only, not version controllable
-  vcli's competitive advantage:
+  owlctl's competitive advantage:
   - Simpler than Terraform: No HCL learning curve, no provider configuration complexity
   - More capable than PowerShell: Cross-platform, declarative, state-tracked
   - Veeam-native: Already handles auth, API versions, product differences
@@ -163,9 +163,9 @@ vcli Declarative Infrastructure Management
   4. Repeat for dev, DR site, etc.
   5. Hope nothing was missed in transcription
 
-  With declarative vcli:
+  With declarative owlctl:
   # saved-configs/standard-vm-backup.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: nightly-vm-backup
@@ -175,8 +175,8 @@ vcli Declarative Infrastructure Management
 
   # Apply to all environments
   for env in prod staging dev dr; do
-    vcli profile use vbr-${env}
-    vcli apply standard-vm-backup.yaml
+    owlctl profile use vbr-${env}
+    owlctl apply standard-vm-backup.yaml
   done
 
   Value delivered:
@@ -194,11 +194,11 @@ vcli Declarative Infrastructure Management
   4. Another admin "verifies" by clicking through settings
   5. Change logged in spreadsheet
 
-  With declarative vcli:
+  With declarative owlctl:
   # Developer workflow
   git checkout -b add-new-backup-job
   vim configs/new-app-backup.yaml
-  vcli plan configs/                    # Preview changes
+  owlctl plan configs/                    # Preview changes
   git commit -m "Add backup for new app"
   # Open pull request
 
@@ -207,13 +207,13 @@ vcli Declarative Infrastructure Management
   # Approval in PR = change approval
 
   # Deployment
-  vcli apply configs/ --auto-approve
+  owlctl apply configs/ --auto-approve
   git tag v2024.01.15-prod-deployment
 
   Value delivered:
   - Audit trail: Git history is immutable change log
   - Peer review: GitHub/GitLab PR workflow built-in
-  - Rollback: git revert + vcli apply = instant rollback
+  - Rollback: git revert + owlctl apply = instant rollback
   - Compliance: SOX/HIPAA auditors see full change history
   - Approval workflow: PR approvals = change management
 
@@ -232,15 +232,15 @@ vcli Declarative Infrastructure Management
   4. Quarterly "config audits" to find drift
   5. Spreadsheet tracking which customers have which configs
 
-  With declarative vcli:
+  With declarative owlctl:
   # Customer onboarding
   git clone internal/veeam-standard-configs
   cd customers/acme-corp
-  vcli profile add vbr-acme-prod --url acme-vbr.cloud
-  vcli apply ../../templates/standard-smb-backup-suite/
+  owlctl profile add vbr-acme-prod --url acme-vbr.cloud
+  owlctl apply ../../templates/standard-smb-backup-suite/
 
   # Quarterly drift detection
-  vcli diff --all-profiles > drift-report-q4.txt
+  owlctl diff --all-profiles > drift-report-q4.txt
   # Shows which customers diverged from standard
 
   # Config updates (new compliance requirement)
@@ -248,7 +248,7 @@ vcli Declarative Infrastructure Management
   # Update retention from 14 days to 30 days
   for customer in customers/*/; do
     cd $customer
-    vcli apply ../../templates/standard-smb-backup-suite/
+    owlctl apply ../../templates/standard-smb-backup-suite/
   done
 
   Value delivered:
@@ -296,7 +296,7 @@ vcli Declarative Infrastructure Management
   - Elimination of "tribal knowledge" (configs are documented)
 
   Strategic positioning:
-  - vcli becomes essential tool vs nice-to-have
+  - owlctl becomes essential tool vs nice-to-have
   - Community contribution (users share config templates)
   - Reference architecture for other Veeam tooling
 
@@ -312,7 +312,7 @@ vcli Declarative Infrastructure Management
   Would be nice:
   - Blog post from Veeam community member
   - Integration with Veeam Vanguard workflows
-  - Terraform users switch to vcli for simplicity
+  - Terraform users switch to owlctl for simplicity
 
   ---
   User Stories
@@ -335,8 +335,8 @@ vcli Declarative Infrastructure Management
 
   Acceptance criteria:
   Given I have a YAML file defining a backup job
-  When I run `vcli apply backup-job.yaml` on prod profile
-  And I run `vcli apply backup-job.yaml` on staging profile
+  When I run `owlctl apply backup-job.yaml` on prod profile
+  And I run `owlctl apply backup-job.yaml` on staging profile
   Then both environments have identical job configurations
   And I didn't have to use the GUI twice
 
@@ -350,7 +350,7 @@ vcli Declarative Infrastructure Management
   Acceptance criteria:
   Given I have applied backup-job.yaml to prod
   When a colleague manually changes retention from 14 to 7 days in GUI
-  And I run `vcli diff`
+  And I run `owlctl diff`
   Then I see "retention.days: declared 14, actual 7"
   And I can decide to revert or update the YAML
 
@@ -365,7 +365,7 @@ vcli Declarative Infrastructure Management
   Given I have veeam-configs/ directory under Git
   When I modify backup-job.yaml and commit
   Then I have a history of what changed, when, and why
-  And I can `git revert` + `vcli apply` to rollback
+  And I can `git revert` + `owlctl apply` to rollback
 
   Value: Meets compliance requirements, reduces rollback time from hours to minutes
 
@@ -400,7 +400,7 @@ vcli Declarative Infrastructure Management
   Given policy requires 30-day retention for financial VMs
   When auditor requests proof
   Then I show YAML files declaring 30-day retention
-  And `vcli diff` output showing zero drift
+  And `owlctl diff` output showing zero drift
   And Git log showing no unauthorized changes
 
   Value: Reduces audit prep from 40 hours to 2 hours, provides stronger evidence
@@ -413,7 +413,7 @@ vcli Declarative Infrastructure Management
   Acceptance criteria:
   Given I have templates/gold-standard-vm-backup.yaml
   When junior admin deploys new backup job
-  Then they run `vcli apply templates/gold-standard-vm-backup.yaml`
+  Then they run `owlctl apply templates/gold-standard-vm-backup.yaml`
   And job is created with all best practices (GFS, encryption, etc.)
   And no tribal knowledge required
 
@@ -442,9 +442,9 @@ vcli Declarative Infrastructure Management
     retention: 7
     schedule: "weekly: saturday"
 
-  When I run `vcli apply base-template.yaml --overlay prod-overlay.yaml`
+  When I run `owlctl apply base-template.yaml --overlay prod-overlay.yaml`
   Then prod gets 30-day retention with daily schedule
-  When I run `vcli apply base-template.yaml --overlay dev-overlay.yaml`
+  When I run `owlctl apply base-template.yaml --overlay dev-overlay.yaml`
   Then dev gets 7-day retention with weekly schedule
 
   Value: Maintains consistency while allowing environment-specific differences
@@ -465,8 +465,8 @@ vcli Declarative Infrastructure Management
   Acceptance criteria:
   Given new customer "Acme Corp" signs contract
   When I run:
-    vcli profile add acme-vbr --url acme-vbr.cloud
-    vcli apply templates/smb-standard-suite/
+    owlctl profile add acme-vbr --url acme-vbr.cloud
+    owlctl apply templates/smb-standard-suite/
   Then Acme gets 12 standard backup jobs deployed
   And 2 backup repositories configured
   And 1 backup copy job to cloud repo
@@ -482,7 +482,7 @@ vcli Declarative Infrastructure Management
   Acceptance criteria:
   Given compliance now requires 60-day retention
   When I update templates/smb-standard-suite/daily-backup.yaml
-  And I run `vcli apply-all --profile-pattern "customer-*"`
+  And I run `owlctl apply-all --profile-pattern "customer-*"`
   Then all 200 customers get updated retention
   And I have log of which succeeded/failed
   And total time < 2 hours
@@ -496,7 +496,7 @@ vcli Declarative Infrastructure Management
 
   Acceptance criteria:
   Given 200 customers should have standard configs
-  When I run `vcli drift-report --all-customers`
+  When I run `owlctl drift-report --all-customers`
   Then I get report:
     - 180 customers: zero drift ✓
     - 15 customers: minor drift (retention changed)
@@ -512,7 +512,7 @@ vcli Declarative Infrastructure Management
 
   Acceptance criteria:
   # customers/acme/overrides.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: ConfigOverride
   spec:
     profiles:
@@ -523,7 +523,7 @@ vcli Declarative Infrastructure Management
         schedule:
           daily: "23:00"  # Acme wants 11pm
 
-  When I run `vcli apply templates/ --override customers/acme/overrides.yaml`
+  When I run `owlctl apply templates/ --override customers/acme/overrides.yaml`
   Then Acme gets standard jobs BUT with 90-day retention and 11pm schedule
   And other settings still match template
 
@@ -536,7 +536,7 @@ vcli Declarative Infrastructure Management
 
   1. Backward Compatibility First
 
-  - Existing imperative commands (vcli get, vcli post) must continue working unchanged
+  - Existing imperative commands (owlctl get, owlctl post) must continue working unchanged
   - Declarative features are additive, not replacements
   - Migration path from imperative to declarative is optional
 
@@ -580,14 +580,14 @@ vcli Declarative Infrastructure Management
 
   Decision: JSON for state (machine-readable), YAML for configs (human-readable)
 
-  // .vcli-state.json
+  // .owlctl-state.json
   {
     "version": 1,
     "profile": "vbr-prod",
     "lastApplied": "2024-01-15T10:30:00Z",
     "resources": {
       "job.prod-database-backup": {
-        "apiVersion": "vcli.dev/v1",
+        "apiVersion": "owlctl.dev/v1",
         "kind": "Job",
         "status": "synced",
         "lastSync": "2024-01-15T10:30:00Z",
@@ -632,12 +632,12 @@ vcli Declarative Infrastructure Management
   - Users already writing job-*.yaml files today
   - gopkg.in/yaml.v3 is mature and well-supported
   - Can add JSON Schema validation later for structure checking
-  - Lowest friction for current vcli users
+  - Lowest friction for current owlctl users
 
   Config File Structure
 
   # backup-jobs.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: prod-database-backup
@@ -681,9 +681,9 @@ vcli Declarative Infrastructure Management
 
   Design notes:
   - apiVersion/kind: Kubernetes-style versioning (future-proof)
-  - metadata.labels: Enable filtering (vcli diff --label compliance=sox)
+  - metadata.labels: Enable filtering (owlctl diff --label compliance=sox)
   - spec: Mirrors VBR API structure but simplified
-  - Repository by name: User-friendly (vcli resolves to API ID)
+  - Repository by name: User-friendly (owlctl resolves to API ID)
 
   Reconciliation Engine Design
 
@@ -940,7 +940,7 @@ vcli Declarative Infrastructure Management
     "apiNotSecure": true,
     "credsFileMode": false,
     "declarative": {
-      "stateFile": ".vcli-state.json",
+      "stateFile": ".owlctl-state.json",
       "autoApprove": false,
       "validateBeforeApply": true
     }
@@ -950,7 +950,7 @@ vcli Declarative Infrastructure Management
 
   Key insight: State files should be profile-specific
 
-  .vcli/
+  .owlctl/
     state/
       vbr-prod.state.json      # Prod environment state
       vbr-staging.state.json   # Staging environment state
@@ -966,31 +966,31 @@ vcli Declarative Infrastructure Management
   Non-Breaking Integration
 
   Imperative commands (unchanged):
-  vcli get jobs              # Still works exactly as before
-  vcli post jobs/123/start   # Still works exactly as before
-  vcli profile use vbr-prod  # Still works exactly as before
+  owlctl get jobs              # Still works exactly as before
+  owlctl post jobs/123/start   # Still works exactly as before
+  owlctl profile use vbr-prod  # Still works exactly as before
 
   New declarative commands (additive):
-  vcli apply config.yaml     # New command
-  vcli plan config.yaml      # New command
-  vcli diff                  # New command
+  owlctl apply config.yaml     # New command
+  owlctl plan config.yaml      # New command
+  owlctl diff                  # New command
 
   Migration Path: Imperative → Declarative
 
   Export existing resources to YAML:
   # New command to generate declarative configs from existing jobs
-  vcli export jobs > existing-jobs.yaml
+  owlctl export jobs > existing-jobs.yaml
 
   # Output: existing-jobs.yaml
   ---
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: nightly-vm-backup
   spec:
     # ... populated from GET /jobs/{id}
   ---
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: weekly-full-backup
@@ -998,34 +998,34 @@ vcli Declarative Infrastructure Management
     # ... populated from GET /jobs/{id}
 
   Workflow:
-  1. vcli export jobs > jobs.yaml - Export existing configs
+  1. owlctl export jobs > jobs.yaml - Export existing configs
   2. Commit to Git: git add jobs.yaml && git commit
   3. Make changes: vim jobs.yaml
-  4. Preview: vcli plan jobs.yaml
-  5. Apply: vcli apply jobs.yaml
+  4. Preview: owlctl plan jobs.yaml
+  5. Apply: owlctl apply jobs.yaml
 
   Coexistence Model
 
   Declarative doesn't replace imperative:
-  - One-off operations still use vcli get/post/put
+  - One-off operations still use owlctl get/post/put
   - Declarative for managed resources
   - Users choose which resources to manage declaratively
 
   Example:
   # Managed declaratively (in version control)
-  vcli apply backup-jobs.yaml
+  owlctl apply backup-jobs.yaml
 
   # Still use imperative for ad-hoc operations
-  vcli post jobs/57b3baab.../start   # Start job manually
-  vcli get sessions --limit 10        # Quick status check
+  owlctl post jobs/57b3baab.../start   # Start job manually
+  owlctl get sessions --limit 10        # Quick status check
 
-  Comparison: vcli Declarative vs Alternatives
+  Comparison: owlctl Declarative vs Alternatives
 
-  vcli Declarative vs Terraform Veeam Provider
+  owlctl Declarative vs Terraform Veeam Provider
   ┌───────────────────┬───────────────────────────────────┬──────────────────────────────────────┐
-  │      Aspect       │         vcli Declarative          │          Terraform Provider          │
+  │      Aspect       │         owlctl Declarative          │          Terraform Provider          │
   ├───────────────────┼───────────────────────────────────┼──────────────────────────────────────┤
-  │ Learning curve    │ Minimal (YAML, familiar to vcli   │ Steep (HCL, Terraform concepts)      │
+  │ Learning curve    │ Minimal (YAML, familiar to owlctl   │ Steep (HCL, Terraform concepts)      │
   │                   │ users)                            │                                      │
   ├───────────────────┼───────────────────────────────────┼──────────────────────────────────────┤
   │ Setup complexity  │ Zero (single binary)              │ High (Terraform install, provider    │
@@ -1042,33 +1042,33 @@ vcli Declarative Infrastructure Management
   ├───────────────────┼───────────────────────────────────┼──────────────────────────────────────┤
   │ Multi-product     │ Built-in (profiles)               │ Separate providers                   │
   ├───────────────────┼───────────────────────────────────┼──────────────────────────────────────┤
-  │ User base         │ Existing vcli users               │ Terraform practitioners              │
+  │ User base         │ Existing owlctl users               │ Terraform practitioners              │
   └───────────────────┴───────────────────────────────────┴──────────────────────────────────────┘
-  When to use vcli: Veeam-focused teams, simple deployments, rapid prototyping
+  When to use owlctl: Veeam-focused teams, simple deployments, rapid prototyping
 
   When to use Terraform: Multi-cloud IaC, complex orchestration, existing Terraform workflows
 
-  Could vcli generate Terraform?
+  Could owlctl generate Terraform?
   # Interesting idea for Phase 3
-  vcli export jobs --format terraform > jobs.tf
+  owlctl export jobs --format terraform > jobs.tf
 
-  Allows users to start with vcli, migrate to Terraform later if needed.
+  Allows users to start with owlctl, migrate to Terraform later if needed.
 
-  vcli Declarative vs kubectl/Kubernetes Patterns
+  owlctl Declarative vs kubectl/Kubernetes Patterns
 
   Similarities:
   - apiVersion and kind fields
-  - vcli apply mirrors kubectl apply
+  - owlctl apply mirrors kubectl apply
   - Label selectors for filtering
 
   Differences:
-  - No controller/operator pattern (vcli is client-side only)
+  - No controller/operator pattern (owlctl is client-side only)
   - No real-time reconciliation (apply on-demand)
   - State stored locally, not in API server
 
   Why not build a Kubernetes operator?
   - Adds complexity (requires K8s cluster)
-  - vcli's strength is simplicity
+  - owlctl's strength is simplicity
   - Client-side tool fits Veeam admin workflows better
 
   ---
@@ -1085,7 +1085,7 @@ vcli Declarative Infrastructure Management
   - Profile-scoped state files
   - State file locking (prevent concurrent writes)
 
-  Deliverable: .vcli-state.json file tracks resources
+  Deliverable: .owlctl-state.json file tracks resources
 
   Milestone 1.2: Resource Abstraction Layer (Week 2-3)
 
@@ -1098,7 +1098,7 @@ vcli Declarative Infrastructure Management
 
   Milestone 1.3: Basic Apply Command (Week 3-4)
 
-  - vcli apply <file> command
+  - owlctl apply <file> command
   - Create-if-missing logic
   - Idempotency (detect when no changes needed)
   - State file updates after apply
@@ -1137,16 +1137,16 @@ vcli Declarative Infrastructure Management
 
   Milestone 2.2: Diff/Drift Detection (Week 7-8)
 
-  - vcli diff command
+  - owlctl diff command
   - Compare declared vs actual state
   - Human-readable diff output
   - Filter drifted resources only
 
-  Deliverable: vcli diff shows what changed outside of vcli
+  Deliverable: owlctl diff shows what changed outside of owlctl
 
   Milestone 2.3: Plan Workflow (Week 8-9)
 
-  - vcli plan <file> command
+  - owlctl plan <file> command
   - Show what would change (create/update/no-op)
   - Color-coded output (green=create, yellow=update, gray=no-op)
   - Confirmation prompt for apply
@@ -1155,7 +1155,7 @@ vcli Declarative Infrastructure Management
 
   Milestone 2.4: Multi-File Support (Week 9-10)
 
-  - vcli apply --directory ./configs
+  - owlctl apply --directory ./configs
   - Batch processing of YAML files
   - Dependency ordering (repositories before jobs)
   - Summary report (3 created, 2 updated, 5 unchanged)
@@ -1164,7 +1164,7 @@ vcli Declarative Infrastructure Management
 
   Milestone 2.5: Export Command (Week 10-11)
 
-  - vcli export jobs > jobs.yaml
+  - owlctl export jobs > jobs.yaml
   - Generate declarative YAML from existing resources
   - Migration path for current users
   - Preserve all job settings accurately
@@ -1204,8 +1204,8 @@ vcli Declarative Infrastructure Management
   Milestone 3.3: Label Selectors & Filtering (Week 16-17)
 
   - Label support in metadata
-  - vcli diff --label environment=prod
-  - vcli apply --label tier=critical
+  - owlctl diff --label environment=prod
+  - owlctl apply --label tier=critical
   - Bulk operations by label
 
   Deliverable: Manage subsets of infrastructure by labels
@@ -1265,7 +1265,7 @@ vcli Declarative Infrastructure Management
     - Drift status
 
   Given a state file exists
-  When vcli starts
+  When owlctl starts
   Then it loads state without errors
   And handles missing state file gracefully
 
@@ -1346,7 +1346,7 @@ vcli Declarative Infrastructure Management
   // pkg/state/state_test.go
   func TestStateFile_SaveAndLoad(t *testing.T) {
       tempDir := t.TempDir()
-      os.Setenv("VCLI_SETTINGS_PATH", tempDir)
+      os.Setenv("OWLCTL_SETTINGS_PATH", tempDir)
 
       // Create state
       state := &StateFile{
@@ -1376,8 +1376,8 @@ vcli Declarative Infrastructure Management
   Scope: 1 day
 
   Acceptance criteria:
-  Given vcli apply is running
-  When another vcli apply starts
+  Given owlctl apply is running
+  When another owlctl apply starts
   Then the second process waits for lock
   And doesn't corrupt state file
 
@@ -1403,7 +1403,7 @@ vcli Declarative Infrastructure Management
               os.Remove(lockfile)
               return s.Lock()  // Retry
           }
-          return nil, fmt.Errorf("state file locked, another vcli process running")
+          return nil, fmt.Errorf("state file locked, another owlctl process running")
       }
 
       // Write PID to lock file
@@ -1427,11 +1427,11 @@ vcli Declarative Infrastructure Management
   Acceptance criteria:
   Given I have profiles "vbr-prod" and "vbr-staging"
   When I apply config to vbr-prod profile
-  Then state is saved to .vcli/state/vbr-prod.state.json
+  Then state is saved to .owlctl/state/vbr-prod.state.json
   And vbr-staging.state.json is not affected
 
   Given I switch profiles
-  When I run vcli diff
+  When I run owlctl diff
   Then it shows drift for the current profile only
 
   Implementation:
@@ -1648,7 +1648,7 @@ vcli Declarative Infrastructure Management
 
   Testing with golden files:
   // pkg/resources/testdata/vbr-job-simple.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: test-backup
@@ -1673,7 +1673,7 @@ vcli Declarative Infrastructure Management
   Scope: 1-2 days (simpler than Job)
 
   Acceptance criteria:
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Repository
   metadata:
     name: prod-repo-01
@@ -1738,10 +1738,10 @@ vcli Declarative Infrastructure Management
   Scope: 1-2 days
 
   Acceptance criteria:
-  vcli apply job.yaml               # Apply single file
-  vcli apply job.yaml --dry-run     # Show what would happen
-  vcli apply --directory ./configs  # Apply all YAMLs in directory
-  vcli apply job.yaml --auto-approve  # Skip confirmation
+  owlctl apply job.yaml               # Apply single file
+  owlctl apply job.yaml --dry-run     # Show what would happen
+  owlctl apply --directory ./configs  # Apply all YAMLs in directory
+  owlctl apply job.yaml --auto-approve  # Skip confirmation
 
   Implementation:
   // cmd/apply.go
@@ -1799,7 +1799,7 @@ vcli Declarative Infrastructure Management
 
   Acceptance criteria:
   Given a job config that doesn't exist
-  When I run vcli apply job.yaml
+  When I run owlctl apply job.yaml
   Then it shows:
     Plan: create resource job.prod-backup
     + Job "prod-backup" will be created
@@ -1807,7 +1807,7 @@ vcli Declarative Infrastructure Management
   And creates job after approval
 
   Given a job exists with different retention
-  When I run vcli apply job.yaml
+  When I run owlctl apply job.yaml
   Then it shows:
     Plan: update resource job.prod-backup
     ~ spec.storage.retention.days: 14 → 30
@@ -1815,7 +1815,7 @@ vcli Declarative Infrastructure Management
   And updates job after approval
 
   Given a job matches declared state
-  When I run vcli apply job.yaml
+  When I run owlctl apply job.yaml
   Then it shows:
     No changes needed
   And doesn't call API
@@ -1949,7 +1949,7 @@ vcli Declarative Infrastructure Management
   Given a directory with:
     - repository.yaml (Repository)
     - backup-job.yaml (Job referencing repository)
-  When I run vcli apply --directory ./configs
+  When I run owlctl apply --directory ./configs
   Then repository is created first
   And job is created second
   And dependency order is automatic
@@ -2032,14 +2032,14 @@ vcli Declarative Infrastructure Management
   Scope: 1-2 days
 
   Acceptance criteria:
-  vcli diff                         # Show all drift
-  vcli diff job.yaml                # Show drift for specific resource
-  vcli diff --label env=prod        # Show drift for labeled resources
-  vcli diff --summary               # Just show which resources drifted
+  owlctl diff                         # Show all drift
+  owlctl diff job.yaml                # Show drift for specific resource
+  owlctl diff --label env=prod        # Show drift for labeled resources
+  owlctl diff --summary               # Just show which resources drifted
 
   Given I applied job.yaml yesterday
   And someone changed retention in GUI today
-  When I run vcli diff
+  When I run owlctl diff
   Then it shows:
     Job "prod-backup" has drifted
     ~ spec.storage.retention.days: 30 → 14
@@ -2168,11 +2168,11 @@ vcli Declarative Infrastructure Management
   Scope: 0.5 days (reuses apply logic)
 
   Acceptance criteria:
-  vcli plan job.yaml       # Show what apply would do
-  vcli plan --directory ./configs  # Plan for directory
+  owlctl plan job.yaml       # Show what apply would do
+  owlctl plan --directory ./configs  # Plan for directory
 
   Given a job config with changed retention
-  When I run vcli plan job.yaml
+  When I run owlctl plan job.yaml
   Then it shows planned changes
   And doesn't actually apply them
   And exits with code 0
@@ -2199,10 +2199,10 @@ vcli Declarative Infrastructure Management
   Scope: 2 days
 
   Acceptance criteria:
-  vcli export jobs                    # Export all jobs
-  vcli export jobs --name prod-*      # Export matching jobs
-  vcli export jobs --output ./exports # Write to files
-  vcli export job 57b3baab-...        # Export specific job ID
+  owlctl export jobs                    # Export all jobs
+  owlctl export jobs --name prod-*      # Export matching jobs
+  owlctl export jobs --output ./exports # Write to files
+  owlctl export job 57b3baab-...        # Export specific job ID
 
   Implementation:
   // cmd/export.go
@@ -2288,7 +2288,7 @@ vcli Declarative Infrastructure Management
 
   func (e *Exporter) convertJobToDeclarative(job models.VbrJobGet) map[string]interface{} {
       return map[string]interface{}{
-          "apiVersion": "vcli.dev/v1",
+          "apiVersion": "owlctl.dev/v1",
           "kind":       "Job",
           "metadata": map[string]interface{}{
               "name": job.Name,
@@ -2337,12 +2337,12 @@ vcli Declarative Infrastructure Management
 
   What you'll deliver:
   # Complete workflow
-  vcli export jobs > existing-jobs.yaml   # Export current state
-  vcli apply existing-jobs.yaml           # Adopt into management
+  owlctl export jobs > existing-jobs.yaml   # Export current state
+  owlctl apply existing-jobs.yaml           # Adopt into management
   vim existing-jobs.yaml                  # Make changes
-  vcli plan existing-jobs.yaml            # Preview changes
-  vcli apply existing-jobs.yaml           # Apply updates
-  vcli diff                               # Detect drift
+  owlctl plan existing-jobs.yaml            # Preview changes
+  owlctl apply existing-jobs.yaml           # Apply updates
+  owlctl diff                               # Detect drift
 
   Why this first:
 
@@ -2350,7 +2350,7 @@ vcli Declarative Infrastructure Management
 
   The job templates feature shows users already want this:
   - 70% of the functionality exists (YAML parsing, file composition)
-  - Users are manually doing vcli job template → edit → create
+  - Users are manually doing owlctl job template → edit → create
   - You're just adding state tracking and idempotency
 
   Minimal risk: Extending something that already works
@@ -2369,18 +2369,18 @@ vcli Declarative Infrastructure Management
 
   Solo admin:
   # Define once
-  vcli export jobs/57b3baab > prod-backup.yaml
+  owlctl export jobs/57b3baab > prod-backup.yaml
 
   # Apply everywhere
-  vcli profile use vbr-staging && vcli apply prod-backup.yaml
-  vcli profile use vbr-dev && vcli apply prod-backup.yaml
-  vcli profile use vbr-dr && vcli apply prod-backup.yaml
+  owlctl profile use vbr-staging && owlctl apply prod-backup.yaml
+  owlctl profile use vbr-dev && owlctl apply prod-backup.yaml
+  owlctl profile use vbr-dr && owlctl apply prod-backup.yaml
   Value: 30 min → 2 min per environment
 
   Enterprise team:
   git diff  # See exact changes in PR review
-  vcli plan # Preview before apply
-  vcli apply # Auditable deployment
+  owlctl plan # Preview before apply
+  owlctl apply # Auditable deployment
   git log   # Complete audit trail
   Value: Change management + compliance solved
 
@@ -2409,14 +2409,14 @@ vcli Declarative Infrastructure Management
   - VbrJob implements interface
 
   Week 3: Core functionality
-  - vcli apply job.yaml creates job
+  - owlctl apply job.yaml creates job
   - Re-running apply is idempotent (no duplicate)
   - State file tracks job ID
 
   Week 4: Polish
-  - vcli diff shows drift
-  - vcli plan shows what would change
-  - vcli export generates valid YAML
+  - owlctl diff shows drift
+  - owlctl plan shows what would change
+  - owlctl export generates valid YAML
 
   Success: Community user reports "I'm managing 10 Veeam servers declaratively now"
 
@@ -2482,18 +2482,18 @@ vcli Declarative Infrastructure Management
   - Rollback on failure
   - User-friendly error messages
 
-  Deliverable: vcli apply job.yaml works end-to-end
+  Deliverable: owlctl apply job.yaml works end-to-end
 
   Week 4: Diff, Export, and Documentation
 
   Days 1-2: Diff command
-  - vcli diff shows all drift
-  - vcli diff job.yaml for specific file
+  - owlctl diff shows all drift
+  - owlctl diff job.yaml for specific file
   - Exit code 1 if drift detected (for CI)
   - Summary and detailed modes
 
   Day 3: Export command
-  - vcli export jobs generates YAML
+  - owlctl export jobs generates YAML
   - Filter by name pattern
   - Output to stdout or files
   - Clean up API response to declarative format
@@ -2562,7 +2562,7 @@ vcli Declarative Infrastructure Management
 
   Scenario 1: New application deployment
   # new-app-backup.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: acme-app-backup
@@ -2572,19 +2572,19 @@ vcli Declarative Infrastructure Management
         - name: acme-app-*
     retention: 30
     schedule: "02:00"
-  vcli apply new-app-backup.yaml --profile vbr-prod
-  vcli apply new-app-backup.yaml --profile vbr-dr
+  owlctl apply new-app-backup.yaml --profile vbr-prod
+  owlctl apply new-app-backup.yaml --profile vbr-dr
   # 2 commands instead of 30 minutes of GUI clicking
 
   Scenario 2: Compliance change (retention 14→30 days)
   vim backup-jobs.yaml  # Change retention: 30
   git diff              # Review change
   git commit -m "Increase retention for compliance"
-  vcli apply backup-jobs.yaml
+  owlctl apply backup-jobs.yaml
   # All jobs updated, change is documented in Git
 
   Scenario 3: Drift detection
-  vcli diff
+  owlctl diff
   # Output: Job "prod-backup" drifted
   #   ~ retention.days: 30 → 7
   # Someone changed it manually, you found it in 2 seconds
@@ -2785,7 +2785,7 @@ vcli Declarative Infrastructure Management
   metadata:
     name: my-job
     annotations:
-      vcli.dev/depends-on: Repository/prod-repo-01
+      owlctl.dev/depends-on: Repository/prod-repo-01
   spec:
     storage:
       repository:
@@ -2911,12 +2911,12 @@ vcli Declarative Infrastructure Management
 
   Project Structure for Declarative Features
 
-  vcli/
+  owlctl/
   ├── cmd/
-  │   ├── apply.go           # vcli apply command
-  │   ├── diff.go            # vcli diff command
-  │   ├── export.go          # vcli export command
-  │   ├── plan.go            # vcli plan command (alias for apply --dry-run)
+  │   ├── apply.go           # owlctl apply command
+  │   ├── diff.go            # owlctl diff command
+  │   ├── export.go          # owlctl export command
+  │   ├── plan.go            # owlctl plan command (alias for apply --dry-run)
   │   ├── get.go             # Existing imperative commands (unchanged)
   │   ├── post.go
   │   ├── ...
@@ -2997,7 +2997,7 @@ vcli Declarative Infrastructure Management
   1. Golden File Tests for YAML Parsing
 
   // pkg/resources/testdata/vbr-job-simple.yaml
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: test-job
@@ -3104,7 +3104,7 @@ vcli Declarative Infrastructure Management
       // Create temp config file
       configFile := filepath.Join(t.TempDir(), "job.yaml")
       os.WriteFile(configFile, []byte(`
-  apiVersion: vcli.dev/v1
+  apiVersion: owlctl.dev/v1
   kind: Job
   metadata:
     name: e2e-test-job
@@ -3112,15 +3112,15 @@ vcli Declarative Infrastructure Management
     type: Backup
   `), 0644)
 
-      // Run vcli apply
-      cmd := exec.Command("vcli", "apply", configFile, "--auto-approve")
+      // Run owlctl apply
+      cmd := exec.Command("owlctl", "apply", configFile, "--auto-approve")
       output, err := cmd.CombinedOutput()
 
       assert.NoError(t, err)
       assert.Contains(t, string(output), "✓ Created")
 
       // Verify state file
-      stateFile := ".vcli/state/vbr-test.state.json"
+      stateFile := ".owlctl/state/vbr-test.state.json"
       state, _ := state.LoadState("vbr-test")
       assert.Contains(t, state.Resources, "Job.e2e-test-job")
   }
@@ -3130,7 +3130,7 @@ vcli Declarative Infrastructure Management
   # Complete VBR Job Example
   # This demonstrates all available fields and their purpose
 
-  apiVersion: vcli.dev/v1  # Config schema version
+  apiVersion: owlctl.dev/v1  # Config schema version
   kind: Job                 # Resource type (Job, Repository, Credential)
 
   metadata:
@@ -3143,7 +3143,7 @@ vcli Declarative Infrastructure Management
     annotations:
       description: "Daily backup of production SQL servers"  # Documentation
       owner: "database-team@company.com"
-      vcli.dev/depends-on: "Repository/prod-repo-01"  # Dependency hint
+      owlctl.dev/depends-on: "Repository/prod-repo-01"  # Dependency hint
 
   spec:
     # Job type: Backup, BackupCopy, Replica
@@ -3192,7 +3192,7 @@ vcli Declarative Infrastructure Management
 
     # Storage configuration
     storage:
-      # Repository reference (by name, vcli resolves to ID)
+      # Repository reference (by name, owlctl resolves to ID)
       repository:
         name: prod-repo-01
         # Alternatively, specify ID directly:
@@ -3304,7 +3304,7 @@ vcli Declarative Infrastructure Management
 
   # Example: Minimal job configuration
   # ---
-  # apiVersion: vcli.dev/v1
+  # apiVersion: owlctl.dev/v1
   # kind: Job
   # metadata:
   #   name: simple-backup
@@ -3332,7 +3332,7 @@ vcli Declarative Infrastructure Management
   #   credentials.yaml     # Credential resource
   #   job-base.yaml        # Job definition
   #
-  # vcli apply --directory configs/
+  # owlctl apply --directory configs/
 
   Backward Compatibility: Imperative → Declarative
 
@@ -3340,7 +3340,7 @@ vcli Declarative Infrastructure Management
 
   Step 1: Export existing infrastructure
   # Export all jobs as YAML
-  vcli export jobs --output ./configs
+  owlctl export jobs --output ./configs
 
   # Output:
   # Exported: configs/nightly-vm-backup.yaml
@@ -3355,7 +3355,7 @@ vcli Declarative Infrastructure Management
   # database-backup.yaml
 
   cat configs/nightly-vm-backup.yaml
-  # apiVersion: vcli.dev/v1
+  # apiVersion: owlctl.dev/v1
   # kind: Job
   # metadata:
   #   name: nightly-vm-backup
@@ -3365,7 +3365,7 @@ vcli Declarative Infrastructure Management
 
   Step 3: Adopt into declarative management
   # Initial apply adopts existing resources (no changes made)
-  vcli apply --directory configs/
+  owlctl apply --directory configs/
 
   # Output:
   # Plan: no changes Job nightly-vm-backup (existing resource matches config)
@@ -3379,11 +3379,11 @@ vcli Declarative Infrastructure Management
   vim configs/database-backup.yaml
   # Change retention: 30
 
-  vcli plan configs/database-backup.yaml
+  owlctl plan configs/database-backup.yaml
   # Plan: update Job database-backup
   #   ~ spec.storage.retention.days: 14 → 30
 
-  vcli apply configs/database-backup.yaml
+  owlctl apply configs/database-backup.yaml
   # ✓ Updated
 
   Step 5: Version control
@@ -3395,23 +3395,23 @@ vcli Declarative Infrastructure Management
 
   Use case 1: Managed declaratively, operated imperatively
   # Managed in version control
-  vcli apply production-jobs.yaml
+  owlctl apply production-jobs.yaml
 
   # Ad-hoc operations still use imperative commands
-  vcli post jobs/57b3baab.../start         # Start job now
-  vcli get jobs/57b3baab.../sessions       # Check job status
-  vcli delete jobs/57b3baab.../sessions/123  # Delete session
+  owlctl post jobs/57b3baab.../start         # Start job now
+  owlctl get jobs/57b3baab.../sessions       # Check job status
+  owlctl delete jobs/57b3baab.../sessions/123  # Delete session
 
   Use case 2: Hybrid - some resources declarative, others imperative
   # Production jobs: Declarative (change-controlled)
-  vcli apply configs/production/
+  owlctl apply configs/production/
 
   # Test/dev jobs: Imperative (ephemeral, no change management)
-  vcli post jobs --file test-job.json
+  owlctl post jobs --file test-job.json
 
   Use case 3: Declarative exports for documentation
   # Generate current state as documentation
-  vcli export jobs > docs/current-veeam-jobs.yaml
+  owlctl export jobs > docs/current-veeam-jobs.yaml
 
   # Commit to repo (read-only documentation)
   git add docs/current-veeam-jobs.yaml
@@ -3422,7 +3422,7 @@ vcli Declarative Infrastructure Management
 
   Summary
 
-  vcli has a proven foundation and active user base. The job templates feature demonstrates that
+  owlctl has a proven foundation and active user base. The job templates feature demonstrates that
   users already want declarative workflows - they're just doing it manually. By adding state
   management and idempotent apply operations, you unlock:
 
@@ -3443,10 +3443,10 @@ vcli Declarative Infrastructure Management
   State-managed VBR job apply - 3-4 weeks to MVP
 
   Success criteria:
-  - vcli export jobs > jobs.yaml generates valid configs
-  - vcli apply jobs.yaml creates or updates jobs idempotently
-  - vcli diff detects configuration drift
-  - vcli plan previews changes before applying
+  - owlctl export jobs > jobs.yaml generates valid configs
+  - owlctl apply jobs.yaml creates or updates jobs idempotently
+  - owlctl diff detects configuration drift
+  - owlctl plan previews changes before applying
   - Zero breaking changes to existing imperative commands
   - 5+ community users managing Veeam declaratively
 
@@ -3494,7 +3494,7 @@ vcli Declarative Infrastructure Management
 
   Launch:
   - GitHub release with detailed changelog
-  - Blog post: "Introducing Declarative Veeam Infrastructure with vcli"
+  - Blog post: "Introducing Declarative Veeam Infrastructure with owlctl"
   - Reddit r/Veeam post with demo video
   - Tweet storm with examples
 
@@ -3516,10 +3516,10 @@ vcli Declarative Infrastructure Management
   - Additional Veeam products (VB365, VONE, cloud products)
   - Configuration compliance scanning
   - Policy-as-code (OPA integration)
-  - Terraform provider generation (vcli export --format terraform)
+  - Terraform provider generation (owlctl export --format terraform)
 
   Ultimate vision:
-  vcli becomes the de facto standard for declarative Veeam infrastructure management, bridging the
+  owlctl becomes the de facto standard for declarative Veeam infrastructure management, bridging the
    gap between traditional backup administration and modern infrastructure-as-code practices. MSPs
    use it to manage thousands of deployments. Enterprises use it for change management. Solo
   admins use it to maintain consistency. Veeam officially recommends it.

@@ -23,7 +23,7 @@ Overlays are YAML files containing only the fields you want to override from a b
 
 ## How Overlays Work
 
-vcli uses **strategic merge** to combine base + overlay:
+owlctl uses **strategic merge** to combine base + overlay:
 
 ```yaml
 # Base configuration
@@ -104,7 +104,7 @@ Labels are combined (merged):
 Base:
   labels:
     app: database
-    managed-by: vcli
+    managed-by: owlctl
 
 Overlay:
   labels:
@@ -113,7 +113,7 @@ Overlay:
 Result:
   labels:
     app: database            # From base
-    managed-by: vcli        # From base
+    managed-by: owlctl        # From base
     environment: production  # From overlay
 ```
 
@@ -123,21 +123,21 @@ Result:
 
 ```bash
 # Explicit overlay file
-vcli job apply ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml
+owlctl job apply ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml
 
 # Preview merged configuration
-vcli job plan ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml --show-yaml
+owlctl job plan ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml --show-yaml
 
 # Dry-run before applying
-vcli job apply ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml --dry-run
+owlctl job apply ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml --dry-run
 ```
 
-### Using vcli.yaml for Environments
+### Using owlctl.yaml for Environments
 
-Create `vcli.yaml` to manage multiple environments:
+Create `owlctl.yaml` to manage multiple environments:
 
 ```yaml
-# vcli.yaml (in project root)
+# owlctl.yaml (in project root)
 currentEnvironment: production
 defaultOverlayDir: ./overlays
 
@@ -157,21 +157,21 @@ environments:
 
 Then use `--env` flag:
 ```bash
-# Apply production (uses prod overlay from vcli.yaml)
-vcli job apply database-backup.yaml --env production
+# Apply production (uses prod overlay from owlctl.yaml)
+owlctl job apply database-backup.yaml --env production
 
-# Apply development (uses dev overlay from vcli.yaml)
-vcli job apply database-backup.yaml --env development
+# Apply development (uses dev overlay from owlctl.yaml)
+owlctl job apply database-backup.yaml --env development
 
 # Preview what would be applied
-vcli job plan database-backup.yaml --env production
+owlctl job plan database-backup.yaml --env production
 ```
 
 ### Overlay Resolution Priority
 
 1. **Explicit `-o` flag** (highest priority)
-2. **`--env` flag** (looks up in vcli.yaml)
-3. **`currentEnvironment`** from vcli.yaml
+2. **`--env` flag** (looks up in owlctl.yaml)
+3. **`currentEnvironment`** from owlctl.yaml
 4. **No overlay** (base only)
 
 ## Available Overlays
@@ -204,7 +204,7 @@ Development overlays typically include:
 
 ```bash
 # Export existing resource as base
-vcli export <job-id> -o base-job.yaml
+owlctl export <job-id> -o base-job.yaml
 ```
 
 ### 2. Create Minimal Overlay
@@ -213,7 +213,7 @@ Only include fields that differ from base:
 
 ```yaml
 # staging-overlay.yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Database Backup
@@ -232,17 +232,17 @@ spec:
 
 ```bash
 # Preview merged result
-vcli job plan base-job.yaml -o staging-overlay.yaml --show-yaml
+owlctl job plan base-job.yaml -o staging-overlay.yaml --show-yaml
 ```
 
 ### 4. Apply
 
 ```bash
 # Dry-run first
-vcli job apply base-job.yaml -o staging-overlay.yaml --dry-run
+owlctl job apply base-job.yaml -o staging-overlay.yaml --dry-run
 
 # Apply
-vcli job apply base-job.yaml -o staging-overlay.yaml
+owlctl job apply base-job.yaml -o staging-overlay.yaml
 ```
 
 ## Best Practices
@@ -298,7 +298,7 @@ git push
 
 Always preview the full merged result:
 ```bash
-vcli job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml -o overlay.yaml --show-yaml
 ```
 
 ### 6. Watch for Array Replacement
@@ -325,7 +325,7 @@ Labels are merged, so use them for classification:
 labels:
   app: database
   team: infrastructure
-  managed-by: vcli
+  managed-by: owlctl
 
 # Overlay
 labels:
@@ -394,17 +394,17 @@ Check resolution priority and file paths:
 ls -la overlays/prod/overlay.yaml
 
 # Use absolute path
-vcli job apply base.yaml -o $PWD/overlays/prod/overlay.yaml
+owlctl job apply base.yaml -o $PWD/overlays/prod/overlay.yaml
 
-# Check vcli.yaml if using --env
-cat vcli.yaml
+# Check owlctl.yaml if using --env
+cat owlctl.yaml
 ```
 
 ### Unexpected Merge Results
 
 Use `--show-yaml` to see actual result:
 ```bash
-vcli job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml -o overlay.yaml --show-yaml
 ```
 
 ### Array Not Merged as Expected

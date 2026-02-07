@@ -3,10 +3,10 @@
 # with production-specific settings.
 #
 # Usage:
-#   vcli repo apply ../repos/backup-repository.yaml -o backup-repository-overlay.yaml --dry-run
-#   vcli repo apply ../repos/backup-repository.yaml -o backup-repository-overlay.yaml
+#   owlctl repo apply ../repos/backup-repository.yaml -o backup-repository-overlay.yaml --dry-run
+#   owlctl repo apply ../repos/backup-repository.yaml -o backup-repository-overlay.yaml
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRRepository
 metadata:
   name: Production Backup Repository

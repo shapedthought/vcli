@@ -1,10 +1,10 @@
-# GitOps Workflows with vcli
+# GitOps Workflows with owlctl
 
-A comprehensive guide to managing Veeam Backup & Replication infrastructure using GitOps principles with vcli.
+A comprehensive guide to managing Veeam Backup & Replication infrastructure using GitOps principles with owlctl.
 
 ## Table of Contents
 
-- [What is GitOps with vcli?](#what-is-gitops-with-vcli)
+- [What is GitOps with owlctl?](#what-is-gitops-with-owlctl)
 - [Benefits](#benefits)
 - [Repository Structure](#repository-structure)
 - [Configuration Management](#configuration-management)
@@ -17,9 +17,9 @@ A comprehensive guide to managing Veeam Backup & Replication infrastructure usin
 - [State Management in GitOps](#state-management-in-gitops)
 - [Troubleshooting](#troubleshooting)
 
-## What is GitOps with vcli?
+## What is GitOps with owlctl?
 
-GitOps is a way to manage Veeam Backup & Replication infrastructure using Git as the single source of truth. vcli enables GitOps workflows through:
+GitOps is a way to manage Veeam Backup & Replication infrastructure using Git as the single source of truth. owlctl enables GitOps workflows through:
 
 - ✅ **Declarative configuration** - YAML specs define desired state
 - ✅ **State management** - Drift detection catches unauthorized changes
@@ -32,8 +32,8 @@ GitOps is a way to manage Veeam Backup & Replication infrastructure using Git as
 ┌─────────────────────────────────────────────────┐
 │  1. Developer commits YAML to Git               │
 │  2. CI/CD pipeline triggered                    │
-│  3. vcli applies configuration to VBR           │
-│  4. vcli snapshots state for drift detection    │
+│  3. owlctl applies configuration to VBR           │
+│  4. owlctl snapshots state for drift detection    │
 │  5. Scheduled drift checks catch manual changes │
 │  6. Alerts sent if drift detected               │
 └─────────────────────────────────────────────────┘
@@ -89,8 +89,8 @@ vbr-infrastructure/
 │       ├── deploy-prod.yml        # Deploy to production
 │       ├── drift-detection.yml    # Scheduled drift checks
 │       └── auto-remediate.yml     # Auto-fix drift
-├── .vcli/
-│   ├── settings.json              # vcli settings (commit this)
+├── .owlctl/
+│   ├── settings.json              # owlctl settings (commit this)
 │   └── profiles.json              # API profiles (commit this)
 ├── specs/
 │   ├── jobs/
@@ -118,7 +118,7 @@ vbr-infrastructure/
 │   ├── apply-all.sh               # Helper script to apply all configs
 │   └── snapshot-all.sh            # Helper script to snapshot all resources
 ├── .gitignore
-├── vcli.yaml                      # Environment configuration (optional)
+├── owlctl.yaml                      # Environment configuration (optional)
 ├── README.md
 └── CHANGELOG.md
 ```
@@ -128,7 +128,7 @@ vbr-infrastructure/
 ✅ **Always Commit:**
 - Configuration specs (all YAML files in `specs/` and `overlays/`)
 - `profiles.json` - API configuration (no credentials)
-- `settings.json` - vcli behavior settings
+- `settings.json` - owlctl behavior settings
 - Pipeline definitions (`.github/workflows/`, `.azure-pipelines/`, `.gitlab-ci.yml`)
 - Helper scripts
 - Documentation (README, CHANGELOG)
@@ -145,7 +145,7 @@ vbr-infrastructure/
 ### .gitignore Example
 
 ```gitignore
-# vcli state (decision: don't commit for this team)
+# owlctl state (decision: don't commit for this team)
 state.json
 state.json.backup
 
@@ -211,7 +211,7 @@ Thumbs.db
 }
 ```
 
-**Commit this** - Controls vcli behavior, contains no secrets.
+**Commit this** - Controls owlctl behavior, contains no secrets.
 
 **Environment-specific settings:**
 - Production: `"skipTLSVerify": false` (require valid certificates)
@@ -226,33 +226,33 @@ Use CI/CD platform secret stores:
 **GitHub Actions:**
 ```yaml
 env:
-  VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-  VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-  VCLI_URL: ${{ secrets.VBR_URL }}
+  OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+  OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+  OWLCTL_URL: ${{ secrets.VBR_URL }}
 ```
 
 **Azure DevOps:**
 ```yaml
 env:
-  VCLI_USERNAME: $(vbrUsername)
-  VCLI_PASSWORD: $(vbrPassword)
-  VCLI_URL: $(vbrUrl)
+  OWLCTL_USERNAME: $(vbrUsername)
+  OWLCTL_PASSWORD: $(vbrPassword)
+  OWLCTL_URL: $(vbrUrl)
 ```
 
 **GitLab CI:**
 ```yaml
 variables:
-  VCLI_USERNAME: $VBR_USERNAME
-  VCLI_PASSWORD: $VBR_PASSWORD
-  VCLI_URL: $VBR_URL
+  OWLCTL_USERNAME: $VBR_USERNAME
+  OWLCTL_PASSWORD: $VBR_PASSWORD
+  OWLCTL_URL: $VBR_URL
 ```
 
-### vcli.yaml for Multi-Environment Configuration
+### owlctl.yaml for Multi-Environment Configuration
 
 Optional file for environment-aware deployments:
 
 ```yaml
-# vcli.yaml - Environment configuration
+# owlctl.yaml - Environment configuration
 currentEnvironment: production
 
 defaultOverlayDir: ./overlays
@@ -274,10 +274,10 @@ environments:
 Then in pipelines:
 ```bash
 # Uses production overlay automatically
-vcli job apply specs/jobs/database-backup.yaml
+owlctl job apply specs/jobs/database-backup.yaml
 
 # Override to use specific environment
-vcli job apply specs/jobs/database-backup.yaml --env development
+owlctl job apply specs/jobs/database-backup.yaml --env development
 ```
 
 ## CI/CD Platform Integration
@@ -307,52 +307,52 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download vcli
+      - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Verify vcli checksum
+      - name: Verify owlctl checksum
         run: |
-          echo "$(curl -sL https://github.com/shapedthought/vcli/releases/latest/download/checksums.txt | grep vcli-linux-amd64 | awk '{print $1}')  vcli" | sha256sum -c
+          echo "$(curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/checksums.txt | grep owlctl-linux-amd64 | awk '{print $1}')  owlctl" | sha256sum -c
 
-      - name: Configure vcli
+      - name: Configure owlctl
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          VCLI_URL: ${{ secrets.VBR_URL }}
-          VCLI_SETTINGS_PATH: ./.vcli/
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_URL: ${{ secrets.VBR_URL }}
+          OWLCTL_SETTINGS_PATH: ./.owlctl/
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
+          ./owlctl profile --set vbr
+          ./owlctl login
 
       - name: Apply job configurations
         run: |
           for job in specs/jobs/*.yaml; do
             echo "Applying: $job"
-            ./vcli job apply "$job" -o "overlays/prod/$(basename $job)" --dry-run
-            ./vcli job apply "$job" -o "overlays/prod/$(basename $job)"
+            ./owlctl job apply "$job" -o "overlays/prod/$(basename $job)" --dry-run
+            ./owlctl job apply "$job" -o "overlays/prod/$(basename $job)"
           done
 
       - name: Apply repository configurations
         run: |
           for repo in specs/repos/*.yaml; do
             echo "Applying: $repo"
-            ./vcli repo apply "$repo" --dry-run
-            ./vcli repo apply "$repo"
+            ./owlctl repo apply "$repo" --dry-run
+            ./owlctl repo apply "$repo"
           done
 
       - name: Apply SOBR configurations
         run: |
           for sobr in specs/sobrs/*.yaml; do
             echo "Applying: $sobr"
-            ./vcli repo sobr-apply "$sobr" --dry-run
-            ./vcli repo sobr-apply "$sobr"
+            ./owlctl repo sobr-apply "$sobr" --dry-run
+            ./owlctl repo sobr-apply "$sobr"
           done
 
       - name: Verify no drift
         run: |
-          ./vcli job diff --all --security-only
+          ./owlctl job diff --all --security-only
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 4 ]; then
             echo "::error::CRITICAL drift detected after deployment!"
@@ -382,20 +382,20 @@ jobs:
       - name: Checkout PR
         uses: actions/checkout@v4
 
-      - name: Download vcli
+      - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Configure vcli
+      - name: Configure owlctl
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
-          VCLI_URL: ${{ secrets.VBR_URL_DEV }}
-          VCLI_SETTINGS_PATH: ./.vcli/
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
+          OWLCTL_URL: ${{ secrets.VBR_URL_DEV }}
+          OWLCTL_SETTINGS_PATH: ./.owlctl/
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
+          ./owlctl profile --set vbr
+          ./owlctl login
 
       - name: Find changed YAML files
         id: changed-files
@@ -421,16 +421,16 @@ jobs:
 
             case "$file" in
               specs/jobs/*)
-                ./vcli job apply "$file" --dry-run
+                ./owlctl job apply "$file" --dry-run
                 ;;
               specs/repos/*)
-                ./vcli repo apply "$file" --dry-run
+                ./owlctl repo apply "$file" --dry-run
                 ;;
               specs/sobrs/*)
-                ./vcli repo sobr-apply "$file" --dry-run
+                ./owlctl repo sobr-apply "$file" --dry-run
                 ;;
               specs/kms/*)
-                ./vcli encryption kms-apply "$file" --dry-run
+                ./owlctl encryption kms-apply "$file" --dry-run
                 ;;
               *)
                 echo "Unknown file type: $file"
@@ -481,20 +481,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download vcli
+      - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Configure vcli
+      - name: Configure owlctl
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          VCLI_URL: ${{ secrets.VBR_URL }}
-          VCLI_SETTINGS_PATH: ./.vcli/
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_URL: ${{ secrets.VBR_URL }}
+          OWLCTL_SETTINGS_PATH: ./.owlctl/
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
+          ./owlctl profile --set vbr
+          ./owlctl login
 
       - name: Check for critical drift
         id: drift-check
@@ -509,21 +509,21 @@ jobs:
           CRITICAL=0
 
           echo "### Backup Jobs" >> drift-report.md
-          ./vcli job diff --all --security-only > job-drift.txt 2>&1
+          ./owlctl job diff --all --security-only > job-drift.txt 2>&1
           JOB_EXIT=$?
           cat job-drift.txt >> drift-report.md
           echo "" >> drift-report.md
           if [ $JOB_EXIT -eq 4 ]; then CRITICAL=1; fi
 
           echo "### Repositories" >> drift-report.md
-          ./vcli repo diff --all --security-only > repo-drift.txt 2>&1
+          ./owlctl repo diff --all --security-only > repo-drift.txt 2>&1
           REPO_EXIT=$?
           cat repo-drift.txt >> drift-report.md
           echo "" >> drift-report.md
           if [ $REPO_EXIT -eq 4 ]; then CRITICAL=1; fi
 
           echo "### Scale-Out Repositories" >> drift-report.md
-          ./vcli repo sobr-diff --all --security-only > sobr-drift.txt 2>&1
+          ./owlctl repo sobr-diff --all --security-only > sobr-drift.txt 2>&1
           SOBR_EXIT=$?
           cat sobr-drift.txt >> drift-report.md
           echo "" >> drift-report.md
@@ -559,7 +559,7 @@ jobs:
 
 ### Azure DevOps
 
-vcli provides comprehensive Azure DevOps integration. See the dedicated [Azure DevOps Integration Guide](azure-devops-integration.md) for:
+owlctl provides comprehensive Azure DevOps integration. See the dedicated [Azure DevOps Integration Guide](azure-devops-integration.md) for:
 
 - Pre-built pipeline templates (PR validation, deployment, drift detection, compliance)
 - Variable group configuration
@@ -584,20 +584,20 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-      chmod +x vcli
-      ./vcli profile --set vbr
-      ./vcli login
-    displayName: 'Setup vcli'
+      curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+      chmod +x owlctl
+      ./owlctl profile --set vbr
+      ./owlctl login
+    displayName: 'Setup owlctl'
     env:
-      VCLI_USERNAME: $(vbrUsername)
-      VCLI_PASSWORD: $(vbrPassword)
-      VCLI_URL: $(vbrUrl)
+      OWLCTL_USERNAME: $(vbrUsername)
+      OWLCTL_PASSWORD: $(vbrPassword)
+      OWLCTL_URL: $(vbrUrl)
 
   - script: |
       for job in specs/jobs/*.yaml; do
-        ./vcli job apply "$job" --dry-run
-        ./vcli job apply "$job"
+        ./owlctl job apply "$job" --dry-run
+        ./owlctl job apply "$job"
       done
     displayName: 'Deploy configurations'
 ```
@@ -618,29 +618,29 @@ stages:
 
 variables:
   VCLI_VERSION: "latest"
-  VCLI_SETTINGS_PATH: "./.vcli/"
+  OWLCTL_SETTINGS_PATH: "./.owlctl/"
 
-.vcli-setup: &vcli-setup
+.owlctl-setup: &owlctl-setup
   before_script:
     - apt-get update && apt-get install -y curl
-    - curl -sL https://github.com/shapedthought/vcli/releases/${VCLI_VERSION}/download/vcli-linux-amd64 -o vcli
-    - chmod +x vcli
-    - ./vcli profile --set vbr
-    - ./vcli login
+    - curl -sL https://github.com/shapedthought/owlctl/releases/${VCLI_VERSION}/download/owlctl-linux-amd64 -o owlctl
+    - chmod +x owlctl
+    - ./owlctl profile --set vbr
+    - ./owlctl login
 
 validate-pr:
   stage: validate
-  <<: *vcli-setup
+  <<: *owlctl-setup
   variables:
-    VCLI_USERNAME: $VBR_USERNAME_DEV
-    VCLI_PASSWORD: $VBR_PASSWORD_DEV
-    VCLI_URL: $VBR_URL_DEV
+    OWLCTL_USERNAME: $VBR_USERNAME_DEV
+    OWLCTL_PASSWORD: $VBR_PASSWORD_DEV
+    OWLCTL_URL: $VBR_URL_DEV
   script:
     - |
       FAILED=0
       for job in specs/jobs/*.yaml; do
         echo "Validating: $job"
-        ./vcli job apply "$job" --dry-run
+        ./owlctl job apply "$job" --dry-run
         if [ $? -ne 0 ]; then
           FAILED=$((FAILED + 1))
         fi
@@ -655,11 +655,11 @@ validate-pr:
 
 deploy-production:
   stage: deploy
-  <<: *vcli-setup
+  <<: *owlctl-setup
   variables:
-    VCLI_USERNAME: $VBR_USERNAME
-    VCLI_PASSWORD: $VBR_PASSWORD
-    VCLI_URL: $VBR_URL
+    OWLCTL_USERNAME: $VBR_USERNAME
+    OWLCTL_PASSWORD: $VBR_PASSWORD
+    OWLCTL_URL: $VBR_URL
   script:
     # Apply jobs
     - |
@@ -667,9 +667,9 @@ deploy-production:
         echo "Applying: $job"
         overlay="overlays/prod/$(basename $job)"
         if [ -f "$overlay" ]; then
-          ./vcli job apply "$job" -o "$overlay"
+          ./owlctl job apply "$job" -o "$overlay"
         else
-          ./vcli job apply "$job"
+          ./owlctl job apply "$job"
         fi
       done
 
@@ -677,14 +677,14 @@ deploy-production:
     - |
       for repo in specs/repos/*.yaml; do
         echo "Applying: $repo"
-        ./vcli repo apply "$repo"
+        ./owlctl repo apply "$repo"
       done
 
     # Apply SOBRs
     - |
       for sobr in specs/sobrs/*.yaml; do
         echo "Applying: $sobr"
-        ./vcli repo sobr-apply "$sobr"
+        ./owlctl repo sobr-apply "$sobr"
       done
   environment:
     name: production
@@ -694,13 +694,13 @@ deploy-production:
 
 verify-deployment:
   stage: verify
-  <<: *vcli-setup
+  <<: *owlctl-setup
   variables:
-    VCLI_USERNAME: $VBR_USERNAME
-    VCLI_PASSWORD: $VBR_PASSWORD
-    VCLI_URL: $VBR_URL
+    OWLCTL_USERNAME: $VBR_USERNAME
+    OWLCTL_PASSWORD: $VBR_PASSWORD
+    OWLCTL_URL: $VBR_URL
   script:
-    - ./vcli job diff --all --security-only
+    - ./owlctl job diff --all --security-only
     - |
       EXIT_CODE=$?
       if [ $EXIT_CODE -eq 4 ]; then
@@ -713,15 +713,15 @@ verify-deployment:
 
 drift-detection:
   stage: verify
-  <<: *vcli-setup
+  <<: *owlctl-setup
   variables:
-    VCLI_USERNAME: $VBR_USERNAME
-    VCLI_PASSWORD: $VBR_PASSWORD
-    VCLI_URL: $VBR_URL
+    OWLCTL_USERNAME: $VBR_USERNAME
+    OWLCTL_PASSWORD: $VBR_PASSWORD
+    OWLCTL_URL: $VBR_URL
   script:
-    - ./vcli job diff --all --security-only > drift-report.txt 2>&1
-    - ./vcli repo diff --all --security-only >> drift-report.txt 2>&1
-    - ./vcli repo sobr-diff --all --security-only >> drift-report.txt 2>&1
+    - ./owlctl job diff --all --security-only > drift-report.txt 2>&1
+    - ./owlctl repo diff --all --security-only >> drift-report.txt 2>&1
+    - ./owlctl repo sobr-diff --all --security-only >> drift-report.txt 2>&1
     - |
       if grep -q "CRITICAL" drift-report.txt; then
         echo "CRITICAL drift detected!"
@@ -762,7 +762,7 @@ Add this to your `.gitlab-ci.yml` or create a schedule in GitLab UI:
 
 **DON'T:**
 - ❌ Commit credentials to Git (even in private repos)
-- ❌ Print credentials in logs (`echo $VCLI_PASSWORD`)
+- ❌ Print credentials in logs (`echo $OWLCTL_PASSWORD`)
 - ❌ Share credentials between environments
 - ❌ Use personal accounts for automation
 - ❌ Store tokens in long-lived files
@@ -774,8 +774,8 @@ Add this to your `.gitlab-ci.yml` or create a schedule in GitLab UI:
 steps:
   - name: Login and operate
     run: |
-      ./vcli login
-      ./vcli job diff --all
+      ./owlctl login
+      ./owlctl job diff --all
       # Token automatically discarded after job
 ```
 
@@ -784,20 +784,20 @@ steps:
 steps:
   - name: Get token
     run: |
-      export VCLI_TOKEN=$(./vcli login --output-token)
-      ./vcli job diff --all
-      ./vcli repo diff --all
-      unset VCLI_TOKEN
+      export OWLCTL_TOKEN=$(./owlctl login --output-token)
+      ./owlctl job diff --all
+      ./owlctl repo diff --all
+      unset OWLCTL_TOKEN
 ```
 
 **Never:**
 ```yaml
 # BAD - Token persists across jobs
 - name: Login
-  run: ./vcli login
+  run: ./owlctl login
 
 - name: Later job
-  run: ./vcli get jobs  # Uses stale token
+  run: ./owlctl get jobs  # Uses stale token
 ```
 
 ### 3. Git Security
@@ -845,7 +845,7 @@ git log -S "retentionPolicy" -- specs/jobs/*.yaml
 ```
 
 **CI/CD logging:**
-- Enable detailed logging for vcli operations
+- Enable detailed logging for owlctl operations
 - Retain pipeline logs for compliance period (90 days minimum)
 - Export logs to SIEM for security monitoring
 - Alert on failed deployments or critical drift
@@ -853,8 +853,8 @@ git log -S "retentionPolicy" -- specs/jobs/*.yaml
 **VBR audit logs:**
 - Enable VBR audit logging
 - Configure log forwarding to central logging system
-- Correlate vcli apply operations with VBR audit events
-- Monitor for configuration changes not from vcli
+- Correlate owlctl apply operations with VBR audit events
+- Monitor for configuration changes not from owlctl
 
 ### 5. Access Control
 
@@ -886,7 +886,7 @@ Development: dev-vbr-svc@company.com   (open access)
 **Use placeholder values in committed configs:**
 ```yaml
 # specs/kms/azure-keyvault.yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRKmsServer
 metadata:
   name: Azure Key Vault Production
@@ -932,7 +932,7 @@ spec:
 **Goal:** Validate all configuration changes before merging to main.
 
 **Implementation:**
-1. Run `vcli apply --dry-run` on changed files
+1. Run `owlctl apply --dry-run` on changed files
 2. Test against dev VBR environment
 3. Comment results on PR
 4. Block merge if validation fails
@@ -949,19 +949,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcli
+      - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Configure vcli
+      - name: Configure owlctl
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
-          VCLI_URL: ${{ secrets.VBR_URL_DEV }}
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
+          OWLCTL_URL: ${{ secrets.VBR_URL_DEV }}
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
+          ./owlctl profile --set vbr
+          ./owlctl login
 
       - name: Validate changed specs
         run: |
@@ -970,7 +970,7 @@ jobs:
             grep -E '^specs/.*\.yaml$' | \
             while read file; do
               echo "Validating: $file"
-              ./vcli job apply "$file" --dry-run || exit 1
+              ./owlctl job apply "$file" --dry-run || exit 1
             done
 ```
 
@@ -1023,20 +1023,20 @@ jobs:
     environment: development
     steps:
       - uses: actions/checkout@v4
-      - name: Setup vcli
+      - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
       - name: Deploy to dev
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
-          VCLI_URL: ${{ secrets.VBR_URL_DEV }}
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
+          OWLCTL_URL: ${{ secrets.VBR_URL_DEV }}
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
-          ./vcli job apply specs/jobs/database-backup.yaml -o overlays/dev/database-backup.yaml
+          ./owlctl profile --set vbr
+          ./owlctl login
+          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/dev/database-backup.yaml
 
   deploy-staging:
     runs-on: ubuntu-latest
@@ -1044,20 +1044,20 @@ jobs:
     needs: deploy-dev
     steps:
       - uses: actions/checkout@v4
-      - name: Setup vcli
+      - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
       - name: Deploy to staging
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME_STAGING }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD_STAGING }}
-          VCLI_URL: ${{ secrets.VBR_URL_STAGING }}
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_STAGING }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_STAGING }}
+          OWLCTL_URL: ${{ secrets.VBR_URL_STAGING }}
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
-          ./vcli job apply specs/jobs/database-backup.yaml -o overlays/staging/database-backup.yaml
+          ./owlctl profile --set vbr
+          ./owlctl login
+          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/staging/database-backup.yaml
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -1065,24 +1065,24 @@ jobs:
     needs: deploy-staging
     steps:
       - uses: actions/checkout@v4
-      - name: Setup vcli
+      - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
       - name: Deploy to production
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          VCLI_URL: ${{ secrets.VBR_URL }}
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_URL: ${{ secrets.VBR_URL }}
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
-          ./vcli job apply specs/jobs/database-backup.yaml -o overlays/prod/database-backup.yaml
+          ./owlctl profile --set vbr
+          ./owlctl login
+          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/prod/database-backup.yaml
 
       - name: Verify deployment
         run: |
-          ./vcli job diff "Database Backup"
+          ./owlctl job diff "Database Backup"
           if [ $? -ne 0 ]; then
             echo "::error::Drift detected after production deployment"
             exit 1
@@ -1161,19 +1161,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcli
+      - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Configure vcli
+      - name: Configure owlctl
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          VCLI_URL: ${{ secrets.VBR_URL }}
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_URL: ${{ secrets.VBR_URL }}
         run: |
-          ./vcli profile --set vbr
-          ./vcli login
+          ./owlctl profile --set vbr
+          ./owlctl login
 
       - name: Generate compliance report
         run: |
@@ -1192,19 +1192,19 @@ jobs:
           EOF
 
           echo "## Backup Jobs" >> compliance-report.md
-          ./vcli job diff --all >> compliance-report.md 2>&1
+          ./owlctl job diff --all >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
           echo "## Repositories" >> compliance-report.md
-          ./vcli repo diff --all >> compliance-report.md 2>&1
+          ./owlctl repo diff --all >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
           echo "## Scale-Out Repositories" >> compliance-report.md
-          ./vcli repo sobr-diff --all >> compliance-report.md 2>&1
+          ./owlctl repo sobr-diff --all >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
           echo "## Encryption" >> compliance-report.md
-          ./vcli encryption diff --all >> compliance-report.md 2>&1
+          ./owlctl encryption diff --all >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
       - name: Upload report
@@ -1222,7 +1222,7 @@ See [examples/pipelines/nightly-compliance.yml](../examples/pipelines/nightly-co
 
 ### The State File Dilemma
 
-vcli uses `state.json` to track applied configurations for drift detection. Should you commit it to Git?
+owlctl uses `state.json` to track applied configurations for drift detection. Should you commit it to Git?
 
 ### Option 1: Commit state.json (Recommended for Production)
 
@@ -1257,7 +1257,7 @@ state.json.*
 ```bash
 # If conflict occurs
 git checkout --ours state.json   # Use our version
-./vcli repo snapshot --all       # Re-snapshot current VBR state
+./owlctl repo snapshot --all       # Re-snapshot current VBR state
 git add state.json
 git commit -m "Resolve state conflict - re-snapshotted from VBR"
 ```
@@ -1289,8 +1289,8 @@ state.json.backup
 **Workflow:**
 ```bash
 # Each developer/pipeline run
-./vcli repo snapshot --all       # Create local state
-./vcli job diff --all            # Check drift against local state
+./owlctl repo snapshot --all       # Create local state
+./owlctl job diff --all            # Check drift against local state
 ```
 
 ### Option 3: Hybrid Approach (Recommended)
@@ -1304,12 +1304,12 @@ state.json.backup
 ```
 vbr-prod/                # Production repo
 ├── specs/
-├── .vcli/state.json    # Committed
+├── .owlctl/state.json    # Committed
 └── .gitignore          # Doesn't ignore state.json
 
 vbr-dev/                 # Development repo
 ├── specs/
-├── .vcli/state.json    # Not committed (in .gitignore)
+├── .owlctl/state.json    # Not committed (in .gitignore)
 └── .gitignore          # Ignores state.json
 ```
 
@@ -1320,9 +1320,9 @@ vbr-dev/                 # Development repo
 steps:
   - name: Apply and check
     run: |
-      ./vcli job apply specs/jobs/backup.yaml
+      ./owlctl job apply specs/jobs/backup.yaml
       # State created in memory, discarded after job
-      ./vcli job diff "Backup Job"
+      ./owlctl job diff "Backup Job"
 ```
 
 **Pattern 2: Artifact-based state**
@@ -1332,27 +1332,27 @@ steps:
     uses: actions/download-artifact@v4
     with:
       name: vbr-state
-      path: .vcli/
+      path: .owlctl/
 
   - name: Apply configs
-    run: ./vcli job apply specs/jobs/*.yaml
+    run: ./owlctl job apply specs/jobs/*.yaml
 
   - name: Save new state
     uses: actions/upload-artifact@v4
     with:
       name: vbr-state
-      path: .vcli/state.json
+      path: .owlctl/state.json
 ```
 
 **Pattern 3: Git-committed state**
 ```yaml
 steps:
   - name: Apply configs
-    run: ./vcli job apply specs/jobs/*.yaml
+    run: ./owlctl job apply specs/jobs/*.yaml
 
   - name: Commit updated state
     run: |
-      git add .vcli/state.json
+      git add .owlctl/state.json
       git commit -m "Update state after deployment [skip ci]"
       git push
 ```
@@ -1372,25 +1372,25 @@ steps:
 
 **Problem:** CI/CD pipeline stalls indefinitely.
 
-**Cause:** vcli command is waiting for interactive input.
+**Cause:** owlctl command is waiting for interactive input.
 
 **Solution:**
 
 ```yaml
 # ❌ BAD - Waits for profile name
-./vcli profile --set
+./owlctl profile --set
 
 # ✅ GOOD - Provides argument
-./vcli profile --set vbr
+./owlctl profile --set vbr
 ```
 
 **Other common causes:**
 ```yaml
 # ❌ BAD - Interactive init
-./vcli init
+./owlctl init
 
 # ✅ GOOD - Non-interactive init
-./vcli init --output-dir ./.vcli/
+./owlctl init --output-dir ./.owlctl/
 ```
 
 ### Issue 2: Authentication Fails in Pipeline
@@ -1401,9 +1401,9 @@ steps:
 ```yaml
 - name: Debug authentication
   run: |
-    echo "Username set: ${VCLI_USERNAME:+yes}"
-    echo "Password set: ${VCLI_PASSWORD:+yes}"
-    echo "URL: $VCLI_URL"
+    echo "Username set: ${OWLCTL_USERNAME:+yes}"
+    echo "Password set: ${OWLCTL_PASSWORD:+yes}"
+    echo "URL: $OWLCTL_URL"
     # Don't echo actual password!
 ```
 
@@ -1413,35 +1413,35 @@ steps:
 ```yaml
 # ❌ Forgot to set variables
 steps:
-  - run: ./vcli login  # Fails
+  - run: ./owlctl login  # Fails
 
 # ✅ Set all required variables
 steps:
-  - run: ./vcli login
+  - run: ./owlctl login
     env:
-      VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-      VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-      VCLI_URL: ${{ secrets.VBR_URL }}
+      OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+      OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+      OWLCTL_URL: ${{ secrets.VBR_URL }}
 ```
 
 **2. Profile not set:**
 ```yaml
 # ❌ Missing profile command
-- run: ./vcli login
+- run: ./owlctl login
 
 # ✅ Set profile first
 - run: |
-    ./vcli profile --set vbr
-    ./vcli login
+    ./owlctl profile --set vbr
+    ./owlctl login
 ```
 
 **3. Wrong secret names:**
 ```yaml
 # ❌ Typo in secret name
-VCLI_USERNAME: ${{ secrets.VBR_USRNAME }}  # Wrong
+OWLCTL_USERNAME: ${{ secrets.VBR_USRNAME }}  # Wrong
 
 # ✅ Correct secret name
-VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}  # Correct
+OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}  # Correct
 ```
 
 ### Issue 3: Profile Not Set Error
@@ -1451,35 +1451,35 @@ VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}  # Correct
 **Solution:**
 ```yaml
 # Always set profile before login
-- name: Configure vcli
+- name: Configure owlctl
   run: |
-    ./vcli profile --set vbr
-    ./vcli login
+    ./owlctl profile --set vbr
+    ./owlctl login
 ```
 
 **Profile commands require explicit argument:**
 ```bash
 # ❌ OLD (v0.10.x) - Interactive
-vcli profile --set
+owlctl profile --set
 # Waited for input: _
 
 # ✅ Correct - Non-interactive
-vcli profile --set vbr
+owlctl profile --set vbr
 ```
 
 ### Issue 4: Drift Shows Immediately After Apply
 
-**Problem:** `vcli job diff` shows drift right after successful apply.
+**Problem:** `owlctl job diff` shows drift right after successful apply.
 
 **Possible causes:**
 
 **1. Immutable fields:**
 Some VBR fields can't be updated via API:
 ```bash
-./vcli job apply job.yaml
+./owlctl job apply job.yaml
 # Exit code 5 - Partial apply (some fields skipped)
 
-./vcli job diff "Job Name"
+./owlctl job diff "Job Name"
 # Shows drift on immutable fields
 ```
 
@@ -1507,10 +1507,10 @@ spec:
 **3. State out of sync:**
 ```bash
 # Solution: Re-snapshot after apply
-./vcli job apply job.yaml
+./owlctl job apply job.yaml
 sleep 2
-./vcli repo snapshot --all
-./vcli job diff --all  # Should show no drift
+./owlctl repo snapshot --all
+./owlctl job diff --all  # Should show no drift
 ```
 
 ### Issue 5: Resource Not Found (Exit Code 6)
@@ -1525,16 +1525,16 @@ sleep 2
 #    (Use GUI to create repository)
 
 # 2. Export to get YAML
-./vcli repo export "New Repository" -o repo.yaml
+./owlctl repo export "New Repository" -o repo.yaml
 
 # 3. Now apply works
-./vcli repo apply repo.yaml
+./owlctl repo apply repo.yaml
 ```
 
 **Jobs** support creation via apply:
 ```bash
 # Jobs can be created
-./vcli job apply new-job.yaml  # Creates if doesn't exist
+./owlctl job apply new-job.yaml  # Creates if doesn't exist
 ```
 
 ### Issue 6: Merge Conflicts in state.json
@@ -1545,17 +1545,17 @@ sleep 2
 
 **Solution 1: Use ours and re-snapshot**
 ```bash
-git checkout --ours .vcli/state.json
-git add .vcli/state.json
-./vcli repo snapshot --all  # Re-snapshot from VBR
-git add .vcli/state.json
+git checkout --ours .owlctl/state.json
+git add .owlctl/state.json
+./owlctl repo snapshot --all  # Re-snapshot from VBR
+git add .owlctl/state.json
 git commit -m "Resolve state conflict - re-snapshot from VBR"
 ```
 
 **Solution 2: Use theirs**
 ```bash
-git checkout --theirs .vcli/state.json
-git add .vcli/state.json
+git checkout --theirs .owlctl/state.json
+git add .owlctl/state.json
 git commit -m "Resolve state conflict - accept remote state"
 ```
 
@@ -1572,17 +1572,17 @@ git commit -m "Resolve state conflict - accept remote state"
 **1. Archive old state periodically:**
 ```bash
 # Monthly cleanup script
-git log --pretty=format:"%H" -- .vcli/state.json | tail -n 1 > state-archive-$(date +%Y%m).txt
+git log --pretty=format:"%H" -- .owlctl/state.json | tail -n 1 > state-archive-$(date +%Y%m).txt
 git commit -m "Archive old state references"
 ```
 
 **2. Use Git LFS:**
 ```bash
 # .gitattributes
-.vcli/state.json filter=lfs diff=lfs merge=lfs -text
+.owlctl/state.json filter=lfs diff=lfs merge=lfs -text
 
 git lfs install
-git lfs track ".vcli/state.json"
+git lfs track ".owlctl/state.json"
 git add .gitattributes
 git commit -m "Track state.json with Git LFS"
 ```
@@ -1624,7 +1624,7 @@ variables:
 
 **Problem:** Applied config to production instead of dev.
 
-**Cause:** Wrong VCLI_URL in environment variables.
+**Cause:** Wrong OWLCTL_URL in environment variables.
 
 **Prevention:**
 ```yaml
@@ -1635,7 +1635,7 @@ jobs:
     steps:
       - name: Deploy
         env:
-          VCLI_URL: ${{ secrets.VBR_URL }}  # production URL
+          OWLCTL_URL: ${{ secrets.VBR_URL }}  # production URL
 ```
 
 **Detection:**
@@ -1643,46 +1643,46 @@ jobs:
 # Add environment verification
 - name: Verify environment
   run: |
-    if [ "$VCLI_URL" != "vbr-prod.company.com" ]; then
+    if [ "$OWLCTL_URL" != "vbr-prod.company.com" ]; then
       echo "::error::Wrong VBR URL! Expected production."
       exit 1
     fi
 ```
 
-### Issue 10: vcli Binary Not Found
+### Issue 10: owlctl Binary Not Found
 
-**Problem:** `vcli: command not found` in pipeline.
+**Problem:** `owlctl: command not found` in pipeline.
 
 **Cause:** Binary not downloaded or not in PATH.
 
 **Solution:**
 ```yaml
 # Download and make executable
-- name: Install vcli
+- name: Install owlctl
   run: |
-    curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-    chmod +x vcli
+    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+    chmod +x owlctl
 
 # Use with explicit path
-- name: Use vcli
-  run: ./vcli get jobs  # Note: ./vcli not just vcli
+- name: Use owlctl
+  run: ./owlctl get jobs  # Note: ./owlctl not just owlctl
 ```
 
 **Alternative - add to PATH:**
 ```yaml
-- name: Install vcli to PATH
+- name: Install owlctl to PATH
   run: |
-    curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-    chmod +x vcli
-    sudo mv vcli /usr/local/bin/
+    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+    chmod +x owlctl
+    sudo mv owlctl /usr/local/bin/
 
-- name: Use vcli
-  run: vcli get jobs  # Now in PATH
+- name: Use owlctl
+  run: owlctl get jobs  # Now in PATH
 ```
 
 ## See Also
 
-- [Getting Started Guide](getting-started.md) - Basic vcli setup
+- [Getting Started Guide](getting-started.md) - Basic owlctl setup
 - [Declarative Mode Guide](declarative-mode.md) - Declarative commands reference
 - [Azure DevOps Integration](azure-devops-integration.md) - Detailed Azure DevOps guide
 - [Drift Detection Guide](drift-detection.md) - Comprehensive drift detection

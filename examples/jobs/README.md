@@ -29,39 +29,39 @@ Web server tier backup with:
 
 ```bash
 # Apply directly
-vcli job apply database-backup.yaml
+owlctl job apply database-backup.yaml
 
 # Preview changes first (dry-run)
-vcli job apply database-backup.yaml --dry-run
+owlctl job apply database-backup.yaml --dry-run
 
 # Apply with environment overlay
-vcli job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
 ```
 
 ### Export Existing Job
 
 ```bash
 # Export by job ID
-vcli export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
+owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
 
 # Export by job name
-vcli export "My Backup Job" -o my-job.yaml
+owlctl export "My Backup Job" -o my-job.yaml
 
 # Export all jobs
-vcli export --all -d ./all-jobs/
+owlctl export --all -d ./all-jobs/
 ```
 
 ### Create Environment-Specific Jobs
 
 ```bash
 # Production
-vcli job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
 
 # Development
-vcli job apply database-backup.yaml -o ../overlays/dev/database-backup-overlay.yaml
+owlctl job apply database-backup.yaml -o ../overlays/dev/database-backup-overlay.yaml
 
 # Preview merged configuration
-vcli job plan database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml --show-yaml
+owlctl job plan database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml --show-yaml
 ```
 
 ## Customization
@@ -78,7 +78,7 @@ vcli job plan database-backup.yaml -o ../overlays/prod/database-backup-overlay.y
 ### Required Fields
 
 All job configurations must include:
-- `apiVersion: vcli.veeam.com/v1`
+- `apiVersion: owlctl.veeam.com/v1`
 - `kind: VBRJob`
 - `metadata.name` - Unique job name
 - `spec.type` - Job type (VSphereBackup, HyperVBackup, etc.)

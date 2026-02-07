@@ -18,9 +18,9 @@ Linux-based backup repository with:
 
 **⚠️ Repositories are Update-Only**
 
-Repositories **cannot be created** via vcli apply. They must be created in the VBR console first.
+Repositories **cannot be created** via owlctl apply. They must be created in the VBR console first.
 
-vcli can only **update** existing repositories:
+owlctl can only **update** existing repositories:
 - Task limits
 - Immutability settings
 - Description
@@ -29,9 +29,9 @@ vcli can only **update** existing repositories:
 **Workflow:**
 1. Create repository in VBR console
 2. Configure basic settings (path, type, credentials)
-3. Export to YAML: `vcli repo export "Repository Name" -o repo.yaml`
+3. Export to YAML: `owlctl repo export "Repository Name" -o repo.yaml`
 4. Edit YAML for desired settings
-5. Apply updates: `vcli repo apply repo.yaml`
+5. Apply updates: `owlctl repo apply repo.yaml`
 
 ## Usage
 
@@ -39,46 +39,46 @@ vcli can only **update** existing repositories:
 
 ```bash
 # Snapshot single repository
-vcli repo snapshot "Default Backup Repository"
+owlctl repo snapshot "Default Backup Repository"
 
 # Snapshot all repositories
-vcli repo snapshot --all
+owlctl repo snapshot --all
 ```
 
 ### Export Repository Configuration
 
 ```bash
 # Export by name
-vcli repo export "Default Backup Repository" -o repo.yaml
+owlctl repo export "Default Backup Repository" -o repo.yaml
 
 # Export all repositories
-vcli repo export --all -d ./all-repos/
+owlctl repo export --all -d ./all-repos/
 ```
 
 ### Apply Repository Updates
 
 ```bash
 # Preview changes first (recommended)
-vcli repo apply backup-repository.yaml --dry-run
+owlctl repo apply backup-repository.yaml --dry-run
 
 # Apply updates
-vcli repo apply backup-repository.yaml
+owlctl repo apply backup-repository.yaml
 
 # Apply with environment overlay
-vcli repo apply backup-repository.yaml -o ../overlays/prod/backup-repository-overlay.yaml
+owlctl repo apply backup-repository.yaml -o ../overlays/prod/backup-repository-overlay.yaml
 ```
 
 ### Detect Configuration Drift
 
 ```bash
 # Check single repository
-vcli repo diff "Default Backup Repository"
+owlctl repo diff "Default Backup Repository"
 
 # Check all repositories
-vcli repo diff --all
+owlctl repo diff --all
 
 # Check for security-relevant drift only
-vcli repo diff --all --security-only
+owlctl repo diff --all --security-only
 ```
 
 ## Customization
@@ -92,7 +92,7 @@ vcli repo diff --all --security-only
 
 ### Updateable Fields
 
-Via vcli apply, you can update:
+Via owlctl apply, you can update:
 - Description
 - Max concurrent task count
 - Immutability period (days)

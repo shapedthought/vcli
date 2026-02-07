@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -23,10 +23,10 @@ var putCmd = &cobra.Command{
 
 Payload needs to be in the JSON format. PUTs always require a payload.
 
-Note that vcli does not type check the payload.
+Note that owlctl does not type check the payload.
 
 Commands:
-vcli put jobs -f job.json
+owlctl put jobs -f job.json
 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -40,9 +40,9 @@ vcli put jobs -f job.json
 		settings := utils.ReadSettings()
 
 		// With v1.0 profiles, credentials are always from environment variables
-		api_url := os.Getenv("VCLI_URL")
+		api_url := os.Getenv("OWLCTL_URL")
 		if api_url == "" {
-			log.Fatal("VCLI_URL environment variable not set")
+			log.Fatal("OWLCTL_URL environment variable not set")
 		}
 
 		vhttp.SendData(api_url, filename, args[0], "PUT", profile, settings)

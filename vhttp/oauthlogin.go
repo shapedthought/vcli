@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 )
 
 // func ApiLogout() {
@@ -87,21 +87,21 @@ func ApiLogin() {
 	client := &http.Client{Transport: tr}
 
 	// With v1.0 profiles, credentials are always from environment variables
-	username := os.Getenv("VCLI_USERNAME")
-	vcliUrl := os.Getenv("VCLI_URL")
+	username := os.Getenv("OWLCTL_USERNAME")
+	owlctlUrl := os.Getenv("OWLCTL_URL")
 
-	password := os.Getenv("VCLI_PASSWORD")
+	password := os.Getenv("OWLCTL_PASSWORD")
 	
-	CheckEnv("VCLI_USERNAME", username)
-	CheckEnv("VCLI_PASSWORD", password)
-	CheckEnv("VCLI_URL", vcliUrl)
+	CheckEnv("OWLCTL_USERNAME", username)
+	CheckEnv("OWLCTL_PASSWORD", password)
+	CheckEnv("OWLCTL_URL", owlctlUrl)
 
 	data := url.Values{}
 	data.Add("grant_type", "password")
 	data.Add("username", username)
 	data.Add("password", password)
 
-	connstring := fmt.Sprintf("https://%s:%d%s", vcliUrl, profile.Port, profile.Endpoints.Auth)
+	connstring := fmt.Sprintf("https://%s:%d%s", owlctlUrl, profile.Port, profile.Endpoints.Auth)
 	fmt.Println(connstring)
 	var r *http.Request
 	var err error

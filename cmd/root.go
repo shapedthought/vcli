@@ -11,7 +11,7 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "vcli",
+	Use:   "owlctl",
 	Short: "A CLI application for Veeam APIs",
 	Long:  `A CLI application that works with all Veeam APIs`,
 

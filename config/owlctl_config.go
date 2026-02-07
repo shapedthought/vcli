@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// VCLIConfig represents the vcli.yaml configuration file
+// VCLIConfig represents the owlctl.yaml configuration file
 type VCLIConfig struct {
 	// CurrentEnvironment is the active environment (e.g., "production", "dev")
 	CurrentEnvironment string `yaml:"currentEnvironment,omitempty"`
@@ -33,14 +33,14 @@ type EnvironmentConfig struct {
 }
 
 const (
-	// DefaultConfigName is the default vcli configuration file name
-	DefaultConfigName = "vcli.yaml"
+	// DefaultConfigName is the default owlctl configuration file name
+	DefaultConfigName = "owlctl.yaml"
 	// EnvVarConfigPath allows overriding the config file location
-	EnvVarConfigPath = "VCLI_CONFIG"
+	EnvVarConfigPath = "OWLCTL_CONFIG"
 )
 
-// LoadConfig loads the vcli.yaml configuration file
-// Searches in order: VCLI_CONFIG env var, current directory, home directory
+// LoadConfig loads the owlctl.yaml configuration file
+// Searches in order: OWLCTL_CONFIG env var, current directory, home directory
 func LoadConfig() (*VCLIConfig, error) {
 	var configPath string
 
@@ -57,7 +57,7 @@ func LoadConfig() (*VCLIConfig, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to get home directory: %w", err)
 			}
-			homeConfigPath := filepath.Join(home, ".vcli", DefaultConfigName)
+			homeConfigPath := filepath.Join(home, ".owlctl", DefaultConfigName)
 			if _, err := os.Stat(homeConfigPath); err == nil {
 				configPath = homeConfigPath
 			}
@@ -74,7 +74,7 @@ func LoadConfig() (*VCLIConfig, error) {
 	return LoadConfigFrom(configPath)
 }
 
-// LoadConfigFrom loads vcli configuration from a specific file
+// LoadConfigFrom loads owlctl configuration from a specific file
 func LoadConfigFrom(path string) (*VCLIConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

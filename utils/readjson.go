@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/owlctl/models"
 	"gopkg.in/yaml.v2"
 )
 
@@ -41,7 +41,7 @@ func GetCurrentProfile() models.Profile {
 }
 
 func SettingPath() string {
-	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
 	if settingsPath != "" {
 		if runtime.GOOS == "windows" {
 			if !strings.HasSuffix(settingsPath, "\\") {
@@ -73,7 +73,7 @@ func ReadProfilesFile() models.ProfilesFile {
 	err = json.Unmarshal(b, &profilesFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Invalid profiles.json format. Expected v1.0 format.\n")
-		fmt.Fprintf(os.Stderr, "Please run 'vcli init' to regenerate profiles.json\n")
+		fmt.Fprintf(os.Stderr, "Please run 'owlctl init' to regenerate profiles.json\n")
 		os.Exit(1)
 	}
 

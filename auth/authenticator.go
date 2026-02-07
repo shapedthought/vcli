@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/owlctl/models"
 )
 
 // Authenticator handles API authentication

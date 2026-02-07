@@ -1,6 +1,6 @@
 # Azure DevOps Pipeline Templates
 
-Ready-to-use Azure DevOps pipeline templates for VBR configuration management with vcli.
+Ready-to-use Azure DevOps pipeline templates for VBR configuration management with owlctl.
 
 ## Available Templates
 
@@ -24,9 +24,9 @@ Create a Variable Group named `veeam-credentials` in your Azure DevOps project:
 2. Click **+ Variable group**
 3. Name: `veeam-credentials`
 4. Add variables:
-   - `VCLI_USERNAME` - VBR API username
-   - `VCLI_PASSWORD` - VBR API password (mark as **secret**)
-   - `VCLI_URL` - VBR server URL (e.g., `https://vbr.example.com:9419`)
+   - `OWLCTL_USERNAME` - VBR API username
+   - `OWLCTL_PASSWORD` - VBR API password (mark as **secret**)
+   - `OWLCTL_URL` - VBR server URL (e.g., `https://vbr.example.com:9419`)
 5. (Optional) `SLACK_WEBHOOK_URL` for notifications
 
 **Security note:** Use Azure Key Vault linked Variable Groups for production environments.
@@ -59,13 +59,13 @@ Run [bootstrap.yml](bootstrap.yml) once — it exports all jobs, snapshots all r
 
 ```bash
 # Export current configuration as YAML specs
-vcli export --all -d infrastructure/jobs/
+owlctl export --all -d infrastructure/jobs/
 
 # Snapshot current state (records baseline in state.json)
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # Commit specs and state to Git
 git add infrastructure/ state.json
@@ -112,7 +112,7 @@ pool:
 
 ## Exit Code Reference
 
-vcli exit codes determine pipeline outcomes:
+owlctl exit codes determine pipeline outcomes:
 
 | Exit Code | Meaning | Pipeline Behavior |
 |-----------|---------|-------------------|
@@ -132,7 +132,7 @@ vcli exit codes determine pipeline outcomes:
 This pipeline exports all backup jobs as YAML files and snapshots all resource types (repositories, SOBRs, encryption passwords, KMS servers) into `state.json`. Run this once to establish the GitOps baseline before using other pipelines.
 
 **Single stage:**
-1. **Bootstrap** - Build vcli, export all jobs, snapshot all resources, commit to Git
+1. **Bootstrap** - Build owlctl, export all jobs, snapshot all resources, commit to Git
 
 **Result in repo:**
 ```
@@ -160,7 +160,7 @@ state.json    ← contains state for ALL resource types
 This pipeline demonstrates the complete GitOps workflow for changing a backup job's retention policy. It is designed as a learning resource and starting point for teams adopting declarative configuration management.
 
 **Stages:**
-1. **Setup** - Build vcli and verify VBR connectivity
+1. **Setup** - Build owlctl and verify VBR connectivity
 2. **Export** - Capture current job config as base YAML and snapshot state
 3. **Plan** - Preview the retention change with dry-run (no changes made)
 4. **Apply** - Apply the retention overlay to VBR
@@ -210,7 +210,7 @@ variables:
 
 **What It Demonstrates:**
 - Reading job specs and state from Git (not live VBR export)
-- Deriving job filenames using the same sanitization as `vcli export`
+- Deriving job filenames using the same sanitization as `owlctl export`
 - Committing updated state and job YAML back to Git with `[skip ci]`
 - Re-exporting from VBR after apply to capture authoritative state
 - End-to-end verification that VBR matches the committed Git state
@@ -230,7 +230,7 @@ variables:
 variables:
   - name: specsPath
     value: 'my-custom-path'  # Change infrastructure path
-  - name: vcliVersion
+  - name: owlctlVersion
     value: 'v1.0.0'  # Pin to specific version
 ```
 
@@ -289,7 +289,7 @@ variables:
 Error: failed to login
 ```
 
-- Verify `VCLI_URL` includes port (e.g., `https://vbr:9419`)
+- Verify `OWLCTL_URL` includes port (e.g., `https://vbr:9419`)
 - Check username format (may need `DOMAIN\user`)
 - Ensure VBR REST API is enabled
 
@@ -308,7 +308,7 @@ For self-signed certificates, you have two options:
 
 **Option 1: Install CA certificate on agent (recommended)**
 
-Install the VBR server's CA certificate in the agent's system trust store. vcli will automatically trust certificates validated by the system trust store.
+Install the VBR server's CA certificate in the agent's system trust store. owlctl will automatically trust certificates validated by the system trust store.
 
 **Linux agent:**
 ```bash

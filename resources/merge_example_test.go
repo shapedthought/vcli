@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shapedthought/vcli/resources"
+	"github.com/shapedthought/owlctl/resources"
 	"gopkg.in/yaml.v3"
 )
 
 // TestMergeExampleFiles demonstrates the overlay system with real example files
 func TestMergeExampleFiles(t *testing.T) {
 	// Create temp directory for test files
-	tmpDir, err := os.MkdirTemp("", "vcli-merge-test-*")
+	tmpDir, err := os.MkdirTemp("", "owlctl-merge-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -20,7 +20,7 @@ func TestMergeExampleFiles(t *testing.T) {
 
 	// Create base template
 	base := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
+		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
 			Name:   "test-job",
@@ -42,7 +42,7 @@ func TestMergeExampleFiles(t *testing.T) {
 
 	// Create prod overlay
 	prodOverlay := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
+		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
 			Name:   "test-job",

@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/shapedthought/vcli/auth"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/auth"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -29,19 +29,19 @@ The login command now uses secure token storage:
 - Use --output-token to print the token for CI/CD workflows
 
 Authentication Methods (in priority order):
-1. VCLI_TOKEN environment variable (if set)
+1. OWLCTL_TOKEN environment variable (if set)
 2. System keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-3. Auto-authenticate using VCLI_USERNAME/VCLI_PASSWORD/VCLI_URL
+3. Auto-authenticate using OWLCTL_USERNAME/OWLCTL_PASSWORD/OWLCTL_URL
 
 Examples:
   # Interactive login (stores in keychain)
-  vcli login
+  owlctl login
 
   # Output token for CI/CD (doesn't store in keychain)
-  export VCLI_TOKEN=$(vcli login --output-token)
+  export OWLCTL_TOKEN=$(owlctl login --output-token)
 
   # Debug authentication
-  vcli login --debug-auth
+  owlctl login --debug-auth
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		loginWithTokenManager()
@@ -60,19 +60,19 @@ func loginWithTokenManager() {
 
 	// Get credentials from environment variables
 	// Note: With v1.0 profiles, credentials are no longer stored in profiles.json
-	username := os.Getenv("VCLI_USERNAME")
-	vcliUrl := os.Getenv("VCLI_URL")
-	password := os.Getenv("VCLI_PASSWORD")
+	username := os.Getenv("OWLCTL_USERNAME")
+	owlctlUrl := os.Getenv("OWLCTL_URL")
+	password := os.Getenv("OWLCTL_PASSWORD")
 
 	// Validate credentials
 	if username == "" {
-		log.Fatal("VCLI_USERNAME not set")
+		log.Fatal("OWLCTL_USERNAME not set")
 	}
 	if password == "" {
-		log.Fatal("VCLI_PASSWORD not set")
+		log.Fatal("OWLCTL_PASSWORD not set")
 	}
-	if vcliUrl == "" {
-		log.Fatal("VCLI_URL not set")
+	if owlctlUrl == "" {
+		log.Fatal("OWLCTL_URL not set")
 	}
 
 	// Create token manager
@@ -83,12 +83,12 @@ func loginWithTokenManager() {
 			fmt.Fprintln(os.Stderr, "Falling back to direct authentication")
 		}
 		// Fallback to direct authentication
-		authenticateDirect(profile, username, password, vcliUrl, settings.ApiNotSecure)
+		authenticateDirect(profile, username, password, owlctlUrl, settings.ApiNotSecure)
 		return
 	}
 
 	// Authenticate
-	token, expiresIn, err := tm.AuthenticateWithSettings(profile, username, password, vcliUrl, settings.ApiNotSecure)
+	token, expiresIn, err := tm.AuthenticateWithSettings(profile, username, password, owlctlUrl, settings.ApiNotSecure)
 	if err != nil {
 		log.Fatalf("Authentication failed: %v", err)
 	}
@@ -106,7 +106,7 @@ func loginWithTokenManager() {
 		}
 		fmt.Println("Login OK (CI/CD mode - token not stored)")
 		fmt.Fprintln(os.Stderr, "Note: In CI/CD, tokens are auto-generated on each command")
-		fmt.Fprintln(os.Stderr, "Use 'vcli login --output-token' to capture token for reuse")
+		fmt.Fprintln(os.Stderr, "Use 'owlctl login --output-token' to capture token for reuse")
 	} else {
 		// Store in keychain for interactive sessions
 		if err := tm.StoreToken(settings.SelectedProfile, token, expiresIn); err != nil {

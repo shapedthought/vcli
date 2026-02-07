@@ -271,17 +271,17 @@ func printRemediationGuidance(g RemediationGuidance) {
 func getSnapshotCommand(resourceType, resourceName string) string {
 	switch resourceType {
 	case "VBRRepository", "repository":
-		return fmt.Sprintf("vcli repo snapshot \"%s\"", resourceName)
+		return fmt.Sprintf("owlctl repo snapshot \"%s\"", resourceName)
 	case "VBRScaleOutRepository", "scale-out repository":
-		return fmt.Sprintf("vcli repo sobr-snapshot \"%s\"", resourceName)
+		return fmt.Sprintf("owlctl repo sobr-snapshot \"%s\"", resourceName)
 	case "VBRJob", "job":
-		return fmt.Sprintf("vcli job snapshot \"%s\"", resourceName)
+		return fmt.Sprintf("owlctl job snapshot \"%s\"", resourceName)
 	case "VBREncryptionPassword", "encryption password":
-		return fmt.Sprintf("vcli encryption snapshot \"%s\"", resourceName)
+		return fmt.Sprintf("owlctl encryption snapshot \"%s\"", resourceName)
 	case "VBRKmsServer", "KMS server":
-		return fmt.Sprintf("vcli encryption kms-snapshot \"%s\"", resourceName)
+		return fmt.Sprintf("owlctl encryption kms-snapshot \"%s\"", resourceName)
 	default:
-		return fmt.Sprintf("vcli %s snapshot \"%s\"", strings.ToLower(resourceType), resourceName)
+		return fmt.Sprintf("owlctl %s snapshot \"%s\"", strings.ToLower(resourceType), resourceName)
 	}
 }
 
@@ -291,9 +291,9 @@ func BuildRepoGuidance(resourceName, origin string) RemediationGuidance {
 		Origin:       origin,
 		ResourceType: "repository",
 		ResourceName: resourceName,
-		ApplyCmd:     fmt.Sprintf("vcli repo apply repos/%s.yaml", sanitizeFileName(resourceName)),
-		ExportCmd:    fmt.Sprintf("vcli repo export \"%s\" -o repos/%s.yaml", resourceName, sanitizeFileName(resourceName)),
-		AdoptCmd:     fmt.Sprintf("vcli repo adopt repos/%s.yaml", sanitizeFileName(resourceName)),
+		ApplyCmd:     fmt.Sprintf("owlctl repo apply repos/%s.yaml", sanitizeFileName(resourceName)),
+		ExportCmd:    fmt.Sprintf("owlctl repo export \"%s\" -o repos/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		AdoptCmd:     fmt.Sprintf("owlctl repo adopt repos/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }
 
@@ -303,9 +303,9 @@ func BuildSobrGuidance(resourceName, origin string) RemediationGuidance {
 		Origin:       origin,
 		ResourceType: "scale-out repository",
 		ResourceName: resourceName,
-		ApplyCmd:     fmt.Sprintf("vcli repo sobr-apply sobrs/%s.yaml", sanitizeFileName(resourceName)),
-		ExportCmd:    fmt.Sprintf("vcli repo sobr-export \"%s\" -o sobrs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
-		AdoptCmd:     fmt.Sprintf("vcli repo sobr-adopt sobrs/%s.yaml", sanitizeFileName(resourceName)),
+		ApplyCmd:     fmt.Sprintf("owlctl repo sobr-apply sobrs/%s.yaml", sanitizeFileName(resourceName)),
+		ExportCmd:    fmt.Sprintf("owlctl repo sobr-export \"%s\" -o sobrs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		AdoptCmd:     fmt.Sprintf("owlctl repo sobr-adopt sobrs/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }
 
@@ -315,9 +315,9 @@ func BuildJobGuidance(resourceName, origin string) RemediationGuidance {
 		Origin:       origin,
 		ResourceType: "job",
 		ResourceName: resourceName,
-		ApplyCmd:     fmt.Sprintf("vcli job apply jobs/%s.yaml", sanitizeFileName(resourceName)),
-		ExportCmd:    fmt.Sprintf("vcli job export \"%s\" -o jobs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
-		AdoptCmd:     fmt.Sprintf("vcli job adopt jobs/%s.yaml", sanitizeFileName(resourceName)),
+		ApplyCmd:     fmt.Sprintf("owlctl job apply jobs/%s.yaml", sanitizeFileName(resourceName)),
+		ExportCmd:    fmt.Sprintf("owlctl export \"%s\" -o jobs/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		AdoptCmd:     fmt.Sprintf("owlctl job adopt jobs/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }
 
@@ -329,8 +329,8 @@ func BuildEncryptionGuidance(resourceName, origin string) RemediationGuidance {
 		ResourceName: resourceName,
 		// Encryption passwords are read-only in VBR API - empty ApplyCmd triggers read-only message
 		ApplyCmd:  "",
-		ExportCmd: fmt.Sprintf("vcli encryption export \"%s\" -o encryption/%s.yaml", resourceName, sanitizeFileName(resourceName)),
-		AdoptCmd:  fmt.Sprintf("vcli encryption adopt encryption/%s.yaml", sanitizeFileName(resourceName)),
+		ExportCmd: fmt.Sprintf("owlctl encryption export \"%s\" -o encryption/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		AdoptCmd:  fmt.Sprintf("owlctl encryption adopt encryption/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }
 
@@ -340,9 +340,9 @@ func BuildKmsGuidance(resourceName, origin string) RemediationGuidance {
 		Origin:       origin,
 		ResourceType: "KMS server",
 		ResourceName: resourceName,
-		ApplyCmd:     fmt.Sprintf("vcli encryption kms-apply kms/%s.yaml", sanitizeFileName(resourceName)),
-		ExportCmd:    fmt.Sprintf("vcli encryption kms-export \"%s\" -o kms/%s.yaml", resourceName, sanitizeFileName(resourceName)),
-		AdoptCmd:     fmt.Sprintf("vcli encryption kms-adopt kms/%s.yaml", sanitizeFileName(resourceName)),
+		ApplyCmd:     fmt.Sprintf("owlctl encryption kms-apply kms/%s.yaml", sanitizeFileName(resourceName)),
+		ExportCmd:    fmt.Sprintf("owlctl encryption kms-export \"%s\" -o kms/%s.yaml", resourceName, sanitizeFileName(resourceName)),
+		AdoptCmd:     fmt.Sprintf("owlctl encryption kms-adopt kms/%s.yaml", sanitizeFileName(resourceName)),
 	}
 }
 

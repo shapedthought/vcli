@@ -1,6 +1,6 @@
 # Production Environment Overlay
 # Extends base backup with production-specific settings
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Backup Job 1

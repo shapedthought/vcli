@@ -41,18 +41,18 @@ Phase 1 of the Configuration Overlay System is now complete. This phase delivers
 # Result: 30-day retention, preserves compression from base
 ```
 
-### ✅ Issue #15: Overlay Configuration Support (vcli.yaml)
+### ✅ Issue #15: Overlay Configuration Support (owlctl.yaml)
 **Commit:** `5386220`
 
 **Files Created:**
-- `config/vcli_config.go` - Configuration management (205 lines)
-- `config/vcli_config_test.go` - Unit tests (147 lines)
+- `config/owlctl_config.go` - Configuration management (205 lines)
+- `config/owlctl_config_test.go` - Unit tests (147 lines)
 - `config/README.md` - Documentation
-- `examples/vcli.yaml` - Example configuration
+- `examples/owlctl.yaml` - Example configuration
 
 **Features:**
 - Environment-based overlay selection
-- Configuration file search paths (VCLI_CONFIG, ./vcli.yaml, ~/.vcli/vcli.yaml)
+- Configuration file search paths (OWLCTL_CONFIG, ./owlctl.yaml, ~/.owlctl/owlctl.yaml)
 - GetEnvironmentOverlay() - Resolves overlay path for environment
 - SetEnvironment() - Changes active environment
 - AddEnvironment() - Adds/updates environment configuration
@@ -72,7 +72,7 @@ environments:
 
 **Test Coverage:** 4/4 tests passing
 
-### ✅ Issue #16: vcli job apply Command with Overlay
+### ✅ Issue #16: owlctl job apply Command with Overlay
 **Commit:** `71e96d0`
 
 **Files Created:**
@@ -80,29 +80,29 @@ environments:
 
 **Features:**
 - `-o/--overlay` flag for explicit overlay files
-- `--env` flag to use overlay from vcli.yaml
+- `--env` flag to use overlay from owlctl.yaml
 - `--dry-run` mode to preview changes
-- Automatic overlay selection from vcli.yaml currentEnvironment
+- Automatic overlay selection from owlctl.yaml currentEnvironment
 - Overlay resolution priority: -o > --env > currentEnvironment
 - Validates resource kind (VBRJob)
 - Displays merged configuration in dry-run
 
 **Overlay Resolution Order:**
 1. Explicit `-o/--overlay` file (highest priority)
-2. `--env` flag (looks up in vcli.yaml)
-3. `currentEnvironment` from vcli.yaml
+2. `--env` flag (looks up in owlctl.yaml)
+3. `currentEnvironment` from owlctl.yaml
 4. No overlay (base config only)
 
 **Usage:**
 ```bash
-vcli job apply base-job.yaml --dry-run
-vcli job apply base-job.yaml -o prod-overlay.yaml
-vcli job apply base-job.yaml --env production
+owlctl job apply base-job.yaml --dry-run
+owlctl job apply base-job.yaml -o prod-overlay.yaml
+owlctl job apply base-job.yaml --env production
 ```
 
 **Note:** Actual job creation/update deferred to Phase 2
 
-### ✅ Issue #17: vcli job plan Command
+### ✅ Issue #17: owlctl job plan Command
 **Commit:** `99ad40a`
 
 **Files Created:**
@@ -127,10 +127,10 @@ vcli job apply base-job.yaml --env production
 
 **Usage:**
 ```bash
-vcli job plan base-job.yaml
-vcli job plan base-job.yaml -o prod-overlay.yaml
-vcli job plan base-job.yaml --env production
-vcli job plan base-job.yaml -o dev-overlay.yaml --show-yaml
+owlctl job plan base-job.yaml
+owlctl job plan base-job.yaml -o prod-overlay.yaml
+owlctl job plan base-job.yaml --env production
+owlctl job plan base-job.yaml -o dev-overlay.yaml --show-yaml
 ```
 
 ## Additional Accomplishments
@@ -153,7 +153,7 @@ Created comprehensive example overlay files:
 - `examples/overlay-prod.yaml` - Production overlay (30-day retention)
 - `examples/overlay-dev.yaml` - Development overlay (3-day retention)
 - `examples/README.md` - Overlay system documentation
-- `examples/vcli.yaml` - Configuration example
+- `examples/owlctl.yaml` - Configuration example
 
 ### Updated .gitignore
 - Added exception for `examples/*.yaml` to track example files
@@ -191,26 +191,26 @@ TestAddEnvironment: ✅ passing
 ### Manual Testing
 ```bash
 # Base configuration (7-day retention, default-repo)
-./vcli job apply examples/overlay-base.yaml --dry-run
+./owlctl job apply examples/overlay-base.yaml --dry-run
 ✅ Displays: 7 Days retention, default-repo
 
 # Production overlay (30-day retention, prod-repo, 02:00)
-./vcli job apply examples/overlay-base.yaml -o examples/overlay-prod.yaml --dry-run
+./owlctl job apply examples/overlay-base.yaml -o examples/overlay-prod.yaml --dry-run
 ✅ Displays: 30 Days retention, prod-repo, 02:00 schedule
 ✅ Preserves: Compression, retention type, objects from base
 
 # Development overlay (3-day retention, dev-repo, 23:00)
-./vcli job apply examples/overlay-base.yaml -o examples/overlay-dev.yaml --dry-run
+./owlctl job apply examples/overlay-base.yaml -o examples/overlay-dev.yaml --dry-run
 ✅ Displays: 3 Days retention, dev-repo, 23:00 schedule
 
 # Plan command
-./vcli job plan examples/overlay-base.yaml -o examples/overlay-prod.yaml
+./owlctl job plan examples/overlay-base.yaml -o examples/overlay-prod.yaml
 ✅ Rich formatted output with visual separators
 ✅ Shows merged configuration details
 ✅ Provides next steps
 
 # Plan with full YAML
-./vcli job plan examples/overlay-base.yaml -o examples/overlay-dev.yaml --show-yaml
+./owlctl job plan examples/overlay-base.yaml -o examples/overlay-dev.yaml --show-yaml
 ✅ Displays complete merged YAML
 ```
 
@@ -232,9 +232,9 @@ TestAddEnvironment: ✅ passing
 ## Git Commit History
 
 ```
-* 99ad40a Add vcli job plan command with overlay support
-* 71e96d0 Add vcli job apply command with overlay support
-* 5386220 Add overlay configuration support with vcli.yaml
+* 99ad40a Add owlctl job plan command with overlay support
+* 71e96d0 Add owlctl job apply command with overlay support
+* 5386220 Add overlay configuration support with owlctl.yaml
 * 79f342e Implement strategic merge engine for configuration overlays
 * af144cd Implement enhanced export with full job object preservation
 * 814aade Fix VBR Job model structure for actual API v1.3 response format
@@ -247,15 +247,15 @@ Users can now define a base job template and apply environment-specific overlays
 
 ```bash
 # Same base, different environments
-vcli job apply base.yaml -o prod-overlay.yaml    # 30-day retention
-vcli job apply base.yaml -o dev-overlay.yaml     # 3-day retention
+owlctl job apply base.yaml -o prod-overlay.yaml    # 30-day retention
+owlctl job apply base.yaml -o dev-overlay.yaml     # 3-day retention
 ```
 
 ### 2. Configuration Validation
 Preview merged configurations before applying:
 
 ```bash
-vcli job plan base.yaml -o prod-overlay.yaml
+owlctl job plan base.yaml -o prod-overlay.yaml
 ```
 
 ### 3. DRY Configuration
@@ -265,7 +265,7 @@ Define common settings once, override only what differs per environment.
 All configurations are YAML files that can be committed to Git.
 
 ### 5. Environment-Aware Workflows
-Configure default overlays per environment in vcli.yaml:
+Configure default overlays per environment in owlctl.yaml:
 
 ```yaml
 currentEnvironment: production
@@ -276,7 +276,7 @@ environments:
 
 Then simply:
 ```bash
-vcli job apply base.yaml  # Automatically uses production overlay
+owlctl job apply base.yaml  # Automatically uses production overlay
 ```
 
 ## What's NOT in Phase 1 (Deferred to Phase 2)
@@ -299,16 +299,16 @@ These will be addressed in subsequent phases per the strategy document.
 ### Pattern 1: Preview Before Apply
 ```bash
 # Plan what would be applied
-vcli job plan db-backup.yaml -o prod-overlay.yaml
+owlctl job plan db-backup.yaml -o prod-overlay.yaml
 
 # Apply after review
-vcli job apply db-backup.yaml -o prod-overlay.yaml
+owlctl job apply db-backup.yaml -o prod-overlay.yaml
 ```
 
 ### Pattern 2: Environment Switching
 ```bash
 # Configure environments once
-cat > vcli.yaml <<EOF
+cat > owlctl.yaml <<EOF
 currentEnvironment: development
 defaultOverlayDir: ./overlays
 environments:
@@ -319,21 +319,21 @@ environments:
 EOF
 
 # Switch environments
-vcli config set-env production
-vcli job apply base-job.yaml  # Uses prod overlay
+owlctl config set-env production
+owlctl job apply base-job.yaml  # Uses prod overlay
 
-vcli config set-env development
-vcli job apply base-job.yaml  # Uses dev overlay
+owlctl config set-env development
+owlctl job apply base-job.yaml  # Uses dev overlay
 ```
 
 ### Pattern 3: Export-Modify-Apply Workflow
 ```bash
 # Export existing job
-vcli export job-id -o exported-job.yaml
+owlctl export job-id -o exported-job.yaml
 
 # Create overlay for changes
 cat > my-changes.yaml <<EOF
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: exported-job
@@ -344,10 +344,10 @@ spec:
 EOF
 
 # Preview merged result
-vcli job plan exported-job.yaml -o my-changes.yaml
+owlctl job plan exported-job.yaml -o my-changes.yaml
 
 # Apply changes (when implemented)
-vcli job apply exported-job.yaml -o my-changes.yaml
+owlctl job apply exported-job.yaml -o my-changes.yaml
 ```
 
 ## Next Steps (Phase 2)
@@ -361,7 +361,7 @@ vcli job apply exported-job.yaml -o my-changes.yaml
 
 ## Breaking Changes
 
-None. All existing vcli commands continue to work unchanged.
+None. All existing owlctl commands continue to work unchanged.
 
 ## Known Issues
 

@@ -1,7 +1,7 @@
-I need you to act as a senior product manager and Go systems architect working on vcli - a CLI tool for interacting with Veeam APIs. This is a production tool with 8 GitHub stars used by Veeam administrators who need simple, accessible API access across multiple Veeam products.
+I need you to act as a senior product manager and Go systems architect working on owlctl - a CLI tool for interacting with Veeam APIs. This is a production tool with 8 GitHub stars used by Veeam administrators who need simple, accessible API access across multiple Veeam products.
 
 **Current Project Context:**
-- **Repository**: https://github.com/shapedthought/vcli
+- **Repository**: https://github.com/shapedthought/owlctl
 - **Language**: Go (chosen for single-binary distribution with zero dependencies)
 - **Purpose**: Simplify Veeam API interactions by handling authentication and providing consistent CLI interface
 - **Supported APIs**: VBR, Enterprise Manager, VB365, VONE, VB for Azure/AWS/GCP
@@ -18,14 +18,14 @@ I need you to act as a senior product manager and Go systems architect working o
 - Multi-platform teams (Windows, Linux, macOS)
 
 **Strategic Direction - Declarative Management:**
-I want to evolve vcli from an imperative API wrapper into a declarative infrastructure management tool for Veeam environments. This would enable:
+I want to evolve owlctl from an imperative API wrapper into a declarative infrastructure management tool for Veeam environments. This would enable:
 - **Infrastructure-as-Code workflows**: Define desired state in YAML/HCL, apply changes
 - **GitOps patterns**: Version control Veeam configurations, peer review changes
 - **Drift detection**: Compare actual vs desired state across environments
 - **Multi-environment consistency**: Manage dev/staging/prod Veeam infrastructure uniformly
 - **Disaster recovery**: Declarative configs serve as documentation and recovery templates
 
-Think: "Terraform for Veeam" or "kubectl apply" patterns, but leveraging vcli's existing strengths.
+Think: "Terraform for Veeam" or "kubectl apply" patterns, but leveraging owlctl's existing strengths.
 
 **Feature Vision:**
 Consider features that bridge the current imperative commands with declarative management:
@@ -65,7 +65,7 @@ Consider features that bridge the current imperative commands with declarative m
      - Reconciliation engine design patterns
      - Backward compatibility with existing imperative commands
    - Integration with current profile/auth system
-   - How this positions vcli vs Terraform providers or Ansible modules
+   - How this positions owlctl vs Terraform providers or Ansible modules
 
 2. **Break Down Into Individual Implementation Tasks**
    For each subtask:
@@ -85,7 +85,7 @@ Consider features that bridge the current imperative commands with declarative m
    - Which Veeam resource type is most painful to manage imperatively?
    - What builds toward a complete declarative system without over-engineering?
    - Should we start with read-only drift detection or full apply operations?
-   - How do we avoid "second system syndrome" - keep it simple like current vcli?
+   - How do we avoid "second system syndrome" - keep it simple like current owlctl?
    
    Explain your reasoning as if presenting to both:
    - The engineering team (state management patterns, reconciliation loops, error handling)
@@ -113,7 +113,7 @@ Consider features that bridge the current imperative commands with declarative m
 - Users value the zero-install, single-binary approach
 - Given my background: extensive Terraform experience, building Terraform providers, infrastructure-as-code advocate
 - Security critical: declarative configs must handle credentials safely
-- Consider: should vcli generate Terraform HCL instead of custom format? Trade-offs?
+- Consider: should owlctl generate Terraform HCL instead of custom format? Trade-offs?
 
 **Inspiration from Existing Tools:**
 - Terraform: Plan/apply workflow, state management, resource graphs
@@ -134,5 +134,5 @@ Structure your response with clear sections using markdown headers. Provide:
 - A phased roadmap showing quick wins leading to full declarative capability
 - Concrete examples of what declarative Veeam config files would look like
 - Architecture diagrams or pseudo-code for the reconciliation engine
-- Comparison with alternative approaches (pure Terraform provider vs vcli declarative layer)
+- Comparison with alternative approaches (pure Terraform provider vs owlctl declarative layer)
 - Clear recommendation on THE ONE FEATURE to start with and why it unlocks everything else

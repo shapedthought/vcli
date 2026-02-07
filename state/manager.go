@@ -14,11 +14,11 @@ type Manager struct {
 }
 
 // NewManager creates a new state manager
-// Uses VCLI_SETTINGS_PATH if set, otherwise ~/.vcli/
+// Uses OWLCTL_SETTINGS_PATH if set, otherwise ~/.owlctl/
 func NewManager() *Manager {
 	var statePath string
 
-	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
 	if settingsPath != "" {
 		statePath = filepath.Join(settingsPath, "state.json")
 	} else {
@@ -27,10 +27,10 @@ func NewManager() *Manager {
 			// Fallback to current directory if we can't get home dir
 			statePath = "state.json"
 		} else {
-			vcliDir := filepath.Join(usr.HomeDir, ".vcli")
-			// Create .vcli directory if it doesn't exist
-			os.MkdirAll(vcliDir, 0755)
-			statePath = filepath.Join(vcliDir, "state.json")
+			owlctlDir := filepath.Join(usr.HomeDir, ".owlctl")
+			// Create .owlctl directory if it doesn't exist
+			os.MkdirAll(owlctlDir, 0755)
+			statePath = filepath.Join(owlctlDir, "state.json")
 		}
 	}
 

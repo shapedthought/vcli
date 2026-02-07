@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/utils"
 )
 
 const (
 	lockTimeout = 5 * time.Minute
-	lockFile    = ".vcli/state.lock"
+	lockFile    = ".owlctl/state.lock"
 )
 
 // Lock represents a state lock
@@ -31,7 +31,7 @@ func NewLock() *Lock {
 
 // Acquire attempts to acquire the lock
 func (l *Lock) Acquire() error {
-	// Ensure .vcli directory exists
+	// Ensure .owlctl directory exists
 	dir := filepath.Dir(l.lockPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create state directory: %w", err)

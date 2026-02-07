@@ -1,6 +1,6 @@
 # Command Quick Reference
 
-Fast reference for common vcli commands. See full documentation in [User Guide](../user_guide.md) and [Drift Detection Guide](drift-detection.md).
+Fast reference for common owlctl commands. See full documentation in [User Guide](../user_guide.md) and [Drift Detection Guide](drift-detection.md).
 
 ## Table of Contents
 
@@ -16,21 +16,21 @@ Fast reference for common vcli commands. See full documentation in [User Guide](
 
 ```bash
 # Initialize (first time only)
-vcli init
+owlctl init
 
 # Set profile
-vcli profile --set vbr                    # VBR
-vcli profile --set ent_man                # Enterprise Manager
-vcli profile --set vb365                  # VB365
-vcli profile --list                       # Show all profiles
+owlctl profile --set vbr                    # VBR
+owlctl profile --set ent_man                # Enterprise Manager
+owlctl profile --set vb365                  # VB365
+owlctl profile --list                       # Show all profiles
 
 # Set credentials (environment variables)
-export VCLI_USERNAME="administrator"
-export VCLI_PASSWORD="your-password"
-export VCLI_URL="vbr.example.com"
+export OWLCTL_USERNAME="administrator"
+export OWLCTL_PASSWORD="your-password"
+export OWLCTL_URL="vbr.example.com"
 
 # Login
-vcli login
+owlctl login
 ```
 
 ---
@@ -41,61 +41,61 @@ vcli login
 
 ```bash
 # List all resources
-vcli get jobs
-vcli get repositories
-vcli get backupInfrastructure/managedServers
+owlctl get jobs
+owlctl get repositories
+owlctl get backupInfrastructure/managedServers
 
 # Get specific resource
-vcli get jobs/<job-id>
-vcli get repositories/<repo-id>
+owlctl get jobs/<job-id>
+owlctl get repositories/<repo-id>
 
 # Output formats
-vcli get jobs                             # JSON (default)
-vcli get jobs --yaml                      # YAML
-vcli get jobs | jq '.data'                # Parse with jq
+owlctl get jobs                             # JSON (default)
+owlctl get jobs --yaml                      # YAML
+owlctl get jobs | jq '.data'                # Parse with jq
 ```
 
 ### POST - Trigger Operations
 
 ```bash
 # Without payload
-vcli post jobs/<job-id>/start
-vcli post jobs/<job-id>/stop
-vcli post jobs/<job-id>/retry
+owlctl post jobs/<job-id>/start
+owlctl post jobs/<job-id>/stop
+owlctl post jobs/<job-id>/retry
 
 # With payload
-vcli post jobs -f job-data.json
-vcli post repositories -f repo-data.json
+owlctl post jobs -f job-data.json
+owlctl post repositories -f repo-data.json
 ```
 
 ### PUT - Update Resources
 
 ```bash
 # Update resource (requires payload)
-vcli put jobs/<job-id> -f updated-job.json
-vcli put repositories/<repo-id> -f updated-repo.json
+owlctl put jobs/<job-id> -f updated-job.json
+owlctl put repositories/<repo-id> -f updated-repo.json
 ```
 
 ### Common Endpoints (VBR)
 
 ```bash
 # Jobs
-vcli get jobs                             # All jobs
-vcli get jobs/<id>                        # Job details
-vcli post jobs/<id>/start                 # Start job
-vcli post jobs/<id>/stop                  # Stop job
+owlctl get jobs                             # All jobs
+owlctl get jobs/<id>                        # Job details
+owlctl post jobs/<id>/start                 # Start job
+owlctl post jobs/<id>/stop                  # Stop job
 
 # Repositories
-vcli get backupInfrastructure/repositories
-vcli get backupInfrastructure/scaleOutRepositories
+owlctl get backupInfrastructure/repositories
+owlctl get backupInfrastructure/scaleOutRepositories
 
 # Infrastructure
-vcli get backupInfrastructure/managedServers
-vcli get backupInfrastructure/credentials
+owlctl get backupInfrastructure/managedServers
+owlctl get backupInfrastructure/credentials
 
 # Sessions
-vcli get sessions                         # Recent sessions
-vcli get sessions/<id>                    # Session details
+owlctl get sessions                         # Recent sessions
+owlctl get sessions/<id>                    # Session details
 ```
 
 ---
@@ -106,47 +106,47 @@ vcli get sessions/<id>                    # Session details
 
 ```bash
 # Jobs
-vcli export <job-id> -o job.yaml          # Export single job
-vcli export --all -d jobs/                # Export all jobs
-vcli export <id> --as-overlay -o ov.yaml  # Export as overlay
-vcli export <id> --simplified -o job.yaml # Minimal format (legacy)
+owlctl export <job-id> -o job.yaml          # Export single job
+owlctl export --all -d jobs/                # Export all jobs
+owlctl export <id> --as-overlay -o ov.yaml  # Export as overlay
+owlctl export <id> --simplified -o job.yaml # Minimal format (legacy)
 
 # Repositories
-vcli repo export <name> -o repo.yaml
-vcli repo export --all -d repos/
+owlctl repo export <name> -o repo.yaml
+owlctl repo export --all -d repos/
 
 # Scale-Out Repositories (SOBRs)
-vcli repo sobr-export <name> -o sobr.yaml
-vcli repo sobr-export --all -d sobrs/
+owlctl repo sobr-export <name> -o sobr.yaml
+owlctl repo sobr-export --all -d sobrs/
 
 # Encryption Passwords
-vcli encryption export <name> -o enc.yaml
-vcli encryption export --all -d encryption/
+owlctl encryption export <name> -o enc.yaml
+owlctl encryption export --all -d encryption/
 
 # KMS Servers
-vcli encryption kms-export <name> -o kms.yaml
-vcli encryption kms-export --all -d kms/
+owlctl encryption kms-export <name> -o kms.yaml
+owlctl encryption kms-export --all -d kms/
 ```
 
 ### Apply Configurations
 
 ```bash
 # Jobs (create or update)
-vcli job apply job.yaml
-vcli job apply job.yaml --dry-run         # Preview changes
-vcli job apply base.yaml -o prod.yaml     # Apply with overlay
+owlctl job apply job.yaml
+owlctl job apply job.yaml --dry-run         # Preview changes
+owlctl job apply base.yaml -o prod.yaml     # Apply with overlay
 
 # Repositories (update-only)
-vcli repo apply repo.yaml
-vcli repo apply repo.yaml --dry-run
+owlctl repo apply repo.yaml
+owlctl repo apply repo.yaml --dry-run
 
 # SOBRs (update-only)
-vcli repo sobr-apply sobr.yaml
-vcli repo sobr-apply sobr.yaml --dry-run
+owlctl repo sobr-apply sobr.yaml
+owlctl repo sobr-apply sobr.yaml --dry-run
 
 # KMS Servers (update-only)
-vcli encryption kms-apply kms.yaml
-vcli encryption kms-apply kms.yaml --dry-run
+owlctl encryption kms-apply kms.yaml
+owlctl encryption kms-apply kms.yaml --dry-run
 ```
 
 **Note:** Repos, SOBRs, and KMS are update-only. Create them in VBR console first.
@@ -155,20 +155,20 @@ vcli encryption kms-apply kms.yaml --dry-run
 
 ```bash
 # Repositories
-vcli repo snapshot <name>
-vcli repo snapshot --all
+owlctl repo snapshot <name>
+owlctl repo snapshot --all
 
 # SOBRs
-vcli repo sobr-snapshot <name>
-vcli repo sobr-snapshot --all
+owlctl repo sobr-snapshot <name>
+owlctl repo sobr-snapshot --all
 
 # Encryption Passwords
-vcli encryption snapshot <name>
-vcli encryption snapshot --all
+owlctl encryption snapshot <name>
+owlctl encryption snapshot --all
 
 # KMS Servers
-vcli encryption kms-snapshot <name>
-vcli encryption kms-snapshot --all
+owlctl encryption kms-snapshot <name>
+owlctl encryption kms-snapshot --all
 ```
 
 **Note:** Jobs are snapshotted automatically on apply.
@@ -177,32 +177,32 @@ vcli encryption kms-snapshot --all
 
 ```bash
 # Single resource
-vcli job diff "Job Name"
-vcli repo diff "Repository Name"
-vcli repo sobr-diff "SOBR Name"
-vcli encryption diff "Password Name"
-vcli encryption kms-diff "KMS Server Name"
+owlctl job diff "Job Name"
+owlctl repo diff "Repository Name"
+owlctl repo sobr-diff "SOBR Name"
+owlctl encryption diff "Password Name"
+owlctl encryption kms-diff "KMS Server Name"
 
 # All resources
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption diff --all
+owlctl encryption kms-diff --all
 
 # Severity filtering
-vcli job diff --all --severity critical   # Only CRITICAL
-vcli job diff --all --security-only       # WARNING and above
-vcli repo diff --all --severity warning   # WARNING and above
+owlctl job diff --all --severity critical   # Only CRITICAL
+owlctl job diff --all --security-only       # WARNING and above
+owlctl repo diff --all --severity warning   # WARNING and above
 ```
 
 ### Plan (Preview)
 
 ```bash
 # Preview merged configuration
-vcli job plan base.yaml
-vcli job plan base.yaml -o prod.yaml
-vcli job plan base.yaml -o prod.yaml --show-yaml
+owlctl job plan base.yaml
+owlctl job plan base.yaml -o prod.yaml
+owlctl job plan base.yaml -o prod.yaml --show-yaml
 ```
 
 ---
@@ -215,7 +215,7 @@ vcli job plan base.yaml -o prod.yaml --show-yaml
 |------|-------------|
 | `--dry-run` | Preview changes without applying |
 | `-o, --overlay <file>` | Apply with configuration overlay |
-| `--env <name>` | Use environment from vcli.yaml (planned) |
+| `--env <name>` | Use environment from owlctl.yaml (planned) |
 
 ### Diff Commands
 
@@ -258,7 +258,7 @@ vcli job plan base.yaml -o prod.yaml --show-yaml
 
 **Example:**
 ```bash
-vcli repo apply repo.yaml
+owlctl repo apply repo.yaml
 if [ $? -eq 6 ]; then
     echo "Repository doesn't exist - create it in VBR console first"
     exit 1
@@ -276,7 +276,7 @@ fi
 
 **Example:**
 ```bash
-vcli job diff --all --security-only
+owlctl job diff --all --security-only
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 4 ]; then
@@ -296,22 +296,22 @@ fi
 
 ```bash
 # 1. Login
-export VCLI_USERNAME="admin" VCLI_PASSWORD="pass" VCLI_URL="vbr.local"
-vcli profile --set vbr
-vcli login
+export OWLCTL_USERNAME="admin" OWLCTL_PASSWORD="pass" OWLCTL_URL="vbr.local"
+owlctl profile --set vbr
+owlctl login
 
 # 2. Query
-vcli get jobs | jq '.data[] | {name: .name, type: .type}'
+owlctl get jobs | jq '.data[] | {name: .name, type: .type}'
 ```
 
 ### Export All Configurations
 
 ```bash
 # Export everything to Git
-vcli export --all -d specs/jobs/
-vcli repo export --all -d specs/repos/
-vcli repo sobr-export --all -d specs/sobrs/
-vcli encryption kms-export --all -d specs/kms/
+owlctl export --all -d specs/jobs/
+owlctl repo export --all -d specs/repos/
+owlctl repo sobr-export --all -d specs/sobrs/
+owlctl encryption kms-export --all -d specs/kms/
 
 # Commit to Git
 git add specs/
@@ -323,14 +323,14 @@ git push
 
 ```bash
 # Preview production changes
-vcli job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
+owlctl job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
 
 # Apply production (dry-run first)
-vcli job apply base-backup.yaml -o overlays/prod.yaml --dry-run
-vcli job apply base-backup.yaml -o overlays/prod.yaml
+owlctl job apply base-backup.yaml -o overlays/prod.yaml --dry-run
+owlctl job apply base-backup.yaml -o overlays/prod.yaml
 
 # Apply development
-vcli job apply base-backup.yaml -o overlays/dev.yaml
+owlctl job apply base-backup.yaml -o overlays/dev.yaml
 ```
 
 ### Drift Detection Scan
@@ -348,7 +348,7 @@ for cmd in \
     "encryption diff --all --severity critical" \
     "encryption kms-diff --all --severity critical"
 do
-    vcli $cmd
+    owlctl $cmd
     [ $? -eq 4 ] && CRITICAL=1
 done
 
@@ -364,16 +364,16 @@ echo "No critical drift detected"
 
 ```bash
 # 1. Export current VBR state
-vcli export --all -d infrastructure/jobs/
-vcli repo export --all -d infrastructure/repos/
-vcli repo sobr-export --all -d infrastructure/sobrs/
-vcli encryption kms-export --all -d infrastructure/kms/
+owlctl export --all -d infrastructure/jobs/
+owlctl repo export --all -d infrastructure/repos/
+owlctl repo sobr-export --all -d infrastructure/sobrs/
+owlctl encryption kms-export --all -d infrastructure/kms/
 
 # 2. Snapshot current state
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # 3. Commit to Git (state.json and specs)
 git add infrastructure/ state.json
@@ -381,8 +381,8 @@ git commit -m "Bootstrap VBR declarative management"
 git push
 
 # 4. Verify no drift
-vcli job diff --all
-vcli repo diff --all
+owlctl job diff --all
+owlctl repo diff --all
 ```
 
 ---
@@ -393,43 +393,43 @@ vcli repo diff --all
 
 ```bash
 # JSON (default)
-vcli get jobs | jq '.data[0].name'
+owlctl get jobs | jq '.data[0].name'
 
 # YAML
-vcli get jobs --yaml | yq '.data[0].name'
+owlctl get jobs --yaml | yq '.data[0].name'
 
 # With Nushell
-vcli get jobs | from json | get data | where isDisabled == false
+owlctl get jobs | from json | get data | where isDisabled == false
 ```
 
 ### Credential Management
 
 ```bash
 # Temporary credentials (current shell only)
-export VCLI_USERNAME="admin" VCLI_PASSWORD="pass" VCLI_URL="vbr.local"
+export OWLCTL_USERNAME="admin" OWLCTL_PASSWORD="pass" OWLCTL_URL="vbr.local"
 
 # Persistent credentials (bash/zsh)
-echo 'export VCLI_USERNAME="admin"' >> ~/.bashrc
-echo 'export VCLI_PASSWORD="pass"' >> ~/.bashrc
-echo 'export VCLI_URL="vbr.local"' >> ~/.bashrc
+echo 'export OWLCTL_USERNAME="admin"' >> ~/.bashrc
+echo 'export OWLCTL_PASSWORD="pass"' >> ~/.bashrc
+echo 'export OWLCTL_URL="vbr.local"' >> ~/.bashrc
 
 # Use .env file (with direnv or similar)
 # .env
-VCLI_USERNAME=admin
-VCLI_PASSWORD=pass
-VCLI_URL=vbr.local
+OWLCTL_USERNAME=admin
+OWLCTL_PASSWORD=pass
+OWLCTL_URL=vbr.local
 ```
 
 ### Configuration Directory
 
 ```bash
 # Set custom config location
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 
 # Initialize in custom location
-mkdir -p ~/.vcli
-cd ~/.vcli
-vcli init
+mkdir -p ~/.owlctl
+cd ~/.owlctl
+owlctl init
 ```
 
 ---

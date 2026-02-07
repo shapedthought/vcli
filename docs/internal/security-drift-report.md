@@ -1,6 +1,6 @@
 # Security Configuration Drift Analysis Report
 
-**Product**: vcli - Veeam CLI Configuration Management Tool
+**Product**: owlctl - Veeam CLI Configuration Management Tool
 **Date**: February 2026
 **Author**: Product Management
 **Classification**: Internal - Strategic Planning
@@ -11,7 +11,7 @@
 
 Customers have raised concerns about security-related configuration drift in their Veeam Backup & Replication (VBR) environments. The core risk is that security-critical settings -- such as repository immutability, backup encryption, and access controls -- may be gradually or silently changed over time, weakening an organization's ransomware resilience and compliance posture without detection.
 
-vcli currently provides state management and drift detection for VBR backup jobs. This report identifies all security-relevant VBR configuration areas that should be brought under state management, assesses their risk profile, evaluates API feasibility, and proposes a prioritized implementation roadmap.
+owlctl currently provides state management and drift detection for VBR backup jobs. This report identifies all security-relevant VBR configuration areas that should be brought under state management, assesses their risk profile, evaluates API feasibility, and proposes a prioritized implementation roadmap.
 
 ---
 
@@ -463,7 +463,7 @@ Changes that affect operations but have lower direct security impact:
 
 **Pulumi** offers policy-as-code (CrossGuard) for preventing insecure configurations but does not have built-in severity classification for drift.
 
-**vcli opportunity**: By building security-aware drift detection with built-in severity classification, vcli would offer a differentiated capability that none of the major IaC tools provide out of the box for backup infrastructure. This directly addresses the customer concern without requiring external policy engines.
+**owlctl opportunity**: By building security-aware drift detection with built-in severity classification, owlctl would offer a differentiated capability that none of the major IaC tools provide out of the box for backup infrastructure. This directly addresses the customer concern without requiring external policy engines.
 
 ---
 
@@ -471,7 +471,7 @@ Changes that affect operations but have lower direct security impact:
 
 1. **Prioritize repository immutability state management** -- This is the single highest-impact security feature and directly addresses the customer concern. It should be the immediate next work item.
 
-2. **Introduce security severity levels in drift output** -- Modify the existing `vcli job diff` output to classify fields as CRITICAL/WARNING/INFO. This is a low-effort enhancement to the existing system.
+2. **Introduce security severity levels in drift output** -- Modify the existing `owlctl job diff` output to classify fields as CRITICAL/WARNING/INFO. This is a low-effort enhancement to the existing system.
 
 3. **Add repository and encryption resources to state management** -- These are the Phase 1 items with the best risk-to-effort ratio.
 
@@ -487,7 +487,7 @@ Changes that affect operations but have lower direct security impact:
 
 The following VBR REST API v1.3-rev1 sections are relevant to security state management:
 
-| API Section | Security Relevance | Current vcli Support |
+| API Section | Security Relevance | Current owlctl Support |
 |-------------|-------------------|---------------------|
 | Jobs | Job-level encryption, retention, scheduling | Yes (state + drift) |
 | Repositories | Immutability, repository type, settings | Read only (no state) |

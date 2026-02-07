@@ -9,9 +9,9 @@ Dockerfile
 .dockerignore
 CLAUDE.md
 analysis.md
-.vcli/
+.owlctl/
 .gitignore
-vcli
+owlctl
 .DS_Store
 ./actual_requests/
 settings.json

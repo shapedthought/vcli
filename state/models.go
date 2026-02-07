@@ -9,7 +9,7 @@ const CurrentStateVersion = 3
 // DefaultMaxHistoryEvents is the maximum number of history events to keep per resource
 const DefaultMaxHistoryEvents = 20
 
-// State represents the vcli state file structure
+// State represents the owlctl state file structure
 //
 // WARNING: State files are mutable and NOT suitable for compliance or audit.
 // For compliance, use Git commit history + CI/CD logs + VBR audit logs.

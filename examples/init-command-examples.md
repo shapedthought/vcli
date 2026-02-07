@@ -8,7 +8,7 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Non-interactive, creates files with defaults
-./vcli init
+./owlctl init
 ```
 
 **Output:**
@@ -31,26 +31,26 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Write files to specific directory
-./vcli init --output-dir ~/.vcli/
+./owlctl init --output-dir ~/.owlctl/
 
 # Write to build directory (CI/CD)
-./vcli init --output-dir $CI_PROJECT_DIR/.vcli/
+./owlctl init --output-dir $CI_PROJECT_DIR/.owlctl/
 
 # Write to relative path
-./vcli init --output-dir ./config/
+./owlctl init --output-dir ./config/
 ```
 
 ### Init with Configuration Flags
 
 ```bash
 # Skip TLS verification (insecure)
-./vcli init --insecure
+./owlctl init --insecure
 
 # Enable credentials file mode
-./vcli init --creds-file
+./owlctl init --creds-file
 
 # Combine flags
-./vcli init --insecure --creds-file --output-dir ~/.vcli/
+./owlctl init --insecure --creds-file --output-dir ~/.owlctl/
 ```
 
 ## Subcommands
@@ -59,10 +59,10 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Create only settings.json
-./vcli init settings
+./owlctl init settings
 
 # With flags
-./vcli init settings --insecure --creds-file --output-dir ~/.vcli/
+./owlctl init settings --insecure --creds-file --output-dir ~/.owlctl/
 ```
 
 **Output:**
@@ -73,7 +73,7 @@ Quick reference for the non-interactive `init` command.
     "apiNotSecure": true,
     "credsFileMode": false
   },
-  "file": "/home/user/.vcli/settings.json"
+  "file": "/home/user/.owlctl/settings.json"
 }
 ```
 
@@ -81,10 +81,10 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Create only profiles.json
-./vcli init profiles
+./owlctl init profiles
 
 # With output directory
-./vcli init profiles --output-dir ~/.vcli/
+./owlctl init profiles --output-dir ~/.owlctl/
 ```
 
 **Output:**
@@ -98,7 +98,7 @@ Quick reference for the non-interactive `init` command.
     },
     ...
   ],
-  "file": "/home/user/.vcli/profiles.json"
+  "file": "/home/user/.owlctl/profiles.json"
 }
 ```
 
@@ -108,16 +108,16 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Get settings only
-./vcli init | jq '.settings'
+./owlctl init | jq '.settings'
 
 # Get profiles only
-./vcli init | jq '.profiles'
+./owlctl init | jq '.profiles'
 
 # Get file paths
-./vcli init | jq '.files'
+./owlctl init | jq '.files'
 
 # Count profiles
-./vcli init | jq '.profiles | length'
+./owlctl init | jq '.profiles | length'
 # Output: 7
 ```
 
@@ -125,25 +125,25 @@ Quick reference for the non-interactive `init` command.
 
 ```bash
 # Split settings and profiles into different files
-./vcli init | jq '.settings' > /opt/vcli/settings.json
-./vcli init | jq '.profiles' > /opt/vcli/profiles.json
+./owlctl init | jq '.settings' > /opt/owlctl/settings.json
+./owlctl init | jq '.profiles' > /opt/owlctl/profiles.json
 
 # Save to environment-specific directories
 ENV=prod
-./vcli init --insecure | jq '.settings' > ~/.vcli/$ENV/settings.json
-./vcli init | jq '.profiles' > ~/.vcli/$ENV/profiles.json
+./owlctl init --insecure | jq '.settings' > ~/.owlctl/$ENV/settings.json
+./owlctl init | jq '.profiles' > ~/.owlctl/$ENV/profiles.json
 ```
 
 ### Conditional Init
 
 ```bash
 # Only init if files don't exist
-if [ ! -f ~/.vcli/settings.json ]; then
-    ./vcli init --output-dir ~/.vcli/
+if [ ! -f ~/.owlctl/settings.json ]; then
+    ./owlctl init --output-dir ~/.owlctl/
 fi
 
 # Check if init was successful
-if ./vcli init --output-dir ~/.vcli/ > /dev/null 2>&1; then
+if ./owlctl init --output-dir ~/.owlctl/ > /dev/null 2>&1; then
     echo "Init successful"
 else
     echo "Init failed"
@@ -165,27 +165,27 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download vcli
+      - name: Download owlctl
         run: |
-          curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-          chmod +x vcli
+          curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          chmod +x owlctl
 
-      - name: Initialize vcli
+      - name: Initialize owlctl
         run: |
-          ./vcli init --output-dir .vcli/ --insecure
-          ./vcli profile --set vbr
+          ./owlctl init --output-dir .owlctl/ --insecure
+          ./owlctl profile --set vbr
         env:
-          VCLI_SETTINGS_PATH: ${{ github.workspace }}/.vcli/
+          OWLCTL_SETTINGS_PATH: ${{ github.workspace }}/.owlctl/
 
       - name: Login and check drift
         run: |
-          ./vcli login
-          ./vcli job diff --all --security-only
+          ./owlctl login
+          ./owlctl job diff --all --security-only
         env:
-          VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-          VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          VCLI_URL: ${{ secrets.VBR_URL }}
-          VCLI_SETTINGS_PATH: ${{ github.workspace }}/.vcli/
+          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_URL: ${{ secrets.VBR_URL }}
+          OWLCTL_SETTINGS_PATH: ${{ github.workspace }}/.owlctl/
 ```
 
 ### Azure DevOps
@@ -199,26 +199,26 @@ pool:
 
 steps:
   - script: |
-      curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-      chmod +x vcli
-    displayName: 'Download vcli'
+      curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+      chmod +x owlctl
+    displayName: 'Download owlctl'
 
   - script: |
-      ./vcli init --output-dir $(Build.SourcesDirectory)/.vcli/ --insecure
-      ./vcli profile --set vbr
-    displayName: 'Initialize vcli'
+      ./owlctl init --output-dir $(Build.SourcesDirectory)/.owlctl/ --insecure
+      ./owlctl profile --set vbr
+    displayName: 'Initialize owlctl'
     env:
-      VCLI_SETTINGS_PATH: $(Build.SourcesDirectory)/.vcli/
+      OWLCTL_SETTINGS_PATH: $(Build.SourcesDirectory)/.owlctl/
 
   - script: |
-      ./vcli login
-      ./vcli job diff --all --security-only
+      ./owlctl login
+      ./owlctl job diff --all --security-only
     displayName: 'Check for drift'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
-      VCLI_SETTINGS_PATH: $(Build.SourcesDirectory)/.vcli/
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
+      OWLCTL_SETTINGS_PATH: $(Build.SourcesDirectory)/.owlctl/
 ```
 
 ### GitLab CI
@@ -227,17 +227,17 @@ steps:
 vbr-drift-check:
   stage: test
   script:
-    - curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-    - chmod +x vcli
-    - ./vcli init --output-dir .vcli/ --insecure
-    - ./vcli profile --set vbr
-    - ./vcli login
-    - ./vcli job diff --all --security-only
+    - curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+    - chmod +x owlctl
+    - ./owlctl init --output-dir .owlctl/ --insecure
+    - ./owlctl profile --set vbr
+    - ./owlctl login
+    - ./owlctl job diff --all --security-only
   variables:
-    VCLI_SETTINGS_PATH: $CI_PROJECT_DIR/.vcli/
-    VCLI_USERNAME: $VBR_USERNAME
-    VCLI_PASSWORD: $VBR_PASSWORD
-    VCLI_URL: $VBR_URL
+    OWLCTL_SETTINGS_PATH: $CI_PROJECT_DIR/.owlctl/
+    OWLCTL_USERNAME: $VBR_USERNAME
+    OWLCTL_PASSWORD: $VBR_PASSWORD
+    OWLCTL_URL: $VBR_URL
 ```
 
 ### Jenkins Pipeline
@@ -247,20 +247,20 @@ pipeline {
     agent any
 
     environment {
-        VCLI_SETTINGS_PATH = "${WORKSPACE}/.vcli/"
-        VCLI_USERNAME = credentials('vbr-username')
-        VCLI_PASSWORD = credentials('vbr-password')
-        VCLI_URL = credentials('vbr-url')
+        OWLCTL_SETTINGS_PATH = "${WORKSPACE}/.owlctl/"
+        OWLCTL_USERNAME = credentials('vbr-username')
+        OWLCTL_PASSWORD = credentials('vbr-password')
+        OWLCTL_URL = credentials('vbr-url')
     }
 
     stages {
-        stage('Setup vcli') {
+        stage('Setup owlctl') {
             steps {
                 sh '''
-                    curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-                    chmod +x vcli
-                    ./vcli init --output-dir ${VCLI_SETTINGS_PATH} --insecure
-                    ./vcli profile --set vbr
+                    curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+                    chmod +x owlctl
+                    ./owlctl init --output-dir ${OWLCTL_SETTINGS_PATH} --insecure
+                    ./owlctl profile --set vbr
                 '''
             }
         }
@@ -268,8 +268,8 @@ pipeline {
         stage('Check Drift') {
             steps {
                 sh '''
-                    ./vcli login
-                    ./vcli job diff --all --security-only
+                    ./owlctl login
+                    ./owlctl job diff --all --security-only
                 '''
             }
         }
@@ -287,21 +287,21 @@ FROM alpine:latest
 # Install dependencies
 RUN apk add --no-cache bash curl jq
 
-# Download vcli
-RUN curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o /usr/local/bin/vcli \
-    && chmod +x /usr/local/bin/vcli
+# Download owlctl
+RUN curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o /usr/local/bin/owlctl \
+    && chmod +x /usr/local/bin/owlctl
 
 # Create config directory
-RUN mkdir -p /vcli-config
+RUN mkdir -p /owlctl-config
 
-# Initialize vcli non-interactively
-RUN vcli init --output-dir /vcli-config/ --insecure
+# Initialize owlctl non-interactively
+RUN owlctl init --output-dir /owlctl-config/ --insecure
 
 # Set environment variable
-ENV VCLI_SETTINGS_PATH=/vcli-config/
+ENV OWLCTL_SETTINGS_PATH=/owlctl-config/
 
 # Default profile
-RUN vcli profile --set vbr
+RUN owlctl profile --set vbr
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -317,9 +317,9 @@ ENTRYPOINT ["/entrypoint.sh"]
 set -e
 
 # Login if credentials provided
-if [ -n "$VCLI_USERNAME" ] && [ -n "$VCLI_PASSWORD" ] && [ -n "$VCLI_URL" ]; then
+if [ -n "$OWLCTL_USERNAME" ] && [ -n "$OWLCTL_PASSWORD" ] && [ -n "$OWLCTL_URL" ]; then
     echo "Logging in to VBR..."
-    vcli login
+    owlctl login
 fi
 
 # Execute command
@@ -332,16 +332,16 @@ exec "$@"
 version: '3.8'
 
 services:
-  vcli:
+  owlctl:
     build: .
     environment:
-      - VCLI_USERNAME=${VBR_USERNAME}
-      - VCLI_PASSWORD=${VBR_PASSWORD}
-      - VCLI_URL=${VBR_URL}
-      - VCLI_SETTINGS_PATH=/vcli-config/
+      - OWLCTL_USERNAME=${VBR_USERNAME}
+      - OWLCTL_PASSWORD=${VBR_PASSWORD}
+      - OWLCTL_URL=${VBR_URL}
+      - OWLCTL_SETTINGS_PATH=/owlctl-config/
     volumes:
       - ./specs:/specs
-    command: vcli job diff --all --security-only
+    command: owlctl job diff --all --security-only
 ```
 
 ## Script Examples
@@ -350,65 +350,65 @@ services:
 
 ```bash
 #!/bin/bash
-# setup-vcli.sh
+# setup-owlctl.sh
 set -e
 
-VCLI_DIR="${HOME}/.vcli"
-VCLI_BIN="${HOME}/.local/bin/vcli"
+VCLI_DIR="${HOME}/.owlctl"
+VCLI_BIN="${HOME}/.local/bin/owlctl"
 
-# Download vcli if not exists
+# Download owlctl if not exists
 if [ ! -f "$VCLI_BIN" ]; then
-    echo "Downloading vcli..."
-    curl -L https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o "$VCLI_BIN"
+    echo "Downloading owlctl..."
+    curl -L https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o "$VCLI_BIN"
     chmod +x "$VCLI_BIN"
 fi
 
-# Initialize vcli
-echo "Initializing vcli..."
+# Initialize owlctl
+echo "Initializing owlctl..."
 "$VCLI_BIN" init --output-dir "$VCLI_DIR/" --insecure
 
 # Set profile
 echo "Setting profile to VBR..."
-VCLI_SETTINGS_PATH="$VCLI_DIR/" "$VCLI_BIN" profile --set vbr
+OWLCTL_SETTINGS_PATH="$VCLI_DIR/" "$VCLI_BIN" profile --set vbr
 
 echo "Setup complete. Config files at: $VCLI_DIR"
 echo "Set environment variables:"
-echo "  export VCLI_USERNAME='your-username'"
-echo "  export VCLI_PASSWORD='your-password'"
-echo "  export VCLI_URL='vbr.example.com'"
-echo "  export VCLI_SETTINGS_PATH='$VCLI_DIR/'"
+echo "  export OWLCTL_USERNAME='your-username'"
+echo "  export OWLCTL_PASSWORD='your-password'"
+echo "  export OWLCTL_URL='vbr.example.com'"
+echo "  export OWLCTL_SETTINGS_PATH='$VCLI_DIR/'"
 ```
 
 ### PowerShell Setup Script
 
 ```powershell
-# setup-vcli.ps1
+# setup-owlctl.ps1
 $ErrorActionPreference = "Stop"
 
-$VcliDir = "$HOME\.vcli"
-$VcliBin = "$HOME\.vcli\vcli.exe"
+$VcliDir = "$HOME\.owlctl"
+$VcliBin = "$HOME\.owlctl\owlctl.exe"
 
-# Download vcli if not exists
+# Download owlctl if not exists
 if (-not (Test-Path $VcliBin)) {
-    Write-Host "Downloading vcli..."
-    Invoke-WebRequest -Uri "https://github.com/shapedthought/vcli/releases/latest/download/vcli-windows-amd64.exe" -OutFile $VcliBin
+    Write-Host "Downloading owlctl..."
+    Invoke-WebRequest -Uri "https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-windows-amd64.exe" -OutFile $VcliBin
 }
 
-# Initialize vcli
-Write-Host "Initializing vcli..."
+# Initialize owlctl
+Write-Host "Initializing owlctl..."
 & $VcliBin init --output-dir $VcliDir --insecure
 
 # Set profile
 Write-Host "Setting profile to VBR..."
-$env:VCLI_SETTINGS_PATH = $VcliDir
+$env:OWLCTL_SETTINGS_PATH = $VcliDir
 & $VcliBin profile --set vbr
 
 Write-Host "Setup complete. Config files at: $VcliDir"
 Write-Host "Set environment variables:"
-Write-Host "  `$env:VCLI_USERNAME = 'your-username'"
-Write-Host "  `$env:VCLI_PASSWORD = 'your-password'"
-Write-Host "  `$env:VCLI_URL = 'vbr.example.com'"
-Write-Host "  `$env:VCLI_SETTINGS_PATH = '$VcliDir'"
+Write-Host "  `$env:OWLCTL_USERNAME = 'your-username'"
+Write-Host "  `$env:OWLCTL_PASSWORD = 'your-password'"
+Write-Host "  `$env:OWLCTL_URL = 'vbr.example.com'"
+Write-Host "  `$env:OWLCTL_SETTINGS_PATH = '$VcliDir'"
 ```
 
 ### Multi-Environment Setup
@@ -424,19 +424,19 @@ for ENV in "${ENVIRONMENTS[@]}"; do
     echo "Setting up $ENV environment..."
 
     # Create directory
-    mkdir -p ~/.vcli/$ENV
+    mkdir -p ~/.owlctl/$ENV
 
     # Initialize
-    ./vcli init --output-dir ~/.vcli/$ENV/ --insecure
+    ./owlctl init --output-dir ~/.owlctl/$ENV/ --insecure
 
     # Set profile
-    VCLI_SETTINGS_PATH=~/.vcli/$ENV/ ./vcli profile --set vbr
+    OWLCTL_SETTINGS_PATH=~/.owlctl/$ENV/ ./owlctl profile --set vbr
 
     echo "$ENV setup complete"
 done
 
 echo "All environments configured"
-echo "Usage: VCLI_SETTINGS_PATH=~/.vcli/prod/ ./vcli login"
+echo "Usage: OWLCTL_SETTINGS_PATH=~/.owlctl/prod/ ./owlctl login"
 ```
 
 ## Legacy Interactive Mode
@@ -445,14 +445,14 @@ For backward compatibility during migration period:
 
 ```bash
 # Use legacy interactive mode (deprecated)
-./vcli init --interactive
+./owlctl init --interactive
 ```
 
 **Output:**
 ```
 ⚠️  WARNING: Interactive mode is deprecated and will be removed in v0.12.0
-   Use 'vcli init --interactive' to explicitly enable interactive mode
-   Or use non-interactive mode: 'vcli init --insecure --creds-file'
+   Use 'owlctl init --interactive' to explicitly enable interactive mode
+   Or use non-interactive mode: 'owlctl init --insecure --creds-file'
 
 Allow insecure TLS? (y/N): n
 Use Creds file mode? (y/N): n
@@ -465,12 +465,12 @@ Initialized, ensure all environment variables are set.
 
 ```bash
 # Main command
-vcli init [flags]
-vcli init [command]
+owlctl init [flags]
+owlctl init [command]
 
 # Subcommands
-vcli init settings [flags]     # Initialize only settings.json
-vcli init profiles [flags]     # Initialize only profiles.json
+owlctl init settings [flags]     # Initialize only settings.json
+owlctl init profiles [flags]     # Initialize only profiles.json
 
 # Flags
 --insecure                     # Skip TLS verification

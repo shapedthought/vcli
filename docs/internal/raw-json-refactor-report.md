@@ -2,7 +2,7 @@
 
 ## Context
 
-The vcli project has a declarative workflow for managing VBR resources: **jobs**, **repositories**, **SOBRs**, **encryption passwords**, and **KMS servers**. Four commands form the core of this workflow:
+The owlctl project has a declarative workflow for managing VBR resources: **jobs**, **repositories**, **SOBRs**, **encryption passwords**, and **KMS servers**. Four commands form the core of this workflow:
 
 - **adopt** -- import an existing VBR resource into state without modifying it
 - **apply** -- create or update a VBR resource from a YAML spec
@@ -133,13 +133,13 @@ Again, by contrast, the repository, SOBR, encryption, and KMS export commands al
 
 ## The Problem (User Perspective)
 
-Currently, vcli's declarative workflow (apply, diff, export, adopt) **only works correctly for VSphere backup jobs**. For any other job type supported by the VBR API, users will encounter silent data loss:
+Currently, owlctl's declarative workflow (apply, diff, export, adopt) **only works correctly for VSphere backup jobs**. For any other job type supported by the VBR API, users will encounter silent data loss:
 
-- **Apply**: If a user writes a YAML spec for an EntraID tenant backup job and runs `vcli job apply`, the apply command will strip all EntraID-specific fields (such as tenant configuration, EntraID-specific storage settings, or identity provider details) from the request body before sending it to VBR. This could create a broken job, create a job with default values instead of the specified ones, or cause an API error. There is no warning that fields were dropped.
+- **Apply**: If a user writes a YAML spec for an EntraID tenant backup job and runs `owlctl job apply`, the apply command will strip all EntraID-specific fields (such as tenant configuration, EntraID-specific storage settings, or identity provider details) from the request body before sending it to VBR. This could create a broken job, create a job with default values instead of the specified ones, or cause an API error. There is no warning that fields were dropped.
 
-- **Export**: If a user runs `vcli export <job-id>` on a non-VSphere job, the exported YAML will be missing all type-specific fields. The user might believe they have a complete backup of their job configuration, but reapplying the export would produce a different (and likely broken) job.
+- **Export**: If a user runs `owlctl export <job-id>` on a non-VSphere job, the exported YAML will be missing all type-specific fields. The user might believe they have a complete backup of their job configuration, but reapplying the export would produce a different (and likely broken) job.
 
-- **Diff**: If a user runs `vcli job diff` on a non-VSphere job, the drift detection will report false "removed" drifts because the typed struct dropped fields when reading from VBR. The user would see phantom drift that does not actually exist, making the diff output untrustworthy.
+- **Diff**: If a user runs `owlctl job diff` on a non-VSphere job, the drift detection will report false "removed" drifts because the typed struct dropped fields when reading from VBR. The user would see phantom drift that does not actually exist, making the diff output untrustworthy.
 
 - **Adopt**: This command already works correctly for all job types because it uses `json.RawMessage` internally. No changes needed here.
 
@@ -304,7 +304,7 @@ This eliminates the `specToVBRJob` and `mergeJobUpdates` functions entirely for 
 
 ### What Stays the Same
 
-- **Legacy `vcli job template` and `vcli job create` commands** continue to use typed structs. These commands predate the declarative workflow, are VSphere-specific by design, and work fine for their intended use case. They are defined in `cmd/jobs.go` in the `getTemplates` and `createJob` functions.
+- **Legacy `owlctl job template` and `owlctl job create` commands** continue to use typed structs. These commands predate the declarative workflow, are VSphere-specific by design, and work fine for their intended use case. They are defined in `cmd/jobs.go` in the `getTemplates` and `createJob` functions.
 
 - **The YAML spec format** does not change at all. `ResourceSpec.Spec` is already `map[string]interface{}`, so specs written for any job type already work -- the problem was never in the spec loading, but in the subsequent conversion to typed structs.
 
@@ -336,7 +336,7 @@ This eliminates the `specToVBRJob` and `mergeJobUpdates` functions entirely for 
 
 - **State file format** is unchanged. Existing state files remain compatible.
 
-- **Legacy template/create workflow** is unaffected. The `vcli job template` and `vcli job create` commands continue to work exactly as they do today.
+- **Legacy template/create workflow** is unaffected. The `owlctl job template` and `owlctl job create` commands continue to work exactly as they do today.
 
 ### Risks
 
@@ -360,7 +360,7 @@ This eliminates the `specToVBRJob` and `mergeJobUpdates` functions entirely for 
 
    Option (c) is likely correct for most of this logic: if a user is creating a VSphere job, their spec should include the correct credential configuration. The CLI should not be injecting defaults that only make sense for one job type.
 
-3. **Less compile-time type safety in the declarative path.** With typed structs, the Go compiler catches field name typos and type mismatches at build time. With `map[string]interface{}`, these become runtime issues. This is an inherent trade-off: type safety vs. schema flexibility. Given that the VBR API schema is not controlled by vcli and changes across API versions, the flexibility is more valuable here. The compile-time safety was providing a false sense of security anyway, since it only covered VSphere fields.
+3. **Less compile-time type safety in the declarative path.** With typed structs, the Go compiler catches field name typos and type mismatches at build time. With `map[string]interface{}`, these become runtime issues. This is an inherent trade-off: type safety vs. schema flexibility. Given that the VBR API schema is not controlled by owlctl and changes across API versions, the flexibility is more valuable here. The compile-time safety was providing a false sense of security anyway, since it only covered VSphere fields.
 
 4. **The `vhttp.PostData` and `vhttp.PutData` functions** may need variants that accept `interface{}` or `map[string]interface{}` instead of a generic type parameter, depending on how the existing `sendData.go` and `modifyData.go` are structured. Alternatively, the existing generic functions should work with `map[string]interface{}` since `json.Marshal` handles it correctly.
 

@@ -13,7 +13,7 @@
 #   state.json    ← contains state for ALL resource types
 #
 # Prerequisites:
-#   - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+#   - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 #   - Self-hosted agent with Go installed (for building from source)
 #   - Git repo with write permissions (persistCredentials enabled)
 #
@@ -31,14 +31,14 @@ pool:
 variables:
   - group: 'veeam-credentials'
 
-  # vcli source (for self-hosted agent building from source)
-  - name: vcliRepo
-    value: 'https://github.com/shapedthought/vcli.git'
-  - name: vcliBranch
+  # owlctl source (for self-hosted agent building from source)
+  - name: owlctlRepo
+    value: 'https://github.com/shapedthought/owlctl.git'
+  - name: owlctlBranch
     value: 'master'
 
-  # Ensure vcli writes config and state into the repo checkout
-  - name: VCLI_SETTINGS_PATH
+  # Ensure owlctl writes config and state into the repo checkout
+  - name: OWLCTL_SETTINGS_PATH
     value: '$(Build.SourcesDirectory)'
 
 stages:
@@ -53,22 +53,22 @@ stages:
 
           - script: |
               echo "=========================================="
-              echo "Building vcli from source"
+              echo "Building owlctl from source"
               echo "=========================================="
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
-              cd $(Agent.TempDirectory)/vcli-src
-              go build -o $(Build.SourcesDirectory)/vcli
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Agent.TempDirectory)/owlctl-src
+              cd $(Agent.TempDirectory)/owlctl-src
+              go build -o $(Build.SourcesDirectory)/owlctl
               echo "Build successful"
-            displayName: 'Build vcli'
+            displayName: 'Build owlctl'
 
           - script: |
               cd $(Build.SourcesDirectory)
 
-              echo "Initializing vcli..."
-              ./vcli init --insecure
+              echo "Initializing owlctl..."
+              ./owlctl init --insecure
 
               echo "Logging in to VBR..."
-              ./vcli login
+              ./owlctl login
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
                 exit 1
@@ -76,9 +76,9 @@ stages:
               echo "Authentication successful"
             displayName: 'Initialize and authenticate'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -87,7 +87,7 @@ stages:
               echo "Exporting all jobs as YAML"
               echo "=========================================="
               mkdir -p infrastructure/jobs
-              ./vcli export --all -d infrastructure/jobs/
+              ./owlctl export --all -d infrastructure/jobs/
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to export jobs"
                 exit 1
@@ -98,9 +98,9 @@ stages:
               ls -la infrastructure/jobs/
             displayName: 'Export all jobs'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -112,22 +112,22 @@ stages:
 
               echo ""
               echo "--- Snapshotting repositories ---"
-              ./vcli repo snapshot --all
+              ./owlctl repo snapshot --all
               REPO_EXIT=$?
 
               echo ""
               echo "--- Snapshotting scale-out repositories ---"
-              ./vcli repo sobr-snapshot --all
+              ./owlctl repo sobr-snapshot --all
               SOBR_EXIT=$?
 
               echo ""
               echo "--- Snapshotting encryption passwords ---"
-              ./vcli encryption snapshot --all
+              ./owlctl encryption snapshot --all
               ENC_EXIT=$?
 
               echo ""
               echo "--- Snapshotting KMS servers ---"
-              ./vcli encryption kms-snapshot --all
+              ./owlctl encryption kms-snapshot --all
               KMS_EXIT=$?
 
               set -e
@@ -151,9 +151,9 @@ stages:
               fi
             displayName: 'Snapshot all resources'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -162,8 +162,8 @@ stages:
               echo "Committing bootstrap state to Git"
               echo "=========================================="
 
-              git config user.email "vcli-pipeline@azure-devops.local"
-              git config user.name "vcli Bootstrap Pipeline"
+              git config user.email "owlctl-pipeline@azure-devops.local"
+              git config user.name "owlctl Bootstrap Pipeline"
 
               # Stage infrastructure specs and state
               git add infrastructure/

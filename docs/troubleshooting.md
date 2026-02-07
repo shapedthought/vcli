@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Common problems and solutions for vcli. This guide covers authentication, connection, API, state management, and operational issues.
+Common problems and solutions for owlctl. This guide covers authentication, connection, API, state management, and operational issues.
 
 ## Table of Contents
 
@@ -23,24 +23,24 @@ Common problems and solutions for vcli. This guide covers authentication, connec
 Start troubleshooting with these quick checks:
 
 ```bash
-# 1. Check vcli version
-vcli utils
+# 1. Check owlctl version
+owlctl utils
 # Select "Check Version"
 
 # 2. Verify environment variables
-echo $VCLI_USERNAME
-echo $VCLI_URL
-echo $VCLI_SETTINGS_PATH
+echo $OWLCTL_USERNAME
+echo $OWLCTL_URL
+echo $OWLCTL_SETTINGS_PATH
 
 # 3. Check current profile
-vcli profile --get
+owlctl profile --get
 
 # 4. Test connectivity
 ping vbr.example.com
 nc -zv vbr.example.com 9419
 
 # 5. Verify authentication
-vcli login
+owlctl login
 ```
 
 ## Authentication Issues
@@ -60,16 +60,16 @@ vcli login
 **Try different username formats:**
 ```bash
 # Standard
-export VCLI_USERNAME="administrator"
+export OWLCTL_USERNAME="administrator"
 
 # Domain user (format 1)
-export VCLI_USERNAME="DOMAIN\\\\administrator"
+export OWLCTL_USERNAME="DOMAIN\\\\administrator"
 
 # Domain user (format 2)
-export VCLI_USERNAME="administrator@domain.com"
+export OWLCTL_USERNAME="administrator@domain.com"
 
 # Enterprise Manager format
-export VCLI_USERNAME="administrator@"
+export OWLCTL_USERNAME="administrator@"
 ```
 
 **Check VBR REST API is enabled:**
@@ -95,7 +95,7 @@ curl -k -u "username:password" https://vbr.example.com:9419/api/v1/jobs
 
 **Solution:** Re-login to get a fresh token:
 ```bash
-vcli login
+owlctl login
 ```
 
 **Note:** Tokens expire after a period of inactivity (varies by product).
@@ -107,10 +107,10 @@ vcli login
 **Solution:**
 ```bash
 # Set the profile first
-vcli profile --set vbr
+owlctl profile --set vbr
 
 # Then login
-vcli login
+owlctl login
 ```
 
 ### Token Storage Issues
@@ -123,30 +123,30 @@ vcli login
 
 **Option 1: Use explicit token (recommended for CI/CD)**
 ```bash
-export VCLI_TOKEN="your-long-lived-token"
-vcli get jobs
+export OWLCTL_TOKEN="your-long-lived-token"
+owlctl get jobs
 ```
 
 **Option 2: File-based keyring with password**
 ```bash
 # CI/CD environments
-export VCLI_FILE_KEY="your-secure-password"
-vcli login
+export OWLCTL_FILE_KEY="your-secure-password"
+owlctl login
 
 # Interactive systems
-vcli login
-# Prompts: Enter password for vcli file keyring: _
+owlctl login
+# Prompts: Enter password for owlctl file keyring: _
 ```
 
 **Option 3: Auto-authenticate (requires credentials)**
 ```bash
 # Set all three credentials
-export VCLI_USERNAME="admin"
-export VCLI_PASSWORD="pass"
-export VCLI_URL="vbr.local"
+export OWLCTL_USERNAME="admin"
+export OWLCTL_PASSWORD="pass"
+export OWLCTL_URL="vbr.local"
 
-# vcli auto-authenticates when keychain unavailable
-vcli get jobs
+# owlctl auto-authenticates when keychain unavailable
+owlctl get jobs
 ```
 
 ### CI/CD Auto-Authentication Not Working
@@ -161,44 +161,44 @@ Check all required variables are set in CI/CD secrets:
 ```yaml
 # GitHub Actions example
 env:
-  VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-  VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-  VCLI_URL: ${{ secrets.VBR_URL }}
+  OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+  OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+  OWLCTL_URL: ${{ secrets.VBR_URL }}
 ```
 
 Verify variables in pipeline:
 ```bash
-echo "Username: $VCLI_USERNAME"
-echo "URL: $VCLI_URL"
+echo "Username: $OWLCTL_USERNAME"
+echo "URL: $OWLCTL_URL"
 # Don't echo password for security
 
 # Test authentication
-vcli login
-vcli get jobs
+owlctl login
+owlctl get jobs
 ```
 
 ### Profile Command Requires Argument
 
-**Problem:** `vcli profile --set` hangs or returns "profile name required" error
+**Problem:** `owlctl profile --set` hangs or returns "profile name required" error
 
 **Breaking Change:** Profile commands now require explicit arguments (no interactive prompts)
 
 **Old command (v0.10.x):**
 ```bash
-vcli profile --set
+owlctl profile --set
 # Prompted: Enter profile name: _
 ```
 
 **New command:**
 ```bash
-vcli profile --set vbr  # Provide argument
-vcli profile -s vbr     # Short form
+owlctl profile --set vbr  # Provide argument
+owlctl profile -s vbr     # Short form
 ```
 
 **In scripts:**
 ```bash
 # Update CI/CD pipelines
-- script: vcli profile --set vbr  # Add profile name
+- script: owlctl profile --set vbr  # Add profile name
   displayName: 'Set Profile'
 ```
 
@@ -229,8 +229,8 @@ nc -zv vbr.example.com 9419
 
 **Verify URL format:**
 ```bash
-# Check VCLI_URL doesn't include protocol or port
-echo $VCLI_URL
+# Check OWLCTL_URL doesn't include protocol or port
+echo $OWLCTL_URL
 # Should be: vbr.example.com
 # NOT: https://vbr.example.com:9419
 ```
@@ -238,10 +238,10 @@ echo $VCLI_URL
 **Check profile and port:**
 ```bash
 # Verify correct profile is set
-vcli profile --get
+owlctl profile --get
 
 # Check profile port matches product
-vcli profile --profile vbr
+owlctl profile --profile vbr
 # VBR should be port 9419
 # Enterprise Manager should be port 9398
 ```
@@ -263,7 +263,7 @@ vcli profile --profile vbr
 **Solutions:**
 ```bash
 # Test with a simple endpoint
-vcli get jobs | jq '.data | length'
+owlctl get jobs | jq '.data | length'
 
 # Check VBR server performance in console
 # Look for high CPU or memory usage
@@ -282,8 +282,8 @@ vcli get jobs | jq '.data | length'
 nslookup vbr.example.com
 
 # Use IP address instead of hostname
-export VCLI_URL="192.168.0.123"
-vcli login
+export OWLCTL_URL="192.168.0.123"
+owlctl login
 
 # Check /etc/hosts or C:\Windows\System32\drivers\etc\hosts
 ```
@@ -341,13 +341,13 @@ sudo security add-trusted-cert -d -r trustRoot \
 **Problem:** "certificate is valid for X, not Y"
 
 **Causes:**
-- Using IP instead of hostname in VCLI_URL
+- Using IP instead of hostname in OWLCTL_URL
 - Certificate issued for different hostname
 
 **Solutions:**
 ```bash
 # Use the hostname from the certificate
-export VCLI_URL="vbr.company.local"  # Match certificate CN
+export OWLCTL_URL="vbr.company.local"  # Match certificate CN
 
 # Or skip TLS verification (not recommended for production)
 ```
@@ -360,18 +360,18 @@ export VCLI_URL="vbr.company.local"  # Match certificate CN
 
 **Solution:**
 
-1. Set `VCLI_SETTINGS_PATH` before running `init`:
+1. Set `OWLCTL_SETTINGS_PATH` before running `init`:
 ```bash
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
-mkdir -p ~/.vcli
-vcli init
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
+mkdir -p ~/.owlctl
+owlctl init
 ```
 
 2. Or move files manually:
 ```bash
-mkdir -p ~/.vcli
-mv settings.json profiles.json ~/.vcli/
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+mkdir -p ~/.owlctl
+mv settings.json profiles.json ~/.owlctl/
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 
 # Note: headers.json no longer exists
 # Tokens stored in system keychain instead
@@ -379,15 +379,15 @@ export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 
 ### Profile Not Found
 
-**Problem:** vcli can't find the profile you specified.
+**Problem:** owlctl can't find the profile you specified.
 
 **Solution:**
 ```bash
 # List available profiles
-vcli profile --list
+owlctl profile --list
 
 # Use exact profile name
-vcli profile --set vbr  # Not "VBR" or "vbr-prod"
+owlctl profile --set vbr  # Not "VBR" or "vbr-prod"
 ```
 
 ### API Version Mismatch
@@ -398,7 +398,7 @@ vcli profile --set vbr  # Not "VBR" or "vbr-prod"
 Update API version in profiles.json:
 ```bash
 # Edit profiles.json
-vim $VCLI_SETTINGS_PATH/profiles.json
+vim $OWLCTL_SETTINGS_PATH/profiles.json
 
 # Find the profile and update api_version or x-api-version
 # VBR 12: "api_version": "1.1-rev2"
@@ -419,16 +419,16 @@ vim $VCLI_SETTINGS_PATH/profiles.json
 **Solutions:**
 ```bash
 # Verify endpoint works
-vcli get jobs  # Should show list
+owlctl get jobs  # Should show list
 
 # Check profile
-vcli profile --get
+owlctl profile --get
 
 # Verify authentication
-vcli login
+owlctl login
 
 # Test with known good endpoint
-vcli get backupInfrastructure/repositories
+owlctl get backupInfrastructure/repositories
 ```
 
 ### JSON Parse Error
@@ -443,7 +443,7 @@ vcli get backupInfrastructure/repositories
 **Solution:**
 ```bash
 # Save response to see error
-vcli get jobs > response.txt
+owlctl get jobs > response.txt
 cat response.txt  # Check if HTML error page
 
 # Common causes:
@@ -454,15 +454,15 @@ cat response.txt  # Check if HTML error page
 
 ### No Such File or Directory (with -f flag)
 
-**Problem:** `vcli post jobs -f data.json` fails
+**Problem:** `owlctl post jobs -f data.json` fails
 
 **Solutions:**
 ```bash
 # Use absolute path
-vcli post jobs -f /full/path/to/data.json
+owlctl post jobs -f /full/path/to/data.json
 
 # Or relative from current directory
-vcli post jobs -f ./data.json
+owlctl post jobs -f ./data.json
 
 # Verify file exists
 ls -la data.json
@@ -475,8 +475,8 @@ ls -la data.json
 **Solution:**
 ```bash
 # Add delays between requests
-for id in $(vcli get jobs | jq -r '.data[].id'); do
-    vcli post jobs/$id/start
+for id in $(owlctl get jobs | jq -r '.data[].id'); do
+    owlctl post jobs/$id/start
     sleep 2  # Wait 2 seconds between requests
 done
 ```
@@ -485,21 +485,21 @@ done
 
 ### State File Not Found
 
-**Problem:** vcli can't find state.json
+**Problem:** owlctl can't find state.json
 
 **Solutions:**
 ```bash
-# Check VCLI_SETTINGS_PATH
-echo $VCLI_SETTINGS_PATH
+# Check OWLCTL_SETTINGS_PATH
+echo $OWLCTL_SETTINGS_PATH
 
 # Create state with snapshots
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # Verify state file was created
-ls -la $VCLI_SETTINGS_PATH/state.json
+ls -la $OWLCTL_SETTINGS_PATH/state.json
 ```
 
 ### Resource Not in State
@@ -509,13 +509,13 @@ ls -la $VCLI_SETTINGS_PATH/state.json
 **Solution:**
 ```bash
 # Snapshot the resource first
-vcli repo snapshot "Resource Name"
+owlctl repo snapshot "Resource Name"
 
 # Or adopt existing resource
-vcli repo adopt "Resource Name"
+owlctl repo adopt "Resource Name"
 
 # Then diff will work
-vcli repo diff "Resource Name"
+owlctl repo diff "Resource Name"
 ```
 
 ### Corrupt State File
@@ -532,10 +532,10 @@ cp state.json.backup state.json
 
 # Or rebuild from VBR
 rm state.json
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### State Out of Sync
@@ -545,10 +545,10 @@ vcli encryption kms-snapshot --all
 **Solution:**
 ```bash
 # Re-snapshot to refresh state
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ## Drift Detection Issues
@@ -566,13 +566,13 @@ vcli encryption kms-snapshot --all
 ```bash
 # Re-snapshot after a short delay
 sleep 5
-vcli repo snapshot "Resource Name"
+owlctl repo snapshot "Resource Name"
 
 # Check drift severity (may be INFO and acceptable)
-vcli repo diff "Resource Name"
+owlctl repo diff "Resource Name"
 
 # Compare full configurations
-vcli repo export "Resource Name" -o current.yaml
+owlctl repo export "Resource Name" -o current.yaml
 diff applied.yaml current.yaml
 ```
 
@@ -588,13 +588,13 @@ diff applied.yaml current.yaml
 **Solutions:**
 ```bash
 # Check severity - may be INFO (non-critical)
-vcli job diff "Job Name"
+owlctl job diff "Job Name"
 
 # Use --security-only to filter out INFO drifts
-vcli job diff --all --security-only
+owlctl job diff --all --security-only
 
 # Compare with exported current config
-vcli export "Job Name" -o current.yaml
+owlctl export "Job Name" -o current.yaml
 diff spec.yaml current.yaml
 ```
 
@@ -608,10 +608,10 @@ Jobs are automatically snapshotted when you apply them. Manual job snapshots are
 **Solution:**
 ```bash
 # Apply the job to snapshot it
-vcli job apply job.yaml
+owlctl job apply job.yaml
 
 # Then diff will work
-vcli job diff "Job Name"
+owlctl job diff "Job Name"
 ```
 
 ## Apply Issues
@@ -627,10 +627,10 @@ Repositories, SOBRs, and KMS servers are update-only. They must be created in VB
 ```bash
 # 1. Create the resource in VBR console
 # 2. Then apply can update it
-vcli repo apply repo.yaml  # Now succeeds
+owlctl repo apply repo.yaml  # Now succeeds
 
 # Jobs support creation via apply
-vcli job apply job.yaml  # Creates if doesn't exist
+owlctl job apply job.yaml  # Creates if doesn't exist
 ```
 
 ### Partial Apply (Exit Code 5)
@@ -645,7 +645,7 @@ Review the output to see which fields were skipped. If they're important, you ma
 
 ```bash
 # Check which fields were skipped
-vcli repo apply repo.yaml --dry-run
+owlctl repo apply repo.yaml --dry-run
 
 # Update non-updateable fields manually in VBR console
 ```
@@ -660,10 +660,10 @@ vcli repo apply repo.yaml --dry-run
 cat job.yaml | yq '.'
 
 # Check for required fields
-vcli job plan job.yaml --show-yaml
+owlctl job plan job.yaml --show-yaml
 
 # Compare with exported working job
-vcli export <working-job-id> -o working.yaml
+owlctl export <working-job-id> -o working.yaml
 diff job.yaml working.yaml
 
 # Common issues:
@@ -682,7 +682,7 @@ diff job.yaml working.yaml
 # Press F5 or close/reopen
 
 # Verify via API
-vcli get jobs/<job-id>
+owlctl get jobs/<job-id>
 
 # Check if change is actually supported
 # Some fields may be display-only
@@ -702,16 +702,16 @@ vcli get jobs/<job-id>
 **Solutions:**
 ```bash
 # List all resources first
-vcli get jobs | jq '.data[] | {id, name}'
+owlctl get jobs | jq '.data[] | {id, name}'
 
 # Export by exact name
-vcli export "Exact Job Name" -o job.yaml
+owlctl export "Exact Job Name" -o job.yaml
 
 # Export by ID
-vcli export 57b3baab-6237-41bf-add7-db63d41d984c -o job.yaml
+owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o job.yaml
 
 # Verify resource exists
-vcli get jobs/<job-id>
+owlctl get jobs/<job-id>
 ```
 
 ### Export Fails for Specific Resource
@@ -721,11 +721,11 @@ vcli get jobs/<job-id>
 **Solutions:**
 ```bash
 # Check resource type
-vcli get jobs/<id> | jq '.type'
+owlctl get jobs/<id> | jq '.type'
 
 # Some job types may have export limitations
 # Try simplified export for basic jobs
-vcli export <id> --simplified -o job.yaml
+owlctl export <id> --simplified -o job.yaml
 
 # Check VBR logs for API errors
 ```
@@ -741,30 +741,30 @@ vcli export <id> --simplified -o job.yaml
 1. Check overlay resolution priority:
 ```bash
 # Explicit -o flag has highest priority
-vcli job apply base.yaml -o overlay.yaml
+owlctl job apply base.yaml -o overlay.yaml
 
-# --env flag looks up environment in vcli.yaml
-vcli job apply base.yaml --env production
+# --env flag looks up environment in owlctl.yaml
+owlctl job apply base.yaml --env production
 
-# currentEnvironment in vcli.yaml is used if no flags
-vcli job apply base.yaml
+# currentEnvironment in owlctl.yaml is used if no flags
+owlctl job apply base.yaml
 ```
 
-2. Verify vcli.yaml exists and is in search path:
+2. Verify owlctl.yaml exists and is in search path:
 ```bash
-# Check VCLI_CONFIG
-echo $VCLI_CONFIG
+# Check OWLCTL_CONFIG
+echo $OWLCTL_CONFIG
 
 # Check current directory
-ls -la vcli.yaml
+ls -la owlctl.yaml
 
 # Check home directory
-ls -la ~/.vcli/vcli.yaml
+ls -la ~/.owlctl/owlctl.yaml
 ```
 
 3. Use `--show-yaml` to see the actual merged result:
 ```bash
-vcli job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml -o overlay.yaml --show-yaml
 ```
 
 ### Unexpected Merge Results
@@ -781,7 +781,7 @@ vcli job plan base.yaml -o overlay.yaml --show-yaml
 
 2. Use `--show-yaml` to see full merged result:
 ```bash
-vcli job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml -o overlay.yaml --show-yaml
 ```
 
 3. Check that overlay `kind` matches base `kind`:
@@ -808,43 +808,43 @@ metadata:
 
 ### Environment Variables Not Set
 
-**Problem:** vcli can't find credentials
+**Problem:** owlctl can't find credentials
 
 **Solutions:**
 
 **Bash/Zsh:**
 ```bash
 # Set variables
-export VCLI_USERNAME="administrator"
-export VCLI_PASSWORD="password"
-export VCLI_URL="vbr.example.com"
+export OWLCTL_USERNAME="administrator"
+export OWLCTL_PASSWORD="password"
+export OWLCTL_URL="vbr.example.com"
 
 # Verify they're set
-echo $VCLI_USERNAME
-echo $VCLI_URL
+echo $OWLCTL_USERNAME
+echo $OWLCTL_URL
 
 # Make permanent (add to ~/.bashrc or ~/.zshrc)
-echo 'export VCLI_USERNAME="administrator"' >> ~/.bashrc
+echo 'export OWLCTL_USERNAME="administrator"' >> ~/.bashrc
 ```
 
 **PowerShell:**
 ```powershell
 # Set variables
-$env:VCLI_USERNAME = "administrator"
-$env:VCLI_PASSWORD = "password"
-$env:VCLI_URL = "vbr.example.com"
+$env:OWLCTL_USERNAME = "administrator"
+$env:OWLCTL_PASSWORD = "password"
+$env:OWLCTL_URL = "vbr.example.com"
 
 # Verify they're set
-$env:VCLI_USERNAME
-$env:VCLI_URL
+$env:OWLCTL_USERNAME
+$env:OWLCTL_URL
 
 # Make permanent
-[Environment]::SetEnvironmentVariable("VCLI_USERNAME", "administrator", "User")
+[Environment]::SetEnvironmentVariable("OWLCTL_USERNAME", "administrator", "User")
 ```
 
 ### Variables Set But Not Working
 
-**Problem:** Variables are set but vcli doesn't see them
+**Problem:** Variables are set but owlctl doesn't see them
 
 **Solutions:**
 ```bash
@@ -852,30 +852,30 @@ $env:VCLI_URL
 env | grep VCLI
 
 # Ensure no spaces around =
-export VCLI_USERNAME="admin"  # Correct
-export VCLI_USERNAME = "admin"  # Wrong
+export OWLCTL_USERNAME="admin"  # Correct
+export OWLCTL_USERNAME = "admin"  # Wrong
 
 # Restart shell after setting variables
 ```
 
 ### Settings Path Not Found
 
-**Problem:** vcli can't find settings files
+**Problem:** owlctl can't find settings files
 
 **Solutions:**
 ```bash
-# Check VCLI_SETTINGS_PATH
-echo $VCLI_SETTINGS_PATH
+# Check OWLCTL_SETTINGS_PATH
+echo $OWLCTL_SETTINGS_PATH
 
 # Ensure directory exists
-mkdir -p ~/.vcli
+mkdir -p ~/.owlctl
 
 # Set before running init
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
-vcli init
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
+owlctl init
 
 # Verify files are in correct location
-ls -la $VCLI_SETTINGS_PATH/
+ls -la $OWLCTL_SETTINGS_PATH/
 ```
 
 ## Platform-Specific Issues
@@ -887,13 +887,13 @@ ls -la $VCLI_SETTINGS_PATH/
 **Solutions:**
 ```powershell
 # Use double quotes for paths with spaces
-vcli export <id> -o "C:\Users\Name\My Documents\job.yaml"
+owlctl export <id> -o "C:\Users\Name\My Documents\job.yaml"
 
 # Escape backslashes in paths
-vcli export <id> -o "C:\\Users\\Name\\job.yaml"
+owlctl export <id> -o "C:\\Users\\Name\\job.yaml"
 
 # Use forward slashes (PowerShell accepts them)
-vcli export <id> -o "C:/Users/Name/job.yaml"
+owlctl export <id> -o "C:/Users/Name/job.yaml"
 ```
 
 ### Linux Permissions
@@ -902,25 +902,25 @@ vcli export <id> -o "C:/Users/Name/job.yaml"
 
 **Solutions:**
 ```bash
-# Make vcli executable
-chmod +x vcli
+# Make owlctl executable
+chmod +x owlctl
 
 # Run with sudo if needed (not recommended)
-sudo ./vcli login
+sudo ./owlctl login
 
 # Better: Fix ownership
-sudo chown $USER:$USER vcli
-chmod +x vcli
+sudo chown $USER:$USER owlctl
+chmod +x owlctl
 ```
 
 ### macOS Gatekeeper
 
-**Problem:** "vcli cannot be opened because the developer cannot be verified"
+**Problem:** "owlctl cannot be opened because the developer cannot be verified"
 
 **Solutions:**
 ```bash
 # Remove quarantine attribute
-xattr -d com.apple.quarantine vcli
+xattr -d com.apple.quarantine owlctl
 
 # Or allow in System Preferences
 # System Preferences → Security & Privacy → Allow anyway
@@ -928,34 +928,34 @@ xattr -d com.apple.quarantine vcli
 
 ### Path Issues (All Platforms)
 
-**Problem:** `vcli: command not found`
+**Problem:** `owlctl: command not found`
 
 **Solutions:**
 
 **Use explicit path:**
 ```bash
-./vcli login
-/path/to/vcli login
+./owlctl login
+/path/to/owlctl login
 ```
 
 **Add to PATH:**
 ```bash
 # Linux/macOS
-export PATH="$PATH:/path/to/vcli"
-echo 'export PATH="$PATH:/path/to/vcli"' >> ~/.bashrc
+export PATH="$PATH:/path/to/owlctl"
+echo 'export PATH="$PATH:/path/to/owlctl"' >> ~/.bashrc
 
 # Windows PowerShell
-$env:PATH += ";C:\path\to\vcli"
+$env:PATH += ";C:\path\to\owlctl"
 ```
 
 ## Getting Help
 
 If you can't find a solution here:
 
-1. **Check existing issues:** https://github.com/shapedthought/vcli/issues
-2. **Create a new issue:** https://github.com/shapedthought/vcli/issues/new
+1. **Check existing issues:** https://github.com/shapedthought/owlctl/issues
+2. **Create a new issue:** https://github.com/shapedthought/owlctl/issues/new
 3. **Include diagnostics:**
-   - vcli version (`vcli utils` → Check Version)
+   - owlctl version (`owlctl utils` → Check Version)
    - Operating system
    - Veeam product and version
    - Error messages (full text)
@@ -964,14 +964,14 @@ If you can't find a solution here:
 **Useful diagnostic commands:**
 ```bash
 # Version info
-vcli utils  # Select "Check Version"
+owlctl utils  # Select "Check Version"
 
 # Environment
 env | grep VCLI
 
 # Profile info
-vcli profile --get
-vcli profile --profile vbr
+owlctl profile --get
+owlctl profile --profile vbr
 
 # Connectivity test
 ping vbr.example.com

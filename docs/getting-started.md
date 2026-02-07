@@ -1,6 +1,6 @@
-# Getting Started with vcli
+# Getting Started with owlctl
 
-This guide walks you through installing vcli, setting up authentication, and choosing the right workflow for your needs.
+This guide walks you through installing owlctl, setting up authentication, and choosing the right workflow for your needs.
 
 ## Prerequisites
 
@@ -12,28 +12,28 @@ This guide walks you through installing vcli, setting up authentication, and cho
 
 ### Download
 
-1. Go to the [Releases page](https://github.com/shapedthought/vcli/releases)
+1. Go to the [Releases page](https://github.com/shapedthought/owlctl/releases)
 2. Download the appropriate binary for your platform:
-   - `vcli-windows-amd64.exe` - Windows
-   - `vcli-linux-amd64` - Linux
-   - `vcli-darwin-amd64` - macOS (Intel)
-   - `vcli-darwin-arm64` - macOS (Apple Silicon)
+   - `owlctl-windows-amd64.exe` - Windows
+   - `owlctl-linux-amd64` - Linux
+   - `owlctl-darwin-amd64` - macOS (Intel)
+   - `owlctl-darwin-arm64` - macOS (Apple Silicon)
 
 ### Verify Checksum
 
 **Windows (PowerShell):**
 ```powershell
-Get-FileHash -Path vcli-windows-amd64.exe -Algorithm SHA256
+Get-FileHash -Path owlctl-windows-amd64.exe -Algorithm SHA256
 ```
 
 **macOS:**
 ```bash
-shasum -a 256 vcli-darwin-amd64
+shasum -a 256 owlctl-darwin-amd64
 ```
 
 **Linux:**
 ```bash
-sha256sum vcli-linux-amd64
+sha256sum owlctl-linux-amd64
 ```
 
 Compare the output with the checksum in the release notes.
@@ -41,9 +41,9 @@ Compare the output with the checksum in the release notes.
 ### Make Executable (macOS/Linux)
 
 ```bash
-chmod +x vcli-darwin-amd64
+chmod +x owlctl-darwin-amd64
 # Optional: rename for convenience
-mv vcli-darwin-amd64 vcli
+mv owlctl-darwin-amd64 owlctl
 ```
 
 ### Add to PATH (Optional)
@@ -51,7 +51,7 @@ mv vcli-darwin-amd64 vcli
 **macOS/Linux:**
 ```bash
 # Move to a directory in your PATH
-sudo mv vcli /usr/local/bin/
+sudo mv owlctl /usr/local/bin/
 
 # Or add current directory to PATH
 export PATH=$PATH:$(pwd)
@@ -63,35 +63,35 @@ export PATH=$PATH:$(pwd)
 $env:Path += ";$PWD"
 
 # Or move to an existing PATH directory
-Move-Item vcli-windows-amd64.exe C:\Windows\System32\vcli.exe
+Move-Item owlctl-windows-amd64.exe C:\Windows\System32\owlctl.exe
 ```
 
 ## First-Time Setup
 
-### 1. Initialize vcli
+### 1. Initialize owlctl
 
 Create the configuration files non-interactively:
 
 ```bash
 # Basic init (creates files with defaults)
-./vcli init
+./owlctl init
 
 # With specific directory
-./vcli init --output-dir ~/.vcli/
+./owlctl init --output-dir ~/.owlctl/
 
 # With flags for specific settings
-./vcli init --insecure
+./owlctl init --insecure
 ```
 
-Init is non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./vcli init --interactive`.
+Init is non-interactive by default and outputs JSON to stdout. For legacy interactive mode, use `./owlctl init --interactive`.
 
 This creates:
-- `settings.json` - vcli settings
+- `settings.json` - owlctl settings
 - `profiles.json` - API profiles for each Veeam product (v1.0 format with all profiles)
 
 **Configuration Location:**
 - By default, files are created in the current directory
-- Use `--output-dir` flag or set `VCLI_SETTINGS_PATH` environment variable to use a specific directory
+- Use `--output-dir` flag or set `OWLCTL_SETTINGS_PATH` environment variable to use a specific directory
 
 **Available Flags:**
 - `--insecure` - Skip TLS verification (sets `apiNotSecure: true`)
@@ -101,32 +101,32 @@ This creates:
 **Subcommands:**
 ```bash
 # Initialize only settings
-./vcli init settings --insecure
+./owlctl init settings --insecure
 
 # Initialize only profiles
-./vcli init profiles
+./owlctl init profiles
 ```
 
 ### 2. Set Credentials
 
-vcli reads credentials from environment variables:
+owlctl reads credentials from environment variables:
 
 **Bash/Zsh (macOS/Linux):**
 ```bash
-export VCLI_USERNAME="administrator"
-export VCLI_PASSWORD="your-password"
-export VCLI_URL="vbr.example.com"
+export OWLCTL_USERNAME="administrator"
+export OWLCTL_PASSWORD="your-password"
+export OWLCTL_URL="vbr.example.com"
 ```
 
 **PowerShell (Windows):**
 ```powershell
-$env:VCLI_USERNAME = "administrator"
-$env:VCLI_PASSWORD = "your-password"
-$env:VCLI_URL = "vbr.example.com"
+$env:OWLCTL_USERNAME = "administrator"
+$env:OWLCTL_PASSWORD = "your-password"
+$env:OWLCTL_URL = "vbr.example.com"
 ```
 
 **Notes:**
-- `VCLI_URL` should be the hostname or IP without `https://` or port
+- `OWLCTL_URL` should be the hostname or IP without `https://` or port
 - Domain users: Use format `DOMAIN\username` or `username@domain.com`
 - Port is handled automatically based on the selected profile
 
@@ -136,13 +136,13 @@ Set the Veeam product you're connecting to:
 
 ```bash
 # List available profiles
-./vcli profile --list
+./owlctl profile --list
 
 # Set profile directly (no prompts)
-./vcli profile --set vbr
+./owlctl profile --set vbr
 
 # Get current profile (returns just "vbr")
-./vcli profile --get
+./owlctl profile --get
 ```
 
 Profile commands require explicit arguments and return clean output for scripting.
@@ -161,7 +161,7 @@ Profile commands require explicit arguments and return clean output for scriptin
 Authenticate with the Veeam API:
 
 ```bash
-./vcli login
+./owlctl login
 ```
 
 Tokens are stored securely:
@@ -175,7 +175,7 @@ Tokens are stored securely:
 
 ## Choose Your Workflow
 
-vcli supports two distinct modes of operation. Choose based on your use case.
+owlctl supports two distinct modes of operation. Choose based on your use case.
 
 ### Imperative Mode
 
@@ -188,22 +188,22 @@ vcli supports two distinct modes of operation. Choose based on your use case.
 **Example: Start a backup job**
 ```bash
 # List all jobs
-./vcli get jobs
+./owlctl get jobs
 
 # Get specific job details
-./vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c
+./owlctl get jobs/57b3baab-6237-41bf-add7-db63d41d984c
 
 # Start a job
-./vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/start
+./owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/start
 
 # Get job status
-./vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c
+./owlctl get jobs/57b3baab-6237-41bf-add7-db63d41d984c
 ```
 
 **Key Commands:**
-- `vcli get <endpoint>` - Retrieve data
-- `vcli post <endpoint>` - Trigger operations (with optional `-f data.json`)
-- `vcli put <endpoint> -f data.json` - Update resources
+- `owlctl get <endpoint>` - Retrieve data
+- `owlctl post <endpoint>` - Trigger operations (with optional `-f data.json`)
+- `owlctl put <endpoint> -f data.json` - Update resources
 
 See the [User Guide](../user_guide.md) for complete imperative mode documentation.
 
@@ -222,19 +222,19 @@ See the [User Guide](../user_guide.md) for complete imperative mode documentatio
 
 ```bash
 # Export a single job
-./vcli export c07c7ea3-0471-43a6-af57-c03c0d82354a -o prod-backup.yaml
+./owlctl export c07c7ea3-0471-43a6-af57-c03c0d82354a -o prod-backup.yaml
 
 # Export all jobs
-./vcli export --all -d jobs/
+./owlctl export --all -d jobs/
 
 # Export repositories
-./vcli repo export --all -d repos/
+./owlctl repo export --all -d repos/
 
 # Export SOBRs
-./vcli repo sobr-export --all -d sobrs/
+./owlctl repo sobr-export --all -d sobrs/
 
 # Export KMS servers
-./vcli encryption kms-export --all -d kms/
+./owlctl encryption kms-export --all -d kms/
 ```
 
 #### 2. Edit Configuration
@@ -242,7 +242,7 @@ See the [User Guide](../user_guide.md) for complete imperative mode documentatio
 Open `prod-backup.yaml` in your editor and make changes:
 
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Production Database Backup
@@ -260,14 +260,14 @@ spec:
 
 ```bash
 # Dry-run to see what would change
-./vcli job apply prod-backup.yaml --dry-run
+./owlctl job apply prod-backup.yaml --dry-run
 ```
 
 #### 4. Apply Configuration
 
 ```bash
 # Apply changes to VBR
-./vcli job apply prod-backup.yaml
+./owlctl job apply prod-backup.yaml
 ```
 
 #### 5. Commit to Git
@@ -280,14 +280,14 @@ git push
 
 #### 6. Detect Drift
 
-Someone makes a manual change in VBR? vcli will detect it:
+Someone makes a manual change in VBR? owlctl will detect it:
 
 ```bash
 # Check for drift
-./vcli job diff "Production Database Backup"
+./owlctl job diff "Production Database Backup"
 
 # Check all jobs for security-relevant drift
-./vcli job diff --all --security-only
+./owlctl job diff --all --security-only
 ```
 
 **Output:**
@@ -305,12 +305,12 @@ Summary:
 ```
 
 **Key Commands:**
-- `vcli export <id>` - Export resource to YAML
-- `vcli job apply <file>` - Apply job configuration
-- `vcli job diff <name>` - Detect drift
-- `vcli repo apply <file>` - Apply repository configuration
-- `vcli repo sobr-apply <file>` - Apply SOBR configuration
-- `vcli encryption kms-apply <file>` - Apply KMS server configuration
+- `owlctl export <id>` - Export resource to YAML
+- `owlctl job apply <file>` - Apply job configuration
+- `owlctl job diff <name>` - Detect drift
+- `owlctl repo apply <file>` - Apply repository configuration
+- `owlctl repo sobr-apply <file>` - Apply SOBR configuration
+- `owlctl encryption kms-apply <file>` - Apply KMS server configuration
 
 See [Drift Detection Guide](drift-detection.md) for complete documentation.
 
@@ -322,7 +322,7 @@ Manage dev/staging/prod environments with configuration overlays.
 
 **base-backup.yaml:**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup
@@ -346,7 +346,7 @@ spec:
 
 **overlays/prod.yaml:**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 spec:
   repository: prod-repo
@@ -360,7 +360,7 @@ spec:
 
 **overlays/dev.yaml:**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 spec:
   repository: dev-repo
@@ -376,13 +376,13 @@ spec:
 
 ```bash
 # Apply production configuration
-./vcli job apply base-backup.yaml -o overlays/prod.yaml
+./owlctl job apply base-backup.yaml -o overlays/prod.yaml
 
 # Apply development configuration
-./vcli job apply base-backup.yaml -o overlays/dev.yaml
+./owlctl job apply base-backup.yaml -o overlays/dev.yaml
 
 # Preview merged result
-./vcli job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
+./owlctl job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
 ```
 
 ### 4. Track in Git
@@ -412,7 +412,7 @@ git push
 ### Both
 
 - Join the community on GitHub Discussions
-- Report issues or request features on [GitHub Issues](https://github.com/shapedthought/vcli/issues)
+- Report issues or request features on [GitHub Issues](https://github.com/shapedthought/owlctl/issues)
 - Check the [Changelog](../README.md#change-log) for latest updates
 
 ## Troubleshooting
@@ -477,7 +477,7 @@ sudo update-ca-certificates
 
 **Solution:**
 ```bash
-./vcli profile --set vbr
+./owlctl profile --set vbr
 ```
 
 ### State File Corruption
@@ -487,38 +487,38 @@ sudo update-ca-certificates
 **Solution:**
 ```bash
 # Backup current state
-cp ~/.vcli/state.json ~/.vcli/state.json.backup
+cp ~/.owlctl/state.json ~/.owlctl/state.json.backup
 
 # Reset state (WARNING: loses drift detection history)
-rm ~/.vcli/state.json
+rm ~/.owlctl/state.json
 
 # Re-snapshot resources
-./vcli repo snapshot --all
-./vcli repo sobr-snapshot --all
-./vcli encryption snapshot --all
-./vcli encryption kms-snapshot --all
+./owlctl repo snapshot --all
+./owlctl repo sobr-snapshot --all
+./owlctl encryption snapshot --all
+./owlctl encryption kms-snapshot --all
 ```
 
 ### Resource Not Found (Exit Code 6)
 
-**Problem:** `vcli repo apply` returns exit code 6
+**Problem:** `owlctl repo apply` returns exit code 6
 
-**Explanation:** Repositories, SOBRs, and KMS servers are **update-only**. They must be created in the VBR console first, then managed via vcli.
+**Explanation:** Repositories, SOBRs, and KMS servers are **update-only**. They must be created in the VBR console first, then managed via owlctl.
 
 **Solution:**
 1. Create the resource in VBR console
-2. Export it: `./vcli repo export "Repository Name" -o repo.yaml`
-3. Now you can apply changes: `./vcli repo apply repo.yaml`
+2. Export it: `./owlctl repo export "Repository Name" -o repo.yaml`
+3. Now you can apply changes: `./owlctl repo apply repo.yaml`
 
 ## Environment Variables Reference
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VCLI_USERNAME` | Yes | API username |
-| `VCLI_PASSWORD` | Yes | API password |
-| `VCLI_URL` | Yes | Veeam server hostname/IP (without https:// or port) |
-| `VCLI_SETTINGS_PATH` | No | Directory for config files (default: current directory) |
-| `VCLI_CONFIG` | No | Path to vcli.yaml (planned feature) |
+| `OWLCTL_USERNAME` | Yes | API username |
+| `OWLCTL_PASSWORD` | Yes | API password |
+| `OWLCTL_URL` | Yes | Veeam server hostname/IP (without https:// or port) |
+| `OWLCTL_SETTINGS_PATH` | No | Directory for config files (default: current directory) |
+| `OWLCTL_CONFIG` | No | Path to owlctl.yaml (planned feature) |
 
 ## Exit Codes
 
@@ -542,7 +542,7 @@ rm ~/.vcli/state.json
 
 Use exit codes in scripts:
 ```bash
-./vcli job diff --all --security-only
+./owlctl job diff --all --security-only
 if [ $? -eq 4 ]; then
     echo "CRITICAL security drift detected!"
     exit 1

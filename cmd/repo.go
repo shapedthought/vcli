@@ -8,10 +8,10 @@ import (
 	"os/user"
 	"time"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/state"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/state"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -34,22 +34,22 @@ ONLY WORKS WITH VBR AT THE MOMENT.
 Subcommands:
 
 Snapshot repository configuration
-  vcli repo snapshot "Default Backup Repository"
-  vcli repo snapshot --all
+  owlctl repo snapshot "Default Backup Repository"
+  owlctl repo snapshot --all
 
 Detect configuration drift
-  vcli repo diff "Default Backup Repository"
-  vcli repo diff --all
+  owlctl repo diff "Default Backup Repository"
+  owlctl repo diff --all
 
 Apply repository configuration
-  vcli repo apply repos/default-repo.yaml
+  owlctl repo apply repos/default-repo.yaml
 
 Scale-out backup repositories
-  vcli repo sobr-snapshot "Scale-out Backup Repository 1"
-  vcli repo sobr-snapshot --all
-  vcli repo sobr-diff "Scale-out Backup Repository 1"
-  vcli repo sobr-diff --all
-  vcli repo sobr-apply sobrs/sobr1.yaml
+  owlctl repo sobr-snapshot "Scale-out Backup Repository 1"
+  owlctl repo sobr-snapshot --all
+  owlctl repo sobr-diff "Scale-out Backup Repository 1"
+  owlctl repo sobr-diff --all
+  owlctl repo sobr-apply sobrs/sobr1.yaml
 `,
 }
 
@@ -60,10 +60,10 @@ var repoSnapshotCmd = &cobra.Command{
 
 Examples:
   # Snapshot a single repository
-  vcli repo snapshot "Default Backup Repository"
+  owlctl repo snapshot "Default Backup Repository"
 
   # Snapshot all repositories
-  vcli repo snapshot --all
+  owlctl repo snapshot --all
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if repoSnapshotAll {
@@ -84,10 +84,10 @@ to detect manual changes or drift.
 
 Examples:
   # Check single repository for drift
-  vcli repo diff "Default Backup Repository"
+  owlctl repo diff "Default Backup Repository"
 
   # Check all repositories
-  vcli repo diff --all
+  owlctl repo diff --all
 
 Exit Codes:
   0 - No drift detected
@@ -319,7 +319,7 @@ func diffAllRepos() {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d repositories clean\n", cleanCount)
 	if driftedApplied > 0 {
-		fmt.Printf("  - %d repositories drifted — remediate with: vcli repo apply <spec>.yaml\n", driftedApplied)
+		fmt.Printf("  - %d repositories drifted — remediate with: owlctl repo apply <spec>.yaml\n", driftedApplied)
 	}
 	if driftedObserved > 0 {
 		fmt.Printf("  - %d repositories drifted (observed) — adopt to enable remediation\n", driftedObserved)
@@ -369,10 +369,10 @@ Repositories cannot be created via the API - they must be created in the VBR con
 
 Examples:
   # Apply a repository configuration
-  vcli repo apply repos/default-repo.yaml
+  owlctl repo apply repos/default-repo.yaml
 
   # Preview changes without applying (dry-run)
-  vcli repo apply repos/default-repo.yaml --dry-run
+  owlctl repo apply repos/default-repo.yaml --dry-run
 
 Exit Codes:
   0 - Success
@@ -440,10 +440,10 @@ SOBRs cannot be created via the API - they must be created in the VBR console fi
 
 Examples:
   # Apply a SOBR configuration
-  vcli repo sobr-apply sobrs/sobr1.yaml
+  owlctl repo sobr-apply sobrs/sobr1.yaml
 
   # Preview changes without applying (dry-run)
-  vcli repo sobr-apply sobrs/sobr1.yaml --dry-run
+  owlctl repo sobr-apply sobrs/sobr1.yaml --dry-run
 
 Exit Codes:
   0 - Success
@@ -481,10 +481,10 @@ var sobrSnapshotCmd = &cobra.Command{
 
 Examples:
   # Snapshot a single SOBR
-  vcli repo sobr-snapshot "Scale-out Backup Repository 1"
+  owlctl repo sobr-snapshot "Scale-out Backup Repository 1"
 
   # Snapshot all SOBRs
-  vcli repo sobr-snapshot --all
+  owlctl repo sobr-snapshot --all
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sobrSnapshotAll {
@@ -505,10 +505,10 @@ last snapshot state to detect manual changes or drift.
 
 Examples:
   # Check single SOBR for drift
-  vcli repo sobr-diff "Scale-out Backup Repository 1"
+  owlctl repo sobr-diff "Scale-out Backup Repository 1"
 
   # Check all SOBRs
-  vcli repo sobr-diff --all
+  owlctl repo sobr-diff --all
 
 Exit Codes:
   0 - No drift detected
@@ -729,7 +729,7 @@ func diffAllSobrs() {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d scale-out repositories clean\n", cleanCount)
 	if driftedApplied > 0 {
-		fmt.Printf("  - %d scale-out repositories drifted — remediate with: vcli repo sobr-apply <spec>.yaml\n", driftedApplied)
+		fmt.Printf("  - %d scale-out repositories drifted — remediate with: owlctl repo sobr-apply <spec>.yaml\n", driftedApplied)
 	}
 	if driftedObserved > 0 {
 		fmt.Printf("  - %d scale-out repositories drifted (observed) — adopt to enable remediation\n", driftedObserved)

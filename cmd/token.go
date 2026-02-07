@@ -10,7 +10,7 @@ var tokenCmd = &cobra.Command{
 	Short: "Get authentication token for scripting",
 	Long: `Get authentication token for use in CI/CD pipelines and scripts.
 
-This is an alias for 'vcli login --output-token'.
+This is an alias for 'owlctl login --output-token'.
 
 The token is printed to stdout for capture in environment variables or scripts.
 This is useful for CI/CD workflows where you want to authenticate once and reuse
@@ -18,14 +18,14 @@ the token across multiple commands.
 
 Examples:
   # Capture token in environment variable
-  export VCLI_TOKEN=$(vcli token)
+  export OWLCTL_TOKEN=$(owlctl token)
 
   # Use token in subsequent commands
-  vcli get jobs
-  vcli job diff --all
+  owlctl get jobs
+  owlctl job diff --all
 
   # Capture token in script
-  TOKEN=$(vcli token)
+  TOKEN=$(owlctl token)
   echo "Token: $TOKEN"
 
 Security Notes:

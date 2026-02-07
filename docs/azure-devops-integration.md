@@ -1,6 +1,6 @@
 # Azure DevOps Integration Guide
 
-vcli integrates with Azure DevOps Pipelines to provide automated configuration assurance for Veeam Backup & Replication environments. This guide covers what works today, what the complete integration looks like, and what features are needed to get there.
+owlctl integrates with Azure DevOps Pipelines to provide automated configuration assurance for Veeam Backup & Replication environments. This guide covers what works today, what the complete integration looks like, and what features are needed to get there.
 
 ## Quick Start: Pipeline Templates
 
@@ -19,13 +19,13 @@ See the [pipeline README](../examples/pipelines/README.md) for setup instruction
 
 ### What Works Today
 
-vcli is already usable in Azure DevOps Pipelines with these capabilities:
+owlctl is already usable in Azure DevOps Pipelines with these capabilities:
 
 | Capability | Status | Notes |
 |------------|--------|-------|
 | CLI invocation in pipeline steps | Ready | Standard `script` or `Bash@3` tasks |
 | Exit codes for pipeline gates | Ready | `0`=clean, `3`=warning drift, `4`=critical drift, `1`=error |
-| Environment variable auth | Ready | `VCLI_USERNAME`, `VCLI_PASSWORD`, `VCLI_URL` |
+| Environment variable auth | Ready | `OWLCTL_USERNAME`, `OWLCTL_PASSWORD`, `OWLCTL_URL` |
 | Severity filtering | Ready | `--severity critical`, `--security-only` flags |
 | Scheduled drift scans | Ready | Pipelines support cron schedules with `always: true` |
 | State file in Git | Ready | `state.json` can be committed and tracked |
@@ -57,35 +57,35 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  - group: 'veeam-credentials'  # Contains VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+  - group: 'veeam-credentials'  # Contains OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 
 steps:
   - script: |
-      curl -L https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
-      chmod +x vcli
-    displayName: 'Install vcli'
+      curl -L https://github.com/shapedthought/owlctl/releases/download/v0.12.1-beta1/owlctl-linux-amd64 -o owlctl
+      chmod +x owlctl
+    displayName: 'Install owlctl'
 
-  - script: ./vcli init && ./vcli profile --set vbr && ./vcli login
+  - script: ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
     displayName: 'Authenticate to VBR'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 
   - script: |
-      ./vcli job diff --all --security-only
+      ./owlctl job diff --all --security-only
       JOB_EXIT=$?
 
-      ./vcli repo diff --all --security-only
+      ./owlctl repo diff --all --security-only
       REPO_EXIT=$?
 
-      ./vcli repo sobr-diff --all --security-only
+      ./owlctl repo sobr-diff --all --security-only
       SOBR_EXIT=$?
 
-      ./vcli encryption diff --all --security-only
+      ./owlctl encryption diff --all --security-only
       ENC_EXIT=$?
 
-      ./vcli encryption kms-diff --all --security-only
+      ./owlctl encryption kms-diff --all --security-only
       KMS_EXIT=$?
 
       # Fail pipeline if any CRITICAL drift found (exit code 4)
@@ -108,7 +108,7 @@ steps:
       echo "No security drift detected"
     displayName: 'Run drift detection'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 ### Credentials Management
@@ -119,7 +119,7 @@ Azure DevOps provides several options for storing VBR credentials securely:
 
 1. Go to Pipelines > Library > Variable groups
 2. Create a group called `veeam-credentials`
-3. Add variables: `VCLI_USERNAME`, `VCLI_PASSWORD` (mark as secret), `VCLI_URL`
+3. Add variables: `OWLCTL_USERNAME`, `OWLCTL_PASSWORD` (mark as secret), `OWLCTL_URL`
 4. Reference in pipeline with `- group: 'veeam-credentials'`
 
 **Azure Key Vault (recommended for enterprise)**
@@ -130,7 +130,7 @@ Azure DevOps provides several options for storing VBR credentials securely:
 
 ```yaml
 variables:
-  - group: 'vcli-keyvault-linked'  # Linked to Azure Key Vault
+  - group: 'owlctl-keyvault-linked'  # Linked to Azure Key Vault
 ```
 
 **Secure Files (for settings.json and profiles.json)**
@@ -138,30 +138,30 @@ variables:
 ```yaml
 steps:
   - task: DownloadSecureFile@1
-    name: vcliSettings
+    name: owlctlSettings
     inputs:
-      secureFile: 'vcli-settings.json'
+      secureFile: 'owlctl-settings.json'
 
   - task: DownloadSecureFile@1
-    name: vcliProfiles
+    name: owlctlProfiles
     inputs:
-      secureFile: 'vcli-profiles.json'
+      secureFile: 'owlctl-profiles.json'
 
   - script: |
-      mkdir -p $HOME/.vcli
-      cp $(vcliSettings.secureFilePath) $HOME/.vcli/settings.json
-      cp $(vcliProfiles.secureFilePath) $HOME/.vcli/profiles.json
-      ./vcli profile --set vbr
-      ./vcli login
+      mkdir -p $HOME/.owlctl
+      cp $(owlctlSettings.secureFilePath) $HOME/.owlctl/settings.json
+      cp $(owlctlProfiles.secureFilePath) $HOME/.owlctl/profiles.json
+      ./owlctl profile --set vbr
+      ./owlctl login
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 ### Exit Codes and Pipeline Logic
 
-vcli's exit codes map directly to Azure DevOps pipeline outcomes:
+owlctl's exit codes map directly to Azure DevOps pipeline outcomes:
 
-| vcli Exit Code | Pipeline Result | Action |
+| owlctl Exit Code | Pipeline Result | Action |
 |----------------|----------------|--------|
 | `0` | Succeeded | No drift — pipeline passes |
 | `3` | SucceededWithIssues | INFO/WARNING drift — pipeline passes with warning |
@@ -213,14 +213,14 @@ stages:
         displayName: 'Scan all resources'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Setup vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/v0.12.1-beta1/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Setup owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               CRITICAL=0
@@ -233,9 +233,9 @@ stages:
                 "encryption diff --all" \
                 "encryption kms-diff --all"
               do
-                RESULT=$(./vcli $CMD 2>&1) || true
+                RESULT=$(./owlctl $CMD 2>&1) || true
                 EXIT=$?
-                OUTPUT="$OUTPUT\n--- vcli $CMD ---\n$RESULT\n"
+                OUTPUT="$OUTPUT\n--- owlctl $CMD ---\n$RESULT\n"
                 if [ $EXIT -eq 4 ]; then
                   CRITICAL=1
                 fi
@@ -252,7 +252,7 @@ stages:
             displayName: 'Run drift scan'
             name: scan
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
           - publish: $(Build.ArtifactStagingDirectory)
             artifact: DriftReport
@@ -305,20 +305,20 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-linux-amd64 -o vcli
-      chmod +x vcli
-      ./vcli init && ./vcli profile --set vbr && ./vcli login
-    displayName: 'Setup vcli'
+      curl -sL https://github.com/shapedthought/owlctl/releases/download/v0.12.1-beta1/owlctl-linux-amd64 -o owlctl
+      chmod +x owlctl
+      ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+    displayName: 'Setup owlctl'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 
   - script: |
       # Validate all changed YAML files
       for file in $(git diff --name-only origin/master...HEAD -- '*.yaml' '*.yml'); do
         echo "Validating: $file"
-        ./vcli job plan "$file" --show-yaml
+        ./owlctl job plan "$file" --show-yaml
         if [ $? -ne 0 ]; then
           echo "##vso[task.logissue type=error]Validation failed for $file"
           exit 1
@@ -326,7 +326,7 @@ steps:
       done
     displayName: 'Validate job configurations'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 Set this as a **required build validation** under Repos > Branches > Branch Policies for `master` to block PRs that contain invalid configurations.
@@ -366,20 +366,20 @@ export → snapshot → apply → diff
 steps:
   - script: |
       # Export current VBR configuration to YAML specs
-      ./vcli repo export --all -o infrastructure/repos/
-      ./vcli repo sobr-export --all -o infrastructure/sobrs/
-      ./vcli encryption export --all -o infrastructure/encryption/
-      ./vcli encryption kms-export --all -o infrastructure/kms/
+      ./owlctl repo export --all -o infrastructure/repos/
+      ./owlctl repo sobr-export --all -o infrastructure/sobrs/
+      ./owlctl encryption export --all -o infrastructure/encryption/
+      ./owlctl encryption kms-export --all -o infrastructure/kms/
 
       # Snapshot resources as desired state (no VBR changes)
-      ./vcli repo snapshot --all
-      ./vcli repo sobr-snapshot --all
-      ./vcli encryption snapshot --all
-      ./vcli encryption kms-snapshot --all
+      ./owlctl repo snapshot --all
+      ./owlctl repo sobr-snapshot --all
+      ./owlctl encryption snapshot --all
+      ./owlctl encryption kms-snapshot --all
     displayName: 'Bootstrap declarative management'
 ```
 
-The specs are committed to Git. State records each resource with `origin: "applied"`, meaning vcli knows what the configuration *should* look like and can remediate drift.
+The specs are committed to Git. State records each resource with `origin: "applied"`, meaning owlctl knows what the configuration *should* look like and can remediate drift.
 
 ### Automated Detect and Remediate
 
@@ -410,13 +410,13 @@ stages:
       - job: DriftScan
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
+              curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl && ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
             displayName: 'Setup'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               CRITICAL=0
@@ -427,7 +427,7 @@ stages:
                 "encryption diff --all --security-only" \
                 "encryption kms-diff --all --security-only"
               do
-                ./vcli $CMD 2>&1 || true
+                ./owlctl $CMD 2>&1 || true
                 if [ $? -eq 4 ]; then CRITICAL=1; fi
               done
               echo "##vso[task.setvariable variable=hasCritical;isOutput=true]$CRITICAL"
@@ -437,7 +437,7 @@ stages:
             displayName: 'Scan for drift'
             name: scan
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   - stage: Remediate
     displayName: 'Auto-Remediate'
@@ -449,30 +449,30 @@ stages:
           - checkout: self
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
+              curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl && ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
             displayName: 'Setup'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               PARTIAL=0
 
               # Apply all specs from Git
               for spec in infrastructure/repos/*.yaml; do
-                ./vcli repo apply "$spec"
+                ./owlctl repo apply "$spec"
                 if [ $? -eq 5 ]; then PARTIAL=1; fi
               done
 
               for spec in infrastructure/sobrs/*.yaml; do
-                ./vcli repo sobr-apply "$spec"
+                ./owlctl repo sobr-apply "$spec"
                 if [ $? -eq 5 ]; then PARTIAL=1; fi
               done
 
               for spec in infrastructure/jobs/*.yaml; do
-                ./vcli job apply "$spec"
+                ./owlctl job apply "$spec"
                 if [ $? -eq 5 ]; then PARTIAL=1; fi
               done
 
@@ -482,7 +482,7 @@ stages:
               fi
             displayName: 'Apply desired state'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   - stage: Verify
     displayName: 'Post-Remediation Check'
@@ -491,23 +491,23 @@ stages:
       - job: VerifyClean
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-              chmod +x vcli && ./vcli init && ./vcli profile --set vbr && ./vcli login
+              curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl && ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
             displayName: 'Setup'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
-              ./vcli job diff --all
-              ./vcli repo diff --all
-              ./vcli repo sobr-diff --all
-              ./vcli encryption diff --all
-              ./vcli encryption kms-diff --all
+              ./owlctl job diff --all
+              ./owlctl repo diff --all
+              ./owlctl repo sobr-diff --all
+              ./owlctl encryption diff --all
+              ./owlctl encryption kms-diff --all
             displayName: 'Verify no remaining drift'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   - stage: Notify
     displayName: 'Notifications'
@@ -549,7 +549,7 @@ With Epic #42, apply commands return additional exit codes that pipelines can us
 
 ### API-First Remediation
 
-vcli follows the Kubernetes/Terraform model for remediation: **send all changes to VBR and let the API decide what's mutable**. Apply sends the desired state from the Git-tracked YAML spec, and VBR accepts or rejects each field. vcli reports the outcome:
+owlctl follows the Kubernetes/Terraform model for remediation: **send all changes to VBR and let the API decide what's mutable**. Apply sends the desired state from the Git-tracked YAML spec, and VBR accepts or rejects each field. owlctl reports the outcome:
 
 ```
 Applying: Default Backup Repository
@@ -571,22 +571,22 @@ With Epic #23 Phases 2-4 complete, drift scans and remediation cover the entire 
 steps:
   - script: |
       # Current
-      ./vcli job diff --all --security-only
-      ./vcli repo diff --all --security-only
-      ./vcli repo sobr-diff --all --security-only
-      ./vcli encryption diff --all --security-only
-      ./vcli encryption kms-diff --all --security-only
+      ./owlctl job diff --all --security-only
+      ./owlctl repo diff --all --security-only
+      ./owlctl repo sobr-diff --all --security-only
+      ./owlctl encryption diff --all --security-only
+      ./owlctl encryption kms-diff --all --security-only
 
       # Epic #23 Phase 2 (planned — #29, #30, #31, #32)
-      ./vcli rbac diff --all --security-only
-      ./vcli infra servers diff --all --security-only
-      ./vcli credentials diff --all --security-only
-      ./vcli traffic diff --all --security-only
+      ./owlctl rbac diff --all --security-only
+      ./owlctl infra servers diff --all --security-only
+      ./owlctl credentials diff --all --security-only
+      ./owlctl traffic diff --all --security-only
 
       # Epic #23 Phase 3 (planned — #33, #34, #35)
-      ./vcli malware diff --all --security-only
-      ./vcli config-backup diff --all --security-only
-      ./vcli notifications diff --all --security-only
+      ./owlctl malware diff --all --security-only
+      ./owlctl config-backup diff --all --security-only
+      ./owlctl notifications diff --all --security-only
     displayName: 'Full security scan'
 ```
 
@@ -616,14 +616,14 @@ stages:
           - script: |
               # Apply all resource specs from Git
               for spec in infrastructure/jobs/*.yaml; do
-                ./vcli job apply "$spec"
+                ./owlctl job apply "$spec"
               done
               for spec in infrastructure/repos/*.yaml; do
-                ./vcli repo apply "$spec"
+                ./owlctl repo apply "$spec"
               done
             displayName: 'Apply VBR configuration'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   - stage: PostDeployVerify
     displayName: 'Post-Deploy Verification'
@@ -639,15 +639,15 @@ stages:
 
 ### JSON Output for Machine Consumption
 
-**Required feature:** `--output json` flag on all diff commands (see [Features Needed](#features-needed))
+**Planned feature:** `--output json` flag on all diff commands
 
 With JSON output, pipelines can parse results programmatically:
 
 ```yaml
 steps:
   - script: |
-      ./vcli job diff --all --output json > job-drift.json
-      ./vcli repo diff --all --output json > repo-drift.json
+      ./owlctl job diff --all --output json > job-drift.json
+      ./owlctl repo diff --all --output json > repo-drift.json
 
       # Parse with jq for conditional logic
       CRITICAL_COUNT=$(jq '[.drifts[] | select(.severity == "CRITICAL")] | length' job-drift.json)
@@ -657,14 +657,14 @@ steps:
 
 ### Markdown Reports Attached to Build Summary
 
-**Required feature:** `--output markdown` flag or `vcli report` command (#38)
+**Required feature:** `--output markdown` flag or `owlctl report` command (#38)
 
 Azure DevOps can render Markdown reports directly in the build summary tab:
 
 ```yaml
 steps:
   - script: |
-      ./vcli report --format markdown > $(System.DefaultWorkingDirectory)/drift-summary.md
+      ./owlctl report --format markdown > $(System.DefaultWorkingDirectory)/drift-summary.md
       echo "##vso[task.uploadsummary]$(System.DefaultWorkingDirectory)/drift-summary.md"
     displayName: 'Generate compliance report'
 ```
@@ -676,7 +676,7 @@ steps:
 ```yaml
 steps:
   - script: |
-      ./vcli correlate --all --output json > correlation.json
+      ./owlctl correlate --all --output json > correlation.json
       PATTERNS=$(jq '.patterns | length' correlation.json)
       if [ $PATTERNS -gt 0 ]; then
         echo "##vso[task.logissue type=error]$PATTERNS coordinated change patterns detected"
@@ -692,14 +692,14 @@ Azure DevOps dashboards can display drift trends using several approaches:
 
 **Build History Widget** — Shows pass/fail trend for the drift scan pipeline. A failing build = drift detected.
 
-**Test Results Trend** — If vcli outputs JUnit XML format (see [Features Needed](#features-needed)), the Test Results Trend widget shows drift counts over time.
+**Test Results Trend** — If owlctl outputs JUnit XML format in a future release, the Test Results Trend widget would show drift counts over time.
 
 **Wiki Auto-Update** — Pipeline publishes the latest report to an Azure DevOps wiki page:
 
 ```yaml
 steps:
   - script: |
-      REPORT=$(./vcli report --format markdown)
+      REPORT=$(./owlctl report --format markdown)
       az devops configure --defaults \
         organization=$(System.CollectionUri) \
         project="$(System.TeamProject)"
@@ -711,140 +711,6 @@ steps:
     env:
       AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
 ```
-
----
-
-## Features Needed
-
-These vcli features would complete the Azure DevOps integration story. They are ordered by impact.
-
-### 1. Declarative Management for All Resources (High Impact)
-
-**Status:** ✅ Complete (Epic #42)
-
-The `export` → `snapshot` → `apply` → `diff` lifecycle is now implemented for all resource types (jobs, repositories, SOBRs, encryption passwords, KMS servers). This enables automated remediation pipelines. See [pipeline templates](../examples/pipelines/) for ready-to-use examples.
-
-### 2. JSON Output for Diff Commands (High Impact)
-
-**Status:** Not implemented
-**Related issue:** Part of #37 (structured output)
-
-Add `--output json` flag to all diff commands. The JSON schema should include:
-
-```json
-{
-  "timestamp": "2026-02-01T06:00:00Z",
-  "resource": "Backup Job 1",
-  "resourceType": "VBRJob",
-  "origin": "applied",
-  "driftCount": 3,
-  "highestSeverity": "CRITICAL",
-  "securityDriftCount": 2,
-  "drifts": [
-    {
-      "path": "isDisabled",
-      "action": "modified",
-      "stateValue": false,
-      "vbrValue": true,
-      "severity": "CRITICAL"
-    }
-  ],
-  "metadata": {
-    "lastApplied": "2026-02-01T14:30:00Z",
-    "lastAppliedBy": "edwardhoward"
-  }
-}
-```
-
-**Why it matters:** Enables pipeline scripts to parse results with `jq`, build conditional logic, and forward structured data to external systems. The current text output requires fragile regex parsing.
-
-### 3. Markdown Report Generation (High Impact)
-
-**Status:** Planned as #38 (compliance report generation)
-
-A `vcli report` command (or `--output markdown` on diff commands) that produces a formatted Markdown report. Azure DevOps renders Markdown in build summaries via the `##vso[task.uploadsummary]` logging command, making drift results visible without downloading artifacts.
-
-### 4. Unified Scan Command (Medium Impact)
-
-**Status:** Not planned
-
-A single command that runs all diff checks and produces a combined report:
-
-```bash
-vcli scan --all --security-only --output json
-```
-
-This simplifies pipeline definitions from 5+ sequential commands to one. It could also enable the correlation engine (#36) to analyse cross-resource patterns.
-
-### 5. JUnit XML Output (Medium Impact)
-
-**Status:** Not planned
-
-Azure DevOps has a built-in "Tests" tab that displays JUnit XML results with pass/fail counts, trends, and drill-down. If vcli outputs drift results in JUnit format, each drift becomes a "test case":
-
-```xml
-<testsuites>
-  <testsuite name="Job Drift" tests="3" failures="2">
-    <testcase name="Backup Job 1 - isDisabled" classname="job.drift">
-      <failure message="CRITICAL: false (state) -> true (VBR)" />
-    </testcase>
-  </testsuite>
-</testsuites>
-```
-
-This gives free trending, history, and dashboard widgets via the `PublishTestResults@2` task.
-
-### 6. SARIF Output (Medium Impact)
-
-**Status:** Not planned
-
-The Static Analysis Results Interchange Format (SARIF) is a standard for security tool output. Azure DevOps has a "Scans" tab (via the SARIF SAST extension) that displays SARIF results alongside code. If drift results map to config files tracked in Git, SARIF output would show drifts annotated on the relevant lines.
-
-### 7. Azure DevOps Logging Command Support (Low Impact)
-
-**Status:** Not planned
-
-An `--ado` flag that wraps output with Azure DevOps logging commands automatically:
-
-```bash
-./vcli job diff --all --ado
-```
-
-Would output:
-```
-##vso[task.logissue type=error]CRITICAL ~ isDisabled: false (state) -> true (VBR)
-##vso[task.logissue type=warning]WARNING ~ schedule: modified
-##vso[task.complete result=SucceededWithIssues;]2 security-relevant changes detected
-```
-
-This is a convenience — the same result can be achieved with shell scripting around the current text output, but native support reduces boilerplate.
-
-### 8. Non-Interactive Mode Flag (Low Impact)
-
-**Status:** Partially implemented (vcli already uses env vars for auth)
-
-An explicit `--non-interactive` or `--ci` flag that:
-- Suppresses any interactive prompts
-- Ensures clean stdout (no progress spinners or ANSI codes)
-- Guarantees exit codes are set correctly
-- Reads all configuration from environment variables or flags only
-
-vcli largely behaves this way already, but an explicit flag documents the intent and prevents future regressions.
-
----
-
-## Feature Priority Matrix
-
-| Feature | Azure DevOps Impact | Effort | Dependency |
-|---------|-------------------|--------|------------|
-| Declarative management (all resources) | Unlocks automated remediation pipelines | High | Epic #42 |
-| JSON output for diffs | Unlocks programmatic parsing, webhook forwarding, dashboard data | Medium | None |
-| Markdown report | Build summary integration, wiki dashboards, compliance artifacts | Medium | #38 |
-| Unified scan command | Simplifies pipelines, enables correlation | Medium | #36 |
-| JUnit XML output | Free trending/history via Tests tab | Low | JSON output |
-| SARIF output | Security scan tab integration | Low | JSON output |
-| ADO logging commands | Convenience for pipeline authors | Low | None |
-| Non-interactive flag | CI/CD safety net | Low | None |
 
 ---
 
@@ -877,7 +743,7 @@ steps:
         "encryption diff --all --severity ${{ parameters.severity }}" \
         "encryption kms-diff --all --severity ${{ parameters.severity }}"
       do
-        ./vcli $CMD 2>&1 || true
+        ./owlctl $CMD 2>&1 || true
         if [ $? -eq 4 ]; then
           CRITICAL=1
         fi
@@ -887,9 +753,9 @@ steps:
         echo "##vso[task.logissue type=error]Critical drift detected"
         exit 1
       fi
-    displayName: 'vcli drift scan'
+    displayName: 'owlctl drift scan'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 Use in a pipeline:
@@ -921,7 +787,7 @@ steps:
       # Apply job specs
       for spec in ${{ parameters.specsPath }}/jobs/*.yaml; do
         [ -f "$spec" ] || continue
-        ./vcli job apply "$spec"
+        ./owlctl job apply "$spec"
         EXIT=$?
         if [ $EXIT -eq 5 ]; then PARTIAL=1; fi
         if [ $EXIT -eq 6 ]; then DESTROYED=1; fi
@@ -930,7 +796,7 @@ steps:
       # Apply repo specs
       for spec in ${{ parameters.specsPath }}/repos/*.yaml; do
         [ -f "$spec" ] || continue
-        ./vcli repo apply "$spec"
+        ./owlctl repo apply "$spec"
         EXIT=$?
         if [ $EXIT -eq 5 ]; then PARTIAL=1; fi
         if [ $EXIT -eq 6 ]; then DESTROYED=1; fi
@@ -939,7 +805,7 @@ steps:
       # Apply SOBR specs
       for spec in ${{ parameters.specsPath }}/sobrs/*.yaml; do
         [ -f "$spec" ] || continue
-        ./vcli repo sobr-apply "$spec"
+        ./owlctl repo sobr-apply "$spec"
         EXIT=$?
         if [ $EXIT -eq 5 ]; then PARTIAL=1; fi
         if [ $EXIT -eq 6 ]; then DESTROYED=1; fi
@@ -956,7 +822,7 @@ steps:
       fi
     displayName: 'Apply desired state from Git'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 ### Template: Nightly Compliance Report
@@ -981,14 +847,14 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/vcli/releases/latest/download/vcli-linux-amd64 -o vcli
-      chmod +x vcli
-      ./vcli init && ./vcli profile --set vbr && ./vcli login
+      curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+      chmod +x owlctl
+      ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
     displayName: 'Setup'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 
   - script: |
       # Capture all drift output
@@ -999,29 +865,29 @@ steps:
         echo ""
 
         echo "## Job Configuration"
-        ./vcli job diff --all 2>&1 || true
+        ./owlctl job diff --all 2>&1 || true
         echo ""
 
         echo "## Repository Configuration"
-        ./vcli repo diff --all 2>&1 || true
+        ./owlctl repo diff --all 2>&1 || true
         echo ""
 
         echo "## Scale-Out Repositories"
-        ./vcli repo sobr-diff --all 2>&1 || true
+        ./owlctl repo sobr-diff --all 2>&1 || true
         echo ""
 
         echo "## Encryption Inventory"
-        ./vcli encryption diff --all 2>&1 || true
+        ./owlctl encryption diff --all 2>&1 || true
         echo ""
 
         echo "## KMS Servers"
-        ./vcli encryption kms-diff --all 2>&1 || true
+        ./owlctl encryption kms-diff --all 2>&1 || true
       } > $(Build.ArtifactStagingDirectory)/compliance-report.md
 
       echo "##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/compliance-report.md"
     displayName: 'Generate compliance report'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   - publish: $(Build.ArtifactStagingDirectory)
     artifact: ComplianceReport

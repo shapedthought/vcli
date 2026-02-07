@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/pterm/pterm"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -88,7 +88,7 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 
 			fmt.Println("Job JSON POST file created.")
 		} else if (result == "Check Version") {
-			res, err := http.Get("https://api.github.com/repos/shapedthought/vcli/releases/latest");
+			res, err := http.Get("https://api.github.com/repos/shapedthought/owlctl/releases/latest");
 			utils.IsErr(err)
 
 			body, err := io.ReadAll(res.Body)
@@ -101,8 +101,8 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 
 			latestVersion := result["tag_name"].(string)
 
-			if (latestVersion != "v0.7.0-beta1") {
-				fmt.Printf("You are running v0.7.0-beta1, the latest version is %s", latestVersion) 
+			if (latestVersion != "v1.0.0") {
+				fmt.Printf("You are running v1.0.0, the latest version is %s\n", latestVersion)
 			} else {
 				fmt.Println("You are running the latest version.")
 			}

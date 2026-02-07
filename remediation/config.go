@@ -65,11 +65,11 @@ var KnownImmutableFields = map[string]map[string]KnownImmutableField{
 // Returns an empty config (all fields remediable) if no config file exists.
 // Returns an error if a config file exists but fails to parse.
 // Locations checked (in order):
-//  1. $VCLI_SETTINGS_PATH/remediation-config.yaml
-//  2. ~/.vcli/remediation-config.yaml
+//  1. $OWLCTL_SETTINGS_PATH/remediation-config.yaml
+//  2. ~/.owlctl/remediation-config.yaml
 func LoadConfig() (*Config, error) {
-	// Check VCLI_SETTINGS_PATH first
-	if settingsPath := os.Getenv("VCLI_SETTINGS_PATH"); settingsPath != "" {
+	// Check OWLCTL_SETTINGS_PATH first
+	if settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH"); settingsPath != "" {
 		configPath := filepath.Join(settingsPath, "remediation-config.yaml")
 		cfg, err := loadConfigFile(configPath)
 		if err == nil {
@@ -81,9 +81,9 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	// Check ~/.vcli/
+	// Check ~/.owlctl/
 	if usr, err := user.Current(); err == nil {
-		configPath := filepath.Join(usr.HomeDir, ".vcli", "remediation-config.yaml")
+		configPath := filepath.Join(usr.HomeDir, ".owlctl", "remediation-config.yaml")
 		cfg, err := loadConfigFile(configPath)
 		if err == nil {
 			return cfg, nil

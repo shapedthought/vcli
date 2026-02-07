@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/state"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/state"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -33,19 +33,19 @@ Note: Only password metadata (IDs, hints) is tracked — never actual password v
 Subcommands:
 
 Snapshot encryption password inventory
-  vcli encryption snapshot "My backup password"
-  vcli encryption snapshot --all
+  owlctl encryption snapshot "My backup password"
+  owlctl encryption snapshot --all
 
 Detect encryption password drift
-  vcli encryption diff "My backup password"
-  vcli encryption diff --all
+  owlctl encryption diff "My backup password"
+  owlctl encryption diff --all
 
 KMS server management
-  vcli encryption kms-snapshot "My KMS Server"
-  vcli encryption kms-snapshot --all
-  vcli encryption kms-diff "My KMS Server"
-  vcli encryption kms-diff --all
-  vcli encryption kms-apply kms/my-kms.yaml
+  owlctl encryption kms-snapshot "My KMS Server"
+  owlctl encryption kms-snapshot --all
+  owlctl encryption kms-diff "My KMS Server"
+  owlctl encryption kms-diff --all
+  owlctl encryption kms-apply kms/my-kms.yaml
 `,
 }
 
@@ -59,10 +59,10 @@ Only metadata (ID, hint, import status) is captured — never actual password va
 
 Examples:
   # Snapshot a single encryption password by hint
-  vcli encryption snapshot "My backup password"
+  owlctl encryption snapshot "My backup password"
 
   # Snapshot all encryption passwords
-  vcli encryption snapshot --all
+  owlctl encryption snapshot --all
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if encSnapshotAll {
@@ -88,10 +88,10 @@ When using --all, performs inventory-level checks:
 
 Examples:
   # Check single password for drift
-  vcli encryption diff "My backup password"
+  owlctl encryption diff "My backup password"
 
   # Check entire encryption inventory
-  vcli encryption diff --all
+  owlctl encryption diff --all
 
 Exit Codes:
   0 - No drift detected
@@ -460,10 +460,10 @@ KMS servers cannot be created via the API - they must be created in the VBR cons
 
 Examples:
   # Apply a KMS server configuration
-  vcli encryption kms-apply kms/my-kms.yaml
+  owlctl encryption kms-apply kms/my-kms.yaml
 
   # Preview changes without applying (dry-run)
-  vcli encryption kms-apply kms/my-kms.yaml --dry-run
+  owlctl encryption kms-apply kms/my-kms.yaml --dry-run
 
 Exit Codes:
   0 - Success
@@ -501,10 +501,10 @@ var kmsSnapshotCmd = &cobra.Command{
 
 Examples:
   # Snapshot a single KMS server
-  vcli encryption kms-snapshot "My KMS Server"
+  owlctl encryption kms-snapshot "My KMS Server"
 
   # Snapshot all KMS servers
-  vcli encryption kms-snapshot --all
+  owlctl encryption kms-snapshot --all
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if kmsSnapshotAll {
@@ -525,10 +525,10 @@ to detect changes or drift.
 
 Examples:
   # Check single KMS server for drift
-  vcli encryption kms-diff "My KMS Server"
+  owlctl encryption kms-diff "My KMS Server"
 
   # Check all KMS servers
-  vcli encryption kms-diff --all
+  owlctl encryption kms-diff --all
 
 Exit Codes:
   0 - No drift detected
@@ -829,7 +829,7 @@ func diffAllKmsServers() {
 	fmt.Printf("\nSummary:\n")
 	fmt.Printf("  - %d KMS servers clean\n", cleanCount)
 	if driftedApplied > 0 {
-		fmt.Printf("  - %d KMS servers drifted — remediate with: vcli encryption kms-apply <spec>.yaml\n", driftedApplied)
+		fmt.Printf("  - %d KMS servers drifted — remediate with: owlctl encryption kms-apply <spec>.yaml\n", driftedApplied)
 	}
 	if driftedObserved > 0 {
 		fmt.Printf("  - %d KMS servers drifted (observed) — adopt to enable remediation\n", driftedObserved)

@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "=========================================="
-echo "vcli Azure DevOps Agent - Quick Start"
+echo "owlctl Azure DevOps Agent - Quick Start"
 echo "=========================================="
 echo ""
 
@@ -22,9 +22,9 @@ if [ ! -f ".env" ]; then
     echo "📝 Please edit .env and fill in your values:"
     echo "   - AZP_URL: Your Azure DevOps organization URL"
     echo "   - AZP_TOKEN: Personal Access Token (Agent Pools: Read & Manage)"
-    echo "   - VCLI_USERNAME: VBR username"
-    echo "   - VCLI_PASSWORD: VBR password"
-    echo "   - VCLI_URL: VBR server URL"
+    echo "   - OWLCTL_USERNAME: VBR username"
+    echo "   - OWLCTL_PASSWORD: VBR password"
+    echo "   - OWLCTL_URL: VBR server URL"
     echo ""
     echo "After editing .env, run this script again."
     exit 0
@@ -63,7 +63,7 @@ fi
 echo "✓ Configuration loaded"
 
 # Check if agent is already running
-if docker compose ps | grep -q "vcli-azure-agent.*Up"; then
+if docker compose ps | grep -q "owlctl-azure-agent.*Up"; then
     echo "⚠ Agent is already running"
     echo ""
     read -p "Do you want to restart it? (y/N): " -n 1 -r
@@ -107,7 +107,7 @@ echo ""
 echo "1. Verify agent is online:"
 echo "   Go to: $AZP_URL/_settings/agentpools"
 echo "   Pool: ${AZP_POOL:-Default}"
-echo "   Look for: ${AZP_AGENT_NAME:-vcli-docker-agent}"
+echo "   Look for: ${AZP_AGENT_NAME:-owlctl-docker-agent}"
 echo ""
 echo "2. Test with the example pipeline:"
 echo "   Import test-pipeline.yml to your Azure DevOps project"

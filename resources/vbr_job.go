@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 )
 
 // VBRJobResource implements the Resource interface for VBR backup jobs

@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ var getCmd = &cobra.Command{
 
 Returns an the data in json format.
 
-vcli get <command> - use the end of the API request after the version e.g. /v4/ 
+owlctl get <command> - use the end of the API request after the version e.g. /v4/ 
 It will print to stdout in json by default, --yaml will print out to yaml.
 
 `,

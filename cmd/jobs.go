@@ -11,10 +11,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/state"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/state"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -34,13 +34,13 @@ ONLY WORKS WITH VBR AT THE MOMENT.
 Subcommands:
 
 Create Templates
-vcli job template <job_id>
+owlctl job template <job_id>
 
 Create job from job file
-vcli create job abc-job.yaml
+owlctl create job abc-job.yaml
 
 Create jobs from folder
-vcli create job -f .\path\to\jobs-folder
+owlctl create job -f .\path\to\jobs-folder
 
 	`,
 	Args: cobra.MinimumNArgs(1),
@@ -102,7 +102,7 @@ func getTemplates(args []string, folder string) {
 }
 
 func getSettingsPath(cp string) string {
-	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
 
 	var sf string
 	
@@ -127,7 +127,7 @@ func getSettingsPath(cp string) string {
 			}
 		}
 	} else {
-		log.Fatal("VCLI_SETTINGS_PATH not set")
+		log.Fatal("OWLCTL_SETTINGS_PATH not set")
 	}
 
 	return settingsPath
@@ -316,16 +316,16 @@ Each drift is classified by severity: CRITICAL, WARNING, or INFO.
 
 Examples:
   # Check single job for drift
-  vcli job diff SQL-Backup-Job
+  owlctl job diff SQL-Backup-Job
 
   # Check all jobs
-  vcli job diff --all
+  owlctl job diff --all
 
   # Show only security-relevant drifts
-  vcli job diff --all --security-only
+  owlctl job diff --all --security-only
 
   # Show only critical drifts
-  vcli job diff --all --severity critical
+  owlctl job diff --all --severity critical
 
 Exit Codes:
   0 - No drift detected
@@ -352,22 +352,22 @@ managing the job via apply.
 
 Use this to:
 - Track jobs created manually in VBR
-- Monitor jobs created before vcli adoption
+- Monitor jobs created before owlctl adoption
 - Observe configuration changes without management
 
-Snapshots enable drift detection via 'vcli job diff' but do not allow
-remediation via 'vcli job apply' (use 'apply' to actively manage jobs).
+Snapshots enable drift detection via 'owlctl job diff' but do not allow
+remediation via 'owlctl job apply' (use 'apply' to actively manage jobs).
 
 Examples:
   # Snapshot a single job
-  vcli job snapshot "SQL Backup Job"
+  owlctl job snapshot "SQL Backup Job"
 
   # Snapshot all jobs
-  vcli job snapshot --all
+  owlctl job snapshot --all
 
-After snapshotting, use 'vcli job diff' to detect drift:
-  vcli job diff "SQL Backup Job"
-  vcli job diff --all --security-only`,
+After snapshotting, use 'owlctl job diff' to detect drift:
+  owlctl job diff "SQL Backup Job"
+  owlctl job diff --all --security-only`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if snapshotAll {
 			snapshotAllJobs()
@@ -524,7 +524,7 @@ func diffAllJobs() {
 	fmt.Printf("Summary:\n")
 	fmt.Printf("  - %d jobs clean\n", cleanCount)
 	if driftedApplied > 0 {
-		fmt.Printf("  - %d jobs drifted — remediate with: vcli job apply <spec>.yaml\n", driftedApplied)
+		fmt.Printf("  - %d jobs drifted — remediate with: owlctl job apply <spec>.yaml\n", driftedApplied)
 	}
 	if driftedObserved > 0 {
 		fmt.Printf("  - %d jobs drifted (observed) — adopt to enable remediation\n", driftedObserved)

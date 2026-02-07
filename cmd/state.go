@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/shapedthought/vcli/state"
+	"github.com/shapedthought/owlctl/state"
 	"github.com/spf13/cobra"
 )
 
 var stateCmd = &cobra.Command{
 	Use:   "state",
 	Short: "State management commands",
-	Long: `Commands for viewing and managing vcli state.
+	Long: `Commands for viewing and managing owlctl state.
 
 State is stored locally and tracks which resources have been applied or snapshotted.
 `,
@@ -30,10 +30,10 @@ Each entry shows:
 
 Examples:
   # Show history for a repository
-  vcli state history "Default Backup Repository"
+  owlctl state history "Default Backup Repository"
 
   # Show history for a job
-  vcli state history "Backup Job 1"
+  owlctl state history "Backup Job 1"
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {

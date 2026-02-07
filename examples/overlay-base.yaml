@@ -1,12 +1,12 @@
 # Base template for backup jobs
 # This defines common settings shared across all environments
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup
   labels:
     app: database
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   type: VSphereBackup
   description: Database backup job

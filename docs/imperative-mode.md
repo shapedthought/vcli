@@ -21,9 +21,9 @@ Imperative mode executes direct API operations against Veeam products. Each comm
 
 | Command | HTTP Method | Purpose |
 |---------|-------------|---------|
-| `vcli get` | GET | Retrieve data |
-| `vcli post` | POST | Create resources, trigger operations |
-| `vcli put` | PUT | Update resources |
+| `owlctl get` | GET | Retrieve data |
+| `owlctl post` | POST | Create resources, trigger operations |
+| `owlctl put` | PUT | Update resources |
 
 **When to use imperative mode:**
 - Quick API queries
@@ -46,34 +46,34 @@ Retrieve data from the API.
 ### Basic Syntax
 
 ```bash
-vcli get <endpoint>
+owlctl get <endpoint>
 ```
 
-The endpoint is the path after the API version. vcli adds the version prefix automatically based on your profile.
+The endpoint is the path after the API version. owlctl adds the version prefix automatically based on your profile.
 
 ### Examples
 
 ```bash
 # VBR - Get all jobs
-vcli get jobs
+owlctl get jobs
 
 # VBR - Get specific job
-vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c
+owlctl get jobs/57b3baab-6237-41bf-add7-db63d41d984c
 
 # VBR - Get all repositories
-vcli get backupInfrastructure/repositories
+owlctl get backupInfrastructure/repositories
 
 # VBR - Get managed servers
-vcli get backupInfrastructure/managedServers
+owlctl get backupInfrastructure/managedServers
 
 # Enterprise Manager - Get jobs (with query parameter)
-vcli get jobs?format=entity
+owlctl get jobs?format=entity
 
 # VB365 - Get organizations
-vcli get organizations
+owlctl get organizations
 
 # VONE - Get alarms
-vcli get alarms
+owlctl get alarms
 ```
 
 ### Understanding Endpoints
@@ -83,14 +83,14 @@ vcli get alarms
 https://vbr.example.com:9419/api/v1/backupInfrastructure/managedServers
 ```
 
-**vcli command:**
+**owlctl command:**
 ```bash
-vcli get backupInfrastructure/managedServers
+owlctl get backupInfrastructure/managedServers
 ```
 
-vcli automatically adds:
+owlctl automatically adds:
 - Protocol (`https://`)
-- Hostname (from `VCLI_URL` or profile)
+- Hostname (from `OWLCTL_URL` or profile)
 - Port (from profile)
 - API version prefix (`/api/v1/`)
 
@@ -101,7 +101,7 @@ You only specify the resource path.
 Default output is JSON:
 
 ```bash
-vcli get jobs
+owlctl get jobs
 ```
 
 ```json
@@ -122,10 +122,10 @@ vcli get jobs
 
 ```bash
 # JSON (default)
-vcli get jobs
+owlctl get jobs
 
 # YAML
-vcli get jobs --yaml
+owlctl get jobs --yaml
 ```
 
 ## POST Command
@@ -136,42 +136,42 @@ Create resources or trigger operations.
 
 ```bash
 # Without payload
-vcli post <endpoint>
+owlctl post <endpoint>
 
 # With payload
-vcli post <endpoint> -f <file.json>
+owlctl post <endpoint> -f <file.json>
 ```
 
 ### Examples - Operations (No Payload)
 
 ```bash
 # Start a backup job
-vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/start
+owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/start
 
 # Stop a backup job
-vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/stop
+owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/stop
 
 # Retry a failed job
-vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/retry
+owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/retry
 
 # Enable a job
-vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/enable
+owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/enable
 
 # Disable a job
-vcli post jobs/57b3baab-6237-41bf-add7-db63d41d984c/disable
+owlctl post jobs/57b3baab-6237-41bf-add7-db63d41d984c/disable
 ```
 
 ### Examples - Creating Resources (With Payload)
 
 ```bash
 # Create a backup job
-vcli post jobs -f new-job.json
+owlctl post jobs -f new-job.json
 
 # Create a repository
-vcli post backupInfrastructure/repositories -f repository.json
+owlctl post backupInfrastructure/repositories -f repository.json
 
 # Create credentials
-vcli post backupInfrastructure/credentials -f creds.json
+owlctl post backupInfrastructure/credentials -f creds.json
 ```
 
 **Example payload (new-job.json):**
@@ -195,7 +195,7 @@ Update existing resources.
 ### Basic Syntax
 
 ```bash
-vcli put <endpoint> -f <file.json>
+owlctl put <endpoint> -f <file.json>
 ```
 
 PUT requires a payload file.
@@ -204,13 +204,13 @@ PUT requires a payload file.
 
 ```bash
 # Update a backup job
-vcli put jobs/57b3baab-6237-41bf-add7-db63d41d984c -f updated-job.json
+owlctl put jobs/57b3baab-6237-41bf-add7-db63d41d984c -f updated-job.json
 
 # Update a repository
-vcli put backupInfrastructure/repositories/<id> -f updated-repo.json
+owlctl put backupInfrastructure/repositories/<id> -f updated-repo.json
 
 # Update credentials
-vcli put backupInfrastructure/credentials/<id> -f updated-creds.json
+owlctl put backupInfrastructure/credentials/<id> -f updated-creds.json
 ```
 
 ### GET vs PUT Object Differences (VBR Jobs)
@@ -224,12 +224,12 @@ vcli put backupInfrastructure/credentials/<id> -f updated-creds.json
 
 ```bash
 # 1. Get current job
-vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c > job.json
+owlctl get jobs/57b3baab-6237-41bf-add7-db63d41d984c > job.json
 
 # 2. Edit job.json (change retention, schedule, etc.)
 
 # 3. Put updated job back
-vcli put jobs/57b3baab-6237-41bf-add7-db63d41d984c -f job.json
+owlctl put jobs/57b3baab-6237-41bf-add7-db63d41d984c -f job.json
 ```
 
 **For creating new jobs (POST)**, you need to convert GET structure to POST structure. See [Utils - Job JSON Converter](#vbr-job-json-converter).
@@ -248,10 +248,10 @@ Converts VBR GET job JSON to POST job JSON format.
 
 ```bash
 # 1. Get a job
-vcli get jobs/57b3baab-6237-41bf-add7-db63d41d984c > job-get.json
+owlctl get jobs/57b3baab-6237-41bf-add7-db63d41d984c > job-get.json
 
 # 2. Run utils converter
-vcli utils
+owlctl utils
 
 # 3. Select "VBR Job JSON Converter"
 # 4. Enter input file: job-get.json
@@ -260,17 +260,17 @@ vcli utils
 # 6. Modify job-post.json as needed
 
 # 7. Create new job
-vcli post jobs -f job-post.json
+owlctl post jobs -f job-post.json
 ```
 
 **Note:** PUT operations use GET structure, so this converter is only needed for POST (creating new jobs).
 
 ### Check Version
 
-Check if you're running the latest vcli release.
+Check if you're running the latest owlctl release.
 
 ```bash
-vcli utils
+owlctl utils
 # Select "Check Version"
 ```
 
@@ -278,12 +278,12 @@ Compares your version against the latest GitHub release.
 
 ## Output Formats
 
-vcli supports JSON and YAML output formats.
+owlctl supports JSON and YAML output formats.
 
 ### JSON (Default)
 
 ```bash
-vcli get jobs
+owlctl get jobs
 ```
 
 ```json
@@ -300,7 +300,7 @@ vcli get jobs
 ### YAML
 
 ```bash
-vcli get jobs --yaml
+owlctl get jobs --yaml
 ```
 
 ```yaml
@@ -313,17 +313,17 @@ data:
 
 ```bash
 # Save to file
-vcli get jobs > jobs.json
-vcli get jobs --yaml > jobs.yaml
+owlctl get jobs > jobs.json
+owlctl get jobs --yaml > jobs.yaml
 
 # Pipe to tools
-vcli get jobs | jq '.data[0]'
-vcli get jobs --yaml | yq '.data[0]'
+owlctl get jobs | jq '.data[0]'
+owlctl get jobs --yaml | yq '.data[0]'
 ```
 
 ## Using with jq
 
-[jq](https://stedolan.github.io/jq/) is a lightweight JSON processor perfect for parsing vcli output.
+[jq](https://stedolan.github.io/jq/) is a lightweight JSON processor perfect for parsing owlctl output.
 
 ### Installation
 
@@ -342,49 +342,49 @@ choco install jq
 
 ```bash
 # Get all job names
-vcli get jobs | jq '.data[].name'
+owlctl get jobs | jq '.data[].name'
 
 # Get jobs that are disabled
-vcli get jobs | jq '.data[] | select(.isDisabled == true)'
+owlctl get jobs | jq '.data[] | select(.isDisabled == true)'
 
 # Get first job's ID
-vcli get jobs | jq '.data[0].id'
+owlctl get jobs | jq '.data[0].id'
 
 # Filter by job type
-vcli get jobs | jq '.data[] | select(.type == "Backup")'
+owlctl get jobs | jq '.data[] | select(.type == "Backup")'
 
 # Get specific fields
-vcli get jobs | jq '.data[] | {name: .name, type: .type, disabled: .isDisabled}'
+owlctl get jobs | jq '.data[] | {name: .name, type: .type, disabled: .isDisabled}'
 ```
 
 ### Useful jq Patterns
 
 ```bash
 # See keys in an object (useful for exploring)
-vcli get jobs | jq 'keys'
-vcli get jobs | jq '.data[0] | keys'
+owlctl get jobs | jq 'keys'
+owlctl get jobs | jq '.data[0] | keys'
 
 # Count jobs
-vcli get jobs | jq '.data | length'
+owlctl get jobs | jq '.data | length'
 
 # Pretty print
-vcli get jobs | jq '.'
+owlctl get jobs | jq '.'
 
 # Compact output
-vcli get jobs | jq -c '.data[]'
+owlctl get jobs | jq -c '.data[]'
 
 # Raw string output (no quotes)
-vcli get jobs | jq -r '.data[].name'
+owlctl get jobs | jq -r '.data[].name'
 
 # Filter and format
-vcli get jobs | jq '.data[] | "\(.name) (\(.type))"'
+owlctl get jobs | jq '.data[] | "\(.name) (\(.type))"'
 ```
 
 ### Complex Example (Enterprise Manager)
 
 ```bash
 # Get VM names and IDs from all jobs
-vcli get jobs?format=entity | jq '.Jobs[].JobInfo.BackupJobInfo.Includes.ObjectInJobs[] | .Name, .ObjectInJobId'
+owlctl get jobs?format=entity | jq '.Jobs[].JobInfo.BackupJobInfo.Includes.ObjectInJobs[] | .Name, .ObjectInJobId'
 ```
 
 ## Using with Nushell
@@ -415,30 +415,30 @@ Website: https://www.nushell.sh/book/installation.html
 nu
 
 # Set credentials
-let-env VCLI_USERNAME = "administrator"
-let-env VCLI_PASSWORD = "password"
-let-env VCLI_URL = "vbr.example.com"
+let-env OWLCTL_USERNAME = "administrator"
+let-env OWLCTL_PASSWORD = "password"
+let-env OWLCTL_URL = "vbr.example.com"
 
 # Login
-vcli login
+owlctl login
 
 # Get jobs and parse JSON automatically
-vcli get jobs | from json
+owlctl get jobs | from json
 
 # Access the data array
-vcli get jobs | from json | get data
+owlctl get jobs | from json | get data
 
 # Filter disabled jobs
-vcli get jobs | from json | get data | where isDisabled == true
+owlctl get jobs | from json | get data | where isDisabled == true
 
 # Select specific columns
-vcli get jobs | from json | get data | select name type isDisabled
+owlctl get jobs | from json | get data | select name type isDisabled
 
 # Convert to YAML
-vcli get jobs | from json | get data | to yaml
+owlctl get jobs | from json | get data | to yaml
 
 # Save as YAML
-vcli get jobs | from json | get data | to yaml | save jobs.yaml --raw
+owlctl get jobs | from json | get data | to yaml | save jobs.yaml --raw
 ```
 
 ### Nushell Advantages
@@ -455,20 +455,20 @@ Create reusable command modules:
 
 **v.nu:**
 ```nu
-# Simplified vcli commands
+# Simplified owlctl commands
 export def vget [url: string] {
-    vcli get $url | from json | get data
+    owlctl get $url | from json | get data
 }
 
 export def vlogin [] {
-    vcli login
+    owlctl login
 }
 
 # With environment variables included
 export-env {
-    let-env VCLI_USERNAME = "administrator"
-    let-env VCLI_PASSWORD = "password"
-    let-env VCLI_URL = "vbr.example.com"
+    let-env OWLCTL_USERNAME = "administrator"
+    let-env OWLCTL_PASSWORD = "password"
+    let-env OWLCTL_URL = "vbr.example.com"
 }
 ```
 
@@ -500,71 +500,71 @@ v vget jobs | where isDisabled == false
 
 ```bash
 # Jobs
-vcli get jobs
-vcli get jobs/<id>
-vcli post jobs/<id>/start
-vcli post jobs/<id>/stop
+owlctl get jobs
+owlctl get jobs/<id>
+owlctl post jobs/<id>/start
+owlctl post jobs/<id>/stop
 
 # Infrastructure
-vcli get backupInfrastructure/repositories
-vcli get backupInfrastructure/scaleOutRepositories
-vcli get backupInfrastructure/managedServers
-vcli get backupInfrastructure/credentials
+owlctl get backupInfrastructure/repositories
+owlctl get backupInfrastructure/scaleOutRepositories
+owlctl get backupInfrastructure/managedServers
+owlctl get backupInfrastructure/credentials
 
 # Sessions
-vcli get sessions
-vcli get sessions/<id>
+owlctl get sessions
+owlctl get sessions/<id>
 
 # Restore points
-vcli get restorePoints
+owlctl get restorePoints
 
 # Configuration
-vcli get configuration/serverSettings
+owlctl get configuration/serverSettings
 ```
 
 ### Enterprise Manager
 
 ```bash
 # Jobs
-vcli get jobs?format=entity
-vcli get jobs/<id>
+owlctl get jobs?format=entity
+owlctl get jobs/<id>
 
 # Repositories
-vcli get repositories
+owlctl get repositories
 
 # Backup servers
-vcli get backupServers
+owlctl get backupServers
 ```
 
 ### VB365
 
 ```bash
 # Organizations
-vcli get organizations
-vcli get organizations/<id>
+owlctl get organizations
+owlctl get organizations/<id>
 
 # Jobs
-vcli get jobs
-vcli post jobs/<id>/start
+owlctl get jobs
+owlctl post jobs/<id>/start
 
 # Backup repositories
-vcli get backupRepositories
+owlctl get backupRepositories
 
 # Proxies
-vcli get proxies
+owlctl get proxies
 ```
 
 ### VONE
 
 ```bash
 # Alarms
-vcli get alarms
+owlctl get alarms
 
 # Reports
-vcli get reports
+owlctl get reports
 
 # Infrastructure
-vcli get infrastructure
+owlctl get infrastructure
 ```
 
 ## Best Practices
@@ -573,31 +573,31 @@ vcli get infrastructure
 
 ```bash
 # Save for reference
-vcli get jobs > jobs-backup-$(date +%Y%m%d).json
+owlctl get jobs > jobs-backup-$(date +%Y%m%d).json
 
 # Save before making changes
-vcli get jobs/57b3baab > job-before-change.json
-vcli put jobs/57b3baab -f updated-job.json
+owlctl get jobs/57b3baab > job-before-change.json
+owlctl put jobs/57b3baab -f updated-job.json
 ```
 
 ### 2. Use Descriptive File Names
 
 ```bash
 # Bad
-vcli post jobs -f data.json
+owlctl post jobs -f data.json
 
 # Good
-vcli post jobs -f new-sql-backup-job.json
+owlctl post jobs -f new-sql-backup-job.json
 ```
 
 ### 3. Preview Before Modifying
 
 ```bash
 # Get current config
-vcli get jobs/57b3baab | jq '.'
+owlctl get jobs/57b3baab | jq '.'
 
 # Make changes in editor, then apply
-vcli put jobs/57b3baab -f modified-job.json
+owlctl put jobs/57b3baab -f modified-job.json
 ```
 
 ### 4. Script Common Operations
@@ -606,9 +606,9 @@ vcli put jobs/57b3baab -f modified-job.json
 #!/bin/bash
 # start-all-jobs.sh
 
-for job_id in $(vcli get jobs | jq -r '.data[].id'); do
+for job_id in $(owlctl get jobs | jq -r '.data[].id'); do
     echo "Starting job: $job_id"
-    vcli post jobs/$job_id/start
+    owlctl post jobs/$job_id/start
 done
 ```
 
@@ -616,23 +616,23 @@ done
 
 ```bash
 # Get only enabled jobs
-vcli get jobs | jq '.data[] | select(.isDisabled == false)'
+owlctl get jobs | jq '.data[] | select(.isDisabled == false)'
 
 # Get job IDs only
-vcli get jobs | jq -r '.data[].id'
+owlctl get jobs | jq -r '.data[].id'
 ```
 
 ### 6. Combine with Other Tools
 
 ```bash
 # Count jobs by type
-vcli get jobs | jq -r '.data[].type' | sort | uniq -c
+owlctl get jobs | jq -r '.data[].type' | sort | uniq -c
 
 # Get job names in CSV
-vcli get jobs | jq -r '.data[] | [.name, .type] | @csv' > jobs.csv
+owlctl get jobs | jq -r '.data[] | [.name, .type] | @csv' > jobs.csv
 
 # Monitor job status in loop
-watch 'vcli get jobs | jq ".data[] | {name: .name, status: .status}"'
+watch 'owlctl get jobs | jq ".data[] | {name: .name, status: .status}"'
 ```
 
 ## Troubleshooting
@@ -649,13 +649,13 @@ watch 'vcli get jobs | jq ".data[] | {name: .name, status: .status}"'
 **Solution:**
 ```bash
 # Verify endpoint
-vcli get jobs  # Should show list
+owlctl get jobs  # Should show list
 
 # Check profile
-vcli profile --get
+owlctl profile --get
 
 # Verify authentication
-vcli login
+owlctl login
 ```
 
 ### JSON Parse Error
@@ -670,21 +670,21 @@ vcli login
 **Solution:**
 ```bash
 # Save response to see error
-vcli get jobs > response.txt
+owlctl get jobs > response.txt
 cat response.txt  # Check if HTML error page
 ```
 
 ### "No such file or directory" with -f Flag
 
-**Problem:** `vcli post jobs -f data.json` fails
+**Problem:** `owlctl post jobs -f data.json` fails
 
 **Solution:**
 ```bash
 # Use absolute path
-vcli post jobs -f /full/path/to/data.json
+owlctl post jobs -f /full/path/to/data.json
 
 # Or relative from current directory
-vcli post jobs -f ./data.json
+owlctl post jobs -f ./data.json
 ```
 
 ## See Also

@@ -8,22 +8,22 @@
 # Usage:
 #   # 1. Create repository in VBR console first
 #   # 2. Snapshot existing repository:
-#   vcli repo snapshot "Production Backup Repository"
+#   owlctl repo snapshot "Production Backup Repository"
 #   # 3. Export to YAML:
-#   vcli repo export "Production Backup Repository" -o backup-repository.yaml
+#   owlctl repo export "Production Backup Repository" -o backup-repository.yaml
 #   # 4. Edit YAML as needed
 #   # 5. Apply updates:
-#   vcli repo apply backup-repository.yaml --dry-run
-#   vcli repo apply backup-repository.yaml
+#   owlctl repo apply backup-repository.yaml --dry-run
+#   owlctl repo apply backup-repository.yaml
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRRepository
 metadata:
   name: Production Backup Repository
   labels:
     environment: production
     location: datacenter-primary
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   description: Primary production backup repository with immutability
 

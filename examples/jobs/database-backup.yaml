@@ -3,18 +3,18 @@
 # with standard settings for production workloads.
 #
 # Usage:
-#   vcli job apply database-backup.yaml
-#   vcli job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
-#   vcli job apply database-backup.yaml --dry-run
+#   owlctl job apply database-backup.yaml
+#   owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+#   owlctl job apply database-backup.yaml --dry-run
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Database Backup
   labels:
     app: database
     team: infrastructure
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   type: VSphereBackup
   description: Production database server backup with 30-day retention

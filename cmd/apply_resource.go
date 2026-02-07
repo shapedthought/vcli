@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/remediation"
-	"github.com/shapedthought/vcli/resources"
-	"github.com/shapedthought/vcli/state"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/remediation"
+	"github.com/shapedthought/owlctl/resources"
+	"github.com/shapedthought/owlctl/state"
+	"github.com/shapedthought/owlctl/vhttp"
 )
 
 // ApplyMode determines how apply handles missing resources

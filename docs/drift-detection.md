@@ -1,16 +1,16 @@
 # Drift Detection Guide
 
-vcli provides drift detection across multiple VBR resource types. It compares the current live VBR configuration against a saved state snapshot to identify manual changes or unauthorized modifications.
+owlctl provides drift detection across multiple VBR resource types. It compares the current live VBR configuration against a saved state snapshot to identify manual changes or unauthorized modifications.
 
 ## Supported Resource Types
 
 | Resource Type | Snapshot Command | Diff Command |
 |---------------|-----------------|--------------|
-| Backup Jobs | `vcli job apply` | `vcli job diff` |
-| Repositories | `vcli repo snapshot` | `vcli repo diff` |
-| Scale-Out Repositories | `vcli repo sobr-snapshot` | `vcli repo sobr-diff` |
-| Encryption Passwords | `vcli encryption snapshot` | `vcli encryption diff` |
-| KMS Servers | `vcli encryption kms-snapshot` | `vcli encryption kms-diff` |
+| Backup Jobs | `owlctl job apply` | `owlctl job diff` |
+| Repositories | `owlctl repo snapshot` | `owlctl repo diff` |
+| Scale-Out Repositories | `owlctl repo sobr-snapshot` | `owlctl repo sobr-diff` |
+| Encryption Passwords | `owlctl encryption snapshot` | `owlctl encryption diff` |
+| KMS Servers | `owlctl encryption kms-snapshot` | `owlctl encryption kms-diff` |
 
 ## How It Works
 
@@ -21,7 +21,7 @@ vcli provides drift detection across multiple VBR resource types. It compares th
 
 ### State File
 
-State is stored in `state.json` at either `$VCLI_SETTINGS_PATH` or `~/.vcli/`.
+State is stored in `state.json` at either `$OWLCTL_SETTINGS_PATH` or `~/.owlctl/`.
 
 ```json
 {
@@ -46,13 +46,13 @@ State is stored in `state.json` at either `$VCLI_SETTINGS_PATH` or `~/.vcli/`.
 ### Single Job
 
 ```bash
-vcli job diff "Backup Job 1"
+owlctl job diff "Backup Job 1"
 ```
 
 ### All Jobs
 
 ```bash
-vcli job diff --all
+owlctl job diff --all
 ```
 
 ### Example Output
@@ -80,28 +80,28 @@ Summary:
 
 ```bash
 # Single repository
-vcli repo snapshot "Default Backup Repository"
+owlctl repo snapshot "Default Backup Repository"
 
 # All repositories
-vcli repo snapshot --all
+owlctl repo snapshot --all
 ```
 
 ### Detect Drift
 
 ```bash
 # Single repository
-vcli repo diff "Default Backup Repository"
+owlctl repo diff "Default Backup Repository"
 
 # All repositories
-vcli repo diff --all
+owlctl repo diff --all
 ```
 
 ### Example: Immutability Drift Detection
 
-Repository immutability changes are critical security events. vcli detects these with CRITICAL severity:
+Repository immutability changes are critical security events. owlctl detects these with CRITICAL severity:
 
 ```bash
-vcli repo diff "Hard1"
+owlctl repo diff "Hard1"
 ```
 
 **Output:**
@@ -125,18 +125,18 @@ This ensures immutability reductions (e.g., 7 days → 5 days) trigger alerts in
 
 ```bash
 # Snapshot
-vcli repo sobr-snapshot --all
+owlctl repo sobr-snapshot --all
 
 # Detect drift
-vcli repo sobr-diff --all
+owlctl repo sobr-diff --all
 ```
 
 ### Example: SOBR Encryption Drift Detection
 
-SOBR encryption changes are critical security events. vcli detects capacity tier encryption changes with CRITICAL severity:
+SOBR encryption changes are critical security events. owlctl detects capacity tier encryption changes with CRITICAL severity:
 
 ```bash
-vcli repo sobr-diff "Scale-out Backup Repository 1"
+owlctl repo sobr-diff "Scale-out Backup Repository 1"
 ```
 
 **Output:**
@@ -161,20 +161,20 @@ Encryption disabled = CRITICAL. Encryption enabled = INFO (positive security cha
 
 ```bash
 # Snapshot
-vcli encryption snapshot --all
+owlctl encryption snapshot --all
 
 # Detect drift
-vcli encryption diff --all
+owlctl encryption diff --all
 ```
 
 ## KMS Server Drift Detection
 
 ```bash
 # Snapshot
-vcli encryption kms-snapshot --all
+owlctl encryption kms-snapshot --all
 
 # Detect drift
-vcli encryption kms-diff --all
+owlctl encryption kms-diff --all
 ```
 
 ## Severity Classification
@@ -194,20 +194,20 @@ See [Security Alerting](security-alerting.md) for the full severity reference an
 ### Show Only Critical Drifts
 
 ```bash
-vcli job diff --all --severity critical
+owlctl job diff --all --severity critical
 ```
 
 ### Show Security-Relevant Drifts (WARNING and above)
 
 ```bash
-vcli job diff --all --security-only
+owlctl job diff --all --security-only
 ```
 
 These flags work on all diff commands (`job diff`, `repo diff`, `repo sobr-diff`, `encryption diff`, `encryption kms-diff`).
 
 ## Custom Severity Configuration
 
-Override default severity levels by placing a `severity-config.json` in `$VCLI_SETTINGS_PATH` or `~/.vcli/`:
+Override default severity levels by placing a `severity-config.json` in `$OWLCTL_SETTINGS_PATH` or `~/.owlctl/`:
 
 ```json
 {
@@ -258,7 +258,7 @@ All commands return structured exit codes for CI/CD integration:
 
 ```bash
 #!/bin/bash
-vcli job diff --all --security-only
+owlctl job diff --all --security-only
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 4 ]; then
@@ -277,7 +277,7 @@ fi
 ```bash
 #!/bin/bash
 # Single resource apply
-vcli repo apply repos/default-repo.yaml
+owlctl repo apply repos/default-repo.yaml
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
@@ -295,7 +295,7 @@ fi
 #!/bin/bash
 # Batch apply (multiple files) - exit code 5 possible
 for spec in repos/*.yaml; do
-    vcli repo apply "$spec"
+    owlctl repo apply "$spec"
     RESULT=$?
     if [ $RESULT -ne 0 ]; then
         FAILED=$((FAILED + 1))
@@ -319,13 +319,13 @@ All apply commands support `--dry-run` to preview changes without making any mod
 
 ```bash
 # Preview repository changes
-vcli repo apply repos/default-repo.yaml --dry-run
+owlctl repo apply repos/default-repo.yaml --dry-run
 
 # Preview SOBR changes
-vcli repo sobr-apply sobrs/sobr1.yaml --dry-run
+owlctl repo sobr-apply sobrs/sobr1.yaml --dry-run
 
 # Preview KMS server changes
-vcli encryption kms-apply kms/my-kms.yaml --dry-run
+owlctl encryption kms-apply kms/my-kms.yaml --dry-run
 ```
 
 ### Example Output
@@ -359,7 +359,7 @@ stages:
         steps:
           - script: |
               for spec in repos/*.yaml; do
-                ./vcli repo apply "$spec" --dry-run
+                ./owlctl repo apply "$spec" --dry-run
                 if [ $? -ne 0 ]; then
                   echo "Validation failed for $spec"
                   exit 1
@@ -373,7 +373,7 @@ stages:
     jobs:
       - job: ApplyChanges
         steps:
-          - script: ./vcli repo apply repos/*.yaml
+          - script: ./owlctl repo apply repos/*.yaml
             displayName: 'Apply Configuration'
 ```
 
@@ -390,11 +390,11 @@ Each resource type has fields that are excluded from drift detection because the
 
 ## Known-Immutable Fields and Remediation Config
 
-vcli automatically detects and skips fields that are known to be rejected by the VBR API. Additionally, you can configure custom field policies using `remediation-config.yaml`.
+owlctl automatically detects and skips fields that are known to be rejected by the VBR API. Additionally, you can configure custom field policies using `remediation-config.yaml`.
 
 ### Known-Immutable Fields
 
-Some VBR resource fields cannot be changed via the API after creation. vcli includes built-in hints for these fields:
+Some VBR resource fields cannot be changed via the API after creation. owlctl includes built-in hints for these fields:
 
 | Resource | Field | Reason |
 |----------|-------|--------|
@@ -411,8 +411,8 @@ When apply encounters drift in a known-immutable field, it skips sending that ch
 Create a `remediation-config.yaml` file to define custom field policies. See [examples/remediation-config.yaml](../examples/remediation-config.yaml) for a complete example.
 
 **Locations checked (in order):**
-1. `$VCLI_SETTINGS_PATH/remediation-config.yaml`
-2. `~/.vcli/remediation-config.yaml`
+1. `$OWLCTL_SETTINGS_PATH/remediation-config.yaml`
+2. `~/.owlctl/remediation-config.yaml`
 
 ```yaml
 # remediation-config.yaml
@@ -487,7 +487,7 @@ No changes made. Remove --dry-run flag to apply.
 
 ### Missing Config File
 
-If no `remediation-config.yaml` exists, vcli uses defaults:
+If no `remediation-config.yaml` exists, owlctl uses defaults:
 - Built-in known-immutable hints apply
 - All other fields are `remediable`
 

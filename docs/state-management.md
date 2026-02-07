@@ -1,6 +1,6 @@
 # State Management Guide
 
-vcli maintains state in `state.json` to enable drift detection and track declarative resource management. This guide explains how state management works and best practices for using it.
+owlctl maintains state in `state.json` to enable drift detection and track declarative resource management. This guide explains how state management works and best practices for using it.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ State management enables:
 
 ## What is State?
 
-State is vcli's record of the last known configuration for each managed resource. When you snapshot or apply a resource, vcli saves its configuration to `state.json`. Later, the diff command compares the current VBR configuration against this saved state to detect drift.
+State is owlctl's record of the last known configuration for each managed resource. When you snapshot or apply a resource, owlctl saves its configuration to `state.json`. Later, the diff command compares the current VBR configuration against this saved state to detect drift.
 
 **Key concepts:**
 - **Snapshot** - Captures current VBR configuration and saves to state
@@ -37,14 +37,14 @@ State is vcli's record of the last known configuration for each managed resource
 
 ## State File Location
 
-By default, `state.json` is created in the current directory. Use `VCLI_SETTINGS_PATH` to set a custom location:
+By default, `state.json` is created in the current directory. Use `OWLCTL_SETTINGS_PATH` to set a custom location:
 
 ```bash
 # Set custom location
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 
 # state.json will be created at:
-# $HOME/.vcli/state.json
+# $HOME/.owlctl/state.json
 ```
 
 **Important:** The state file must be in the same directory as `settings.json` and `profiles.json`.
@@ -151,37 +151,37 @@ Snapshot captures the current VBR configuration and saves it to state without ma
 **Repositories:**
 ```bash
 # Snapshot single repository
-vcli repo snapshot "Default Backup Repository"
+owlctl repo snapshot "Default Backup Repository"
 
 # Snapshot all repositories
-vcli repo snapshot --all
+owlctl repo snapshot --all
 ```
 
 **Scale-Out Repositories:**
 ```bash
 # Snapshot single SOBR
-vcli repo sobr-snapshot "SOBR-Production"
+owlctl repo sobr-snapshot "SOBR-Production"
 
 # Snapshot all SOBRs
-vcli repo sobr-snapshot --all
+owlctl repo sobr-snapshot --all
 ```
 
 **Encryption Passwords:**
 ```bash
 # Snapshot single encryption password
-vcli encryption snapshot "Production Encryption Key"
+owlctl encryption snapshot "Production Encryption Key"
 
 # Snapshot all encryption passwords
-vcli encryption snapshot --all
+owlctl encryption snapshot --all
 ```
 
 **KMS Servers:**
 ```bash
 # Snapshot single KMS server
-vcli encryption kms-snapshot "Azure Key Vault"
+owlctl encryption kms-snapshot "Azure Key Vault"
 
 # Snapshot all KMS servers
-vcli encryption kms-snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Adopt Commands
@@ -190,16 +190,16 @@ Adopt takes a snapshot of an existing resource to bring it under declarative man
 
 ```bash
 # Adopt repository
-vcli repo adopt "Default Backup Repository"
-vcli repo adopt --all
+owlctl repo adopt "Default Backup Repository"
+owlctl repo adopt --all
 
 # Adopt SOBR
-vcli repo sobr-adopt "SOBR-Production"
-vcli repo sobr-adopt --all
+owlctl repo sobr-adopt "SOBR-Production"
+owlctl repo sobr-adopt --all
 
 # Adopt KMS server
-vcli encryption kms-adopt "Azure Key Vault"
-vcli encryption kms-adopt --all
+owlctl encryption kms-adopt "Azure Key Vault"
+owlctl encryption kms-adopt --all
 ```
 
 **Adopt vs Snapshot:**
@@ -214,16 +214,16 @@ Apply automatically snapshots the configuration after successfully updating VBR.
 
 ```bash
 # Apply job (automatically snapshots on success)
-vcli job apply job.yaml
+owlctl job apply job.yaml
 
 # Apply repository (automatically snapshots on success)
-vcli repo apply repo.yaml
+owlctl repo apply repo.yaml
 
 # Apply SOBR (automatically snapshots on success)
-vcli repo sobr-apply sobr.yaml
+owlctl repo sobr-apply sobr.yaml
 
 # Apply KMS server (automatically snapshots on success)
-vcli encryption kms-apply kms.yaml
+owlctl encryption kms-apply kms.yaml
 ```
 
 **Note:** Jobs are only snapshotted via apply. There is no manual job snapshot command.
@@ -234,10 +234,10 @@ The `origin` field in state tracks how a resource entered declarative management
 
 | Origin | Meaning | How Created |
 |--------|---------|-------------|
-| `applied` | Configuration was applied via YAML | `vcli job apply`, `vcli repo apply`, etc. |
-| `adopted` | Existing resource adopted into management | `vcli repo adopt`, `vcli repo sobr-adopt`, etc. |
-| `snapshot` | Manual snapshot taken | `vcli repo snapshot`, `vcli encryption snapshot`, etc. |
-| `exported` | Exported to YAML but not yet applied | `vcli export`, `vcli repo export`, etc. |
+| `applied` | Configuration was applied via YAML | `owlctl job apply`, `owlctl repo apply`, etc. |
+| `adopted` | Existing resource adopted into management | `owlctl repo adopt`, `owlctl repo sobr-adopt`, etc. |
+| `snapshot` | Manual snapshot taken | `owlctl repo snapshot`, `owlctl encryption snapshot`, etc. |
+| `exported` | Exported to YAML but not yet applied | `owlctl export`, `owlctl repo export`, etc. |
 
 **Origin is informational only** - it doesn't affect drift detection or other operations. It helps you understand the history of each resource.
 
@@ -252,10 +252,10 @@ State is automatically updated when you:
 **Manual state updates:**
 To refresh state for all resources:
 ```bash
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 **Important:** Jobs are only updated via apply. You cannot manually snapshot jobs.
@@ -266,22 +266,22 @@ Drift detection compares the current VBR configuration against state:
 
 ```bash
 # Detect drift for single resource
-vcli job diff "Database Backup"
-vcli repo diff "Default Backup Repository"
+owlctl job diff "Database Backup"
+owlctl repo diff "Default Backup Repository"
 
 # Detect drift for all resources
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption diff --all
+owlctl encryption kms-diff --all
 ```
 
 **How it works:**
-1. vcli reads the resource from `state.json`
-2. vcli fetches the current configuration from VBR API
-3. vcli compares the two configurations field-by-field
-4. vcli reports any differences with severity classification
+1. owlctl reads the resource from `state.json`
+2. owlctl fetches the current configuration from VBR API
+3. owlctl compares the two configurations field-by-field
+4. owlctl reports any differences with severity classification
 
 **Prerequisites:**
 - Resource must exist in state.json
@@ -292,7 +292,7 @@ vcli encryption kms-diff --all
 ```bash
 # Error: No state found for "Database Backup"
 # Solution: Take a snapshot or apply a configuration first
-vcli repo snapshot "Default Backup Repository"
+owlctl repo snapshot "Default Backup Repository"
 ```
 
 See [Drift Detection Guide](drift-detection.md) for complete details.
@@ -304,16 +304,16 @@ See [Drift Detection Guide](drift-detection.md) for complete details.
 **Recommended approach:**
 ```bash
 # 1. Export all configurations to YAML
-vcli export --all -d specs/jobs/
-vcli repo export --all -d specs/repos/
-vcli repo sobr-export --all -d specs/sobrs/
-vcli encryption kms-export --all -d specs/kms/
+owlctl export --all -d specs/jobs/
+owlctl repo export --all -d specs/repos/
+owlctl repo sobr-export --all -d specs/sobrs/
+owlctl encryption kms-export --all -d specs/kms/
 
 # 2. Snapshot all resources
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # 3. Commit both specs and state
 git add specs/ state.json
@@ -335,10 +335,10 @@ git push
 # daily-snapshot.sh
 
 # Take snapshots
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # Commit if changes detected
 if ! git diff --quiet state.json; then
@@ -352,7 +352,7 @@ fi
 ```yaml
 # Azure DevOps pipeline
 - script: |
-    vcli job diff --all --security-only
+    owlctl job diff --all --security-only
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 4 ]; then
       echo "##vso[task.logissue type=error]CRITICAL drift detected"
@@ -372,10 +372,10 @@ git checkout --theirs state.json
 git add state.json
 
 # 2. Re-snapshot to ensure state is current
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # 3. Commit the resolved state
 git add state.json
@@ -401,7 +401,7 @@ cp state.json state.json.backup-$(date +%Y%m%d)
 ```bash
 # Keep last 7 days of state backups
 #!/bin/bash
-BACKUP_DIR="$HOME/.vcli/backups"
+BACKUP_DIR="$HOME/.owlctl/backups"
 mkdir -p "$BACKUP_DIR"
 
 # Create backup
@@ -428,10 +428,10 @@ git show abc123:state.json > state.json
 **Rebuild from VBR:**
 ```bash
 # If state is lost, rebuild from current VBR configuration
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Cleaning State
@@ -447,7 +447,7 @@ vim state.json
 **Automated cleanup (future feature):**
 ```bash
 # Not yet implemented
-# vcli state clean --remove-missing
+# owlctl state clean --remove-missing
 ```
 
 ### Migrating State
@@ -455,17 +455,17 @@ vim state.json
 **Moving to a new environment:**
 ```bash
 # 1. Export state from old environment
-cp $HOME/.vcli/state.json state-old-env.json
+cp $HOME/.owlctl/state.json state-old-env.json
 
 # 2. Set up new environment
-export VCLI_SETTINGS_PATH="$HOME/.vcli-new/"
-vcli init
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl-new/"
+owlctl init
 
 # 3. Take fresh snapshots in new environment
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 **Don't copy state between environments** - Resource IDs differ between VBR servers.
@@ -474,18 +474,18 @@ vcli encryption kms-snapshot --all
 
 ### State File Not Found
 
-**Problem:** vcli can't find state.json
+**Problem:** owlctl can't find state.json
 
 **Solutions:**
 ```bash
-# Check VCLI_SETTINGS_PATH
-echo $VCLI_SETTINGS_PATH
+# Check OWLCTL_SETTINGS_PATH
+echo $OWLCTL_SETTINGS_PATH
 
 # Create state with snapshots
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Resource Not in State
@@ -495,13 +495,13 @@ vcli encryption kms-snapshot --all
 **Solution:**
 ```bash
 # Snapshot the resource first
-vcli repo snapshot "Resource Name"
+owlctl repo snapshot "Resource Name"
 
 # Or adopt existing resource
-vcli repo adopt "Resource Name"
+owlctl repo adopt "Resource Name"
 
 # Then diff will work
-vcli repo diff "Resource Name"
+owlctl repo diff "Resource Name"
 ```
 
 ### State Out of Sync
@@ -511,10 +511,10 @@ vcli repo diff "Resource Name"
 **Solution:**
 ```bash
 # Re-snapshot to refresh state
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Corrupt State File
@@ -531,10 +531,10 @@ cp state.json.backup state.json
 
 # Or rebuild from VBR
 rm state.json
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### State Shows Drift After Apply
@@ -550,10 +550,10 @@ vcli encryption kms-snapshot --all
 ```bash
 # Re-snapshot after a short delay
 sleep 5
-vcli repo snapshot "Resource Name"
+owlctl repo snapshot "Resource Name"
 
 # Check if drift is INFO severity (may be acceptable)
-vcli repo diff "Resource Name"
+owlctl repo diff "Resource Name"
 ```
 
 ## Best Practices
@@ -572,7 +572,7 @@ git push
 Schedule regular snapshots to keep state current:
 ```bash
 # Daily cron job
-0 2 * * * cd /path/to/vcli && ./daily-snapshot.sh
+0 2 * * * cd /path/to/owlctl && ./daily-snapshot.sh
 ```
 
 ### 3. Snapshot Before Changes
@@ -580,12 +580,12 @@ Schedule regular snapshots to keep state current:
 Take a snapshot before making manual changes in VBR console:
 ```bash
 # Before making changes in VBR console
-vcli repo snapshot --all
+owlctl repo snapshot --all
 
 # Make changes in VBR console
 
 # Check what changed
-vcli repo diff --all
+owlctl repo diff --all
 ```
 
 ### 4. Use Adopt for Existing Resources
@@ -593,9 +593,9 @@ vcli repo diff --all
 When starting declarative management, adopt existing resources:
 ```bash
 # Adopt all existing resources
-vcli repo adopt --all
-vcli repo sobr-adopt --all
-vcli encryption kms-adopt --all
+owlctl repo adopt --all
+owlctl repo sobr-adopt --all
+owlctl encryption kms-adopt --all
 
 # Commit initial state
 git add state.json
@@ -608,12 +608,12 @@ git push
 Use different state files for different environments:
 ```bash
 # Production
-export VCLI_SETTINGS_PATH="$HOME/.vcli/prod/"
-vcli repo snapshot --all
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/prod/"
+owlctl repo snapshot --all
 
 # Development
-export VCLI_SETTINGS_PATH="$HOME/.vcli/dev/"
-vcli repo snapshot --all
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/dev/"
+owlctl repo snapshot --all
 ```
 
 ### 6. Backup State Before Major Changes
@@ -623,15 +623,15 @@ vcli repo snapshot --all
 cp state.json state.json.backup-$(date +%Y%m%d)
 
 # Make changes
-vcli repo apply repo.yaml
+owlctl repo apply repo.yaml
 
 # Verify
-vcli repo diff --all
+owlctl repo diff --all
 ```
 
 ### 7. Don't Edit State Manually
 
-Let vcli manage state.json. Manual edits can corrupt the file or introduce inconsistencies.
+Let owlctl manage state.json. Manual edits can corrupt the file or introduce inconsistencies.
 
 **Exception:** Removing entries for deleted resources is safe.
 
@@ -640,8 +640,8 @@ Let vcli manage state.json. Manual edits can corrupt the file or introduce incon
 If you make changes directly in VBR console, update state immediately:
 ```bash
 # After console changes
-vcli repo snapshot "Resource Name"
-vcli job diff "Job Name"  # Verify no unexpected drift
+owlctl repo snapshot "Resource Name"
+owlctl job diff "Job Name"  # Verify no unexpected drift
 ```
 
 ### 9. Use State for Disaster Recovery
@@ -654,11 +654,11 @@ cd vbr-config
 
 # 2. Apply all configurations
 for job in specs/jobs/*.yaml; do
-    vcli job apply "$job"
+    owlctl job apply "$job"
 done
 
 for repo in specs/repos/*.yaml; do
-    vcli repo apply "$repo"
+    owlctl repo apply "$repo"
 done
 ```
 

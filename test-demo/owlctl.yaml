@@ -1,4 +1,4 @@
-# vcli Configuration File
+# owlctl Configuration File
 # Multi-environment backup configuration
 
 currentEnvironment: production
@@ -10,7 +10,7 @@ environments:
     profile: vbr
     labels:
       env: production
-      managed-by: vcli
+      managed-by: owlctl
       tier: critical
 
   development:
@@ -18,7 +18,7 @@ environments:
     profile: vbr
     labels:
       env: development
-      managed-by: vcli
+      managed-by: owlctl
       tier: standard
 
   staging:
@@ -26,5 +26,5 @@ environments:
     profile: vbr
     labels:
       env: staging
-      managed-by: vcli
+      managed-by: owlctl
       tier: standard

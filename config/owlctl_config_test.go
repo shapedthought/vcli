@@ -8,7 +8,7 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	// Create temp directory for test
-	tmpDir, err := os.MkdirTemp("", "vcli-config-test-*")
+	tmpDir, err := os.MkdirTemp("", "owlctl-config-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestLoadConfig(t *testing.T) {
 		},
 	}
 
-	configPath := filepath.Join(tmpDir, "vcli.yaml")
+	configPath := filepath.Join(tmpDir, "owlctl.yaml")
 	if err := SaveConfigTo(testConfig, configPath); err != nil {
 		t.Fatalf("Failed to save config: %v", err)
 	}

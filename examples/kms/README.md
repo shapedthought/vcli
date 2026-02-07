@@ -17,9 +17,9 @@ Azure Key Vault integration:
 
 **⚠️ KMS Servers are Update-Only**
 
-KMS servers **cannot be created** via vcli apply. They must be configured in the VBR console first.
+KMS servers **cannot be created** via owlctl apply. They must be configured in the VBR console first.
 
-vcli can **update** KMS server settings:
+owlctl can **update** KMS server settings:
 - Description
 - Monitoring settings
 - Health check intervals
@@ -35,9 +35,9 @@ vcli can **update** KMS server settings:
 **Workflow:**
 1. Configure KMS server in VBR console
 2. Test connection and permissions
-3. Export to YAML: `vcli encryption kms-export "KMS Name" -o kms.yaml`
+3. Export to YAML: `owlctl encryption kms-export "KMS Name" -o kms.yaml`
 4. Edit description/monitoring settings if needed
-5. Apply updates: `vcli encryption kms-apply kms.yaml`
+5. Apply updates: `owlctl encryption kms-apply kms.yaml`
 
 ## Usage
 
@@ -45,46 +45,46 @@ vcli can **update** KMS server settings:
 
 ```bash
 # Snapshot single KMS server
-vcli encryption kms-snapshot "Azure Key Vault Production"
+owlctl encryption kms-snapshot "Azure Key Vault Production"
 
 # Snapshot all KMS servers
-vcli encryption kms-snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Export KMS Configuration
 
 ```bash
 # Export by name
-vcli encryption kms-export "Azure Key Vault Production" -o kms.yaml
+owlctl encryption kms-export "Azure Key Vault Production" -o kms.yaml
 
 # Export all KMS servers
-vcli encryption kms-export --all -d ./all-kms/
+owlctl encryption kms-export --all -d ./all-kms/
 ```
 
 ### Apply KMS Updates
 
 ```bash
 # Preview changes first (recommended)
-vcli encryption kms-apply azure-key-vault.yaml --dry-run
+owlctl encryption kms-apply azure-key-vault.yaml --dry-run
 
 # Apply updates
-vcli encryption kms-apply azure-key-vault.yaml
+owlctl encryption kms-apply azure-key-vault.yaml
 
 # Apply with environment overlay
-vcli encryption kms-apply azure-key-vault.yaml -o ../overlays/prod/kms-overlay.yaml
+owlctl encryption kms-apply azure-key-vault.yaml -o ../overlays/prod/kms-overlay.yaml
 ```
 
 ### Detect Configuration Drift
 
 ```bash
 # Check single KMS server
-vcli encryption kms-diff "Azure Key Vault Production"
+owlctl encryption kms-diff "Azure Key Vault Production"
 
 # Check all KMS servers
-vcli encryption kms-diff --all
+owlctl encryption kms-diff --all
 
 # Check for security-relevant drift only
-vcli encryption kms-diff --all --security-only
+owlctl encryption kms-diff --all --security-only
 ```
 
 ## Supported KMS Providers
@@ -117,7 +117,7 @@ VBR supports multiple KMS providers:
 
 ### Updateable Fields (Limited)
 
-Via vcli apply, you can typically update:
+Via owlctl apply, you can typically update:
 - Description
 - Monitoring enabled/disabled
 - Health check intervals

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to vcli will be documented in this file.
+All notable changes to owlctl will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add diff preview to plan and apply --dry-run commands (#82)
   - `job plan` and `job apply --dry-run` now show a field-by-field diff preview
 - Add job snapshot command to capture existing jobs into state (#84)
-  - `vcli job snapshot <name>` / `--all` to baseline job state without applying
+  - `owlctl job snapshot <name>` / `--all` to baseline job state without applying
 
 ### Changed
 - Expand severity maps for repositories, SOBRs, and KMS servers (#86, #87)
@@ -42,21 +42,21 @@ This release delivers major improvements to security, automation workflows, and 
 
 **Quick upgrade:**
 ```bash
-vcli init profiles  # Regenerate configs
-vcli login          # Done!
+owlctl init profiles  # Regenerate configs
+owlctl login          # Done!
 ```
 
 ### Breaking Changes
 
 #### 1. Non-Interactive Init by Default
-- `vcli init` now non-interactive by default (outputs JSON for scripting)
+- `owlctl init` now non-interactive by default (outputs JSON for scripting)
 - Interactive mode available via `--interactive` flag
 - Automation-first design for CI/CD workflows
 - **Migration:** CI/CD scripts work unchanged; interactive users add `--interactive` flag
 
 #### 2. Profile Commands Take Arguments
 - Profile management commands now require arguments instead of prompting
-- `vcli profile --set vbr` (was: interactive prompt)
+- `owlctl profile --set vbr` (was: interactive prompt)
 - JSON output by default; `--table` flag for human-readable format
 - **Migration:** Add profile name as argument in scripts
 
@@ -64,32 +64,32 @@ vcli login          # Done!
 - Tokens stored in system keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - File-based fallback with encryption for systems without keychain
 - Auto-authentication in CI/CD environments (non-TTY detection)
-- Explicit token control via `VCLI_TOKEN` environment variable
+- Explicit token control via `OWLCTL_TOKEN` environment variable
 - **Security:** No more plaintext tokens in `headers.json`
-- **Migration:** Just `vcli login` after upgrade
+- **Migration:** Just `owlctl login` after upgrade
 
 #### 4. profiles.json v1.0 Format
 - Completely restructured configuration format with versioning
 - All profiles in single file (easy switching)
 - Logical grouping of endpoints and headers
 - Proper types (port as number, not string)
-- **Migration:** Regenerate with `vcli init profiles`
+- **Migration:** Regenerate with `owlctl init profiles`
 
 #### 5. Removed CredsFileMode
 - Credentials now **always** from environment variables
 - No more `--creds-file` option
 - Consistent with 12-factor app principles and CI/CD standards
-- **Migration:** Set `VCLI_USERNAME`, `VCLI_PASSWORD`, `VCLI_URL` environment variables
+- **Migration:** Set `OWLCTL_USERNAME`, `OWLCTL_PASSWORD`, `OWLCTL_URL` environment variables
 
 ### Added
 
 #### Authentication Improvements
 - System keychain integration for secure token storage
-- Hybrid token resolution: `VCLI_TOKEN` → keychain → auto-auth
+- Hybrid token resolution: `OWLCTL_TOKEN` → keychain → auto-auth
 - CI/CD environment detection (skips keychain on headless systems)
 - File-based keyring with encryption as fallback
 - Password prompting for file keyring in interactive sessions
-- `VCLI_FILE_KEY` environment variable for non-interactive file keyring
+- `OWLCTL_FILE_KEY` environment variable for non-interactive file keyring
 
 #### Configuration Management
 - Versioned profiles.json format (`"version": "1.0"`)
@@ -99,12 +99,12 @@ vcli login          # Done!
 - `init settings` command for settings-only initialization
 
 #### Commands
-- `vcli init` - Non-interactive with JSON output by default
-- `vcli init --interactive` - Legacy interactive mode
-- `vcli init profiles` - Generate only profiles.json
-- `vcli init settings` - Generate only settings.json
-- `vcli profile --list --table` - Human-readable profile list
-- `vcli profile --set <name>` - Argument-based profile switching
+- `owlctl init` - Non-interactive with JSON output by default
+- `owlctl init --interactive` - Legacy interactive mode
+- `owlctl init profiles` - Generate only profiles.json
+- `owlctl init settings` - Generate only settings.json
+- `owlctl profile --list --table` - Human-readable profile list
+- `owlctl profile --set <name>` - Argument-based profile switching
 
 ### Changed
 
@@ -131,7 +131,7 @@ vcli login          # Done!
 - Legacy profiles.json format (pre-v1.0)
 
 ### Security
-- **Critical:** Hardcoded file keyring password replaced with `VCLI_FILE_KEY` env var + interactive prompt
+- **Critical:** Hardcoded file keyring password replaced with `OWLCTL_FILE_KEY` env var + interactive prompt
 - **Critical:** Configuration file permissions changed from `0644` to `0600`
 - **Critical:** Tokens stored in OS-encrypted keychain instead of plaintext files
 - Tilde expansion bug fixed in file keyring path resolution
@@ -171,14 +171,14 @@ We chose a clean break over backward compatibility:
 ### Upgrade Notes
 
 **For all users:**
-1. Backup configs (optional): `cp -r ~/.vcli ~/.vcli.old`
-2. Regenerate: `vcli init profiles`
-3. Re-login: `vcli login`
-4. Test: `vcli get jobs`
+1. Backup configs (optional): `cp -r ~/.owlctl ~/.owlctl.old`
+2. Regenerate: `owlctl init profiles`
+3. Re-login: `owlctl login`
+4. Test: `owlctl get jobs`
 
 **For CI/CD:**
 - Environment variables work unchanged
-- Update profile commands to pass arguments: `vcli profile --set vbr`
+- Update profile commands to pass arguments: `owlctl profile --set vbr`
 - See [Azure DevOps Integration Guide](docs/azure-devops-integration.md)
 
 **Detailed guidance:**
@@ -200,37 +200,37 @@ Complete infrastructure-as-code workflow for VBR with drift detection and securi
   - State management for drift detection
 
 #### Export Commands
-- `vcli export <job-id|name>` - Export jobs to YAML (full, simplified, or overlay format)
-- `vcli export --all -d <dir>` - Export all jobs to directory
-- `vcli repo export <name>` - Export repository configuration
-- `vcli repo sobr-export <name>` - Export SOBR configuration
-- `vcli encryption export <name>` - Export encryption password metadata
-- `vcli encryption kms-export <name>` - Export KMS server configuration
+- `owlctl export <job-id|name>` - Export jobs to YAML (full, simplified, or overlay format)
+- `owlctl export --all -d <dir>` - Export all jobs to directory
+- `owlctl repo export <name>` - Export repository configuration
+- `owlctl repo sobr-export <name>` - Export SOBR configuration
+- `owlctl encryption export <name>` - Export encryption password metadata
+- `owlctl encryption kms-export <name>` - Export KMS server configuration
 - Export flags: `--as-overlay`, `--base`, `--simplified`
 
 #### State Management
-- `vcli repo snapshot <name>` - Capture current repository configuration
-- `vcli repo sobr-snapshot <name>` - Capture current SOBR configuration
-- `vcli encryption snapshot <name>` - Capture current encryption password
-- `vcli encryption kms-snapshot <name>` - Capture current KMS server
+- `owlctl repo snapshot <name>` - Capture current repository configuration
+- `owlctl repo sobr-snapshot <name>` - Capture current SOBR configuration
+- `owlctl encryption snapshot <name>` - Capture current encryption password
+- `owlctl encryption kms-snapshot <name>` - Capture current KMS server
 - `--all` flag for bulk snapshots
 - State file (`state.json`) tracks configurations and origins
 - Adopt commands for bringing existing resources under management
 
 #### Apply Commands
-- `vcli job apply <file>` - Apply job configuration (create or update)
-- `vcli repo apply <file>` - Apply repository configuration (update-only)
-- `vcli repo sobr-apply <file>` - Apply SOBR configuration (update-only)
-- `vcli encryption kms-apply <file>` - Apply KMS configuration (update-only)
+- `owlctl job apply <file>` - Apply job configuration (create or update)
+- `owlctl repo apply <file>` - Apply repository configuration (update-only)
+- `owlctl repo sobr-apply <file>` - Apply SOBR configuration (update-only)
+- `owlctl encryption kms-apply <file>` - Apply KMS configuration (update-only)
 - Apply flags: `--dry-run`, `-o/--overlay`, `--env`
 - Support for configuration overlays (base + environment-specific)
 
 #### Drift Detection
-- `vcli job diff <name>` - Detect job configuration drift
-- `vcli repo diff <name>` - Detect repository configuration drift
-- `vcli repo sobr-diff <name>` - Detect SOBR configuration drift
-- `vcli encryption diff <name>` - Detect encryption password drift
-- `vcli encryption kms-diff <name>` - Detect KMS server drift
+- `owlctl job diff <name>` - Detect job configuration drift
+- `owlctl repo diff <name>` - Detect repository configuration drift
+- `owlctl repo sobr-diff <name>` - Detect SOBR configuration drift
+- `owlctl encryption diff <name>` - Detect encryption password drift
+- `owlctl encryption kms-diff <name>` - Detect KMS server drift
 - `--all` flag for bulk drift detection
 - `--severity <level>` filtering (critical, warning, info)
 - `--security-only` flag for security-relevant drifts
@@ -257,9 +257,9 @@ Complete infrastructure-as-code workflow for VBR with drift detection and securi
 #### Configuration Overlays
 - Strategic merge system for base + overlay configurations
 - Support for multiple environments (prod, dev, staging)
-- `vcli.yaml` environment configuration file
+- `owlctl.yaml` environment configuration file
 - Overlay resolution priority: explicit `-o` > `--env` > `currentEnvironment`
-- `vcli job plan <file>` - Preview merged configuration
+- `owlctl job plan <file>` - Preview merged configuration
 - `--show-yaml` flag for full merged output
 
 #### Exit Codes
@@ -294,7 +294,7 @@ Complete infrastructure-as-code workflow for VBR with drift detection and securi
 - Job apply command with overlay support
 - Job plan command
 - Basic configuration overlay system
-- Environment configuration via vcli.yaml
+- Environment configuration via owlctl.yaml
 
 ## [0.7.0] - 2023-08-01
 
@@ -357,7 +357,7 @@ Complete infrastructure-as-code workflow for VBR with drift detection and securi
 
 ## Version Numbering
 
-vcli follows [Semantic Versioning](https://semver.org/):
+owlctl follows [Semantic Versioning](https://semver.org/):
 - **MAJOR** version for incompatible API changes
 - **MINOR** version for new functionality in a backward compatible manner
 - **PATCH** version for backward compatible bug fixes
@@ -365,7 +365,7 @@ vcli follows [Semantic Versioning](https://semver.org/):
 
 ## See Also
 
-- [GitHub Releases](https://github.com/shapedthought/vcli/releases) - Binary downloads and release notes
+- [GitHub Releases](https://github.com/shapedthought/owlctl/releases) - Binary downloads and release notes
 - [User Guide](user_guide.md) - Complete documentation
 - [Getting Started](docs/getting-started.md) - Setup guide
 - [Documentation](docs/) - All guides and references

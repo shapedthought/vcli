@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shapedthought/vcli/auth"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/auth"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 )
 
 type ReadHeaders interface {
@@ -22,9 +22,9 @@ func GetData[T any](url string, profile models.Profile) T {
 	settings := utils.ReadSettings()
 
 	// With v1.0 profiles, credentials are always from environment variables
-	api_url := os.Getenv("VCLI_URL")
+	api_url := os.Getenv("OWLCTL_URL")
 	if api_url == "" {
-		log.Fatal("VCLI_URL environment variable not set")
+		log.Fatal("OWLCTL_URL environment variable not set")
 	}
 
 	// creates a new client instance

@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/99designs/keyring"
-	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/owlctl/models"
 	"golang.org/x/term"
 )
 
 const (
-	KeyringService = "vcli"
-	TokenEnvVar    = "VCLI_TOKEN"
+	KeyringService = "owlctl"
+	TokenEnvVar    = "OWLCTL_TOKEN"
 )
 
 // TokenManager handles token storage and retrieval
@@ -43,18 +43,18 @@ func NewTokenManager(debug bool) (*TokenManager, error) {
 
 	kr, err := keyring.Open(keyring.Config{
 		ServiceName:  KeyringService,
-		KeychainName: "vcli",
-		FileDir:      homeDir + "/.vcli",
+		KeychainName: "owlctl",
+		FileDir:      homeDir + "/.owlctl",
 		FilePasswordFunc: func(prompt string) (string, error) {
 			// Check environment variable first (allows non-interactive configuration)
-			if pw := os.Getenv("VCLI_FILE_KEY"); pw != "" {
+			if pw := os.Getenv("OWLCTL_FILE_KEY"); pw != "" {
 				return pw, nil
 			}
 
 			// Prompt for password in interactive mode
 			if term.IsTerminal(int(os.Stdin.Fd())) {
 				if prompt == "" {
-					prompt = "Enter password for vcli file keyring: "
+					prompt = "Enter password for owlctl file keyring: "
 				}
 				fmt.Fprint(os.Stderr, prompt)
 				pwBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -68,9 +68,9 @@ func NewTokenManager(debug bool) (*TokenManager, error) {
 				return string(pwBytes), nil
 			}
 
-			// Non-interactive mode without VCLI_FILE_KEY
+			// Non-interactive mode without OWLCTL_FILE_KEY
 			// This shouldn't happen in CI/CD as keyring is not used there
-			return "", errors.New("VCLI_FILE_KEY environment variable required for file keyring in non-interactive mode")
+			return "", errors.New("OWLCTL_FILE_KEY environment variable required for file keyring in non-interactive mode")
 		},
 		AllowedBackends: []keyring.BackendType{
 			keyring.KeychainBackend,      // macOS
@@ -90,7 +90,7 @@ func NewTokenManager(debug bool) (*TokenManager, error) {
 }
 
 // GetToken retrieves token using hybrid approach
-// Priority: 1) VCLI_TOKEN env var, 2) keychain, 3) auto-authenticate
+// Priority: 1) OWLCTL_TOKEN env var, 2) keychain, 3) auto-authenticate
 // profileName is used for keychain storage/retrieval
 func (tm *TokenManager) GetToken(profileName string, profile models.Profile, username, password, apiURL string, insecure bool) (string, error) {
 	if tm.debug {
@@ -100,14 +100,14 @@ func (tm *TokenManager) GetToken(profileName string, profile models.Profile, use
 	// 1. Check explicit token env var (highest priority)
 	if token := os.Getenv(TokenEnvVar); token != "" {
 		if tm.debug {
-			fmt.Fprintln(os.Stderr, "DEBUG: Using token from VCLI_TOKEN env var")
+			fmt.Fprintln(os.Stderr, "DEBUG: Using token from OWLCTL_TOKEN env var")
 		}
 		// Validate token format and expiry if possible
 		if isValidTokenFormat(token) {
 			return token, nil
 		}
 		if tm.debug {
-			fmt.Fprintln(os.Stderr, "DEBUG: VCLI_TOKEN token invalid, trying next method")
+			fmt.Fprintln(os.Stderr, "DEBUG: OWLCTL_TOKEN token invalid, trying next method")
 		}
 	}
 
@@ -149,7 +149,7 @@ func (tm *TokenManager) GetToken(profileName string, profile models.Profile, use
 		return token, nil
 	}
 
-	return "", errors.New("no authentication method available: set VCLI_TOKEN, store token in keychain, or provide VCLI_USERNAME/VCLI_PASSWORD/VCLI_URL")
+	return "", errors.New("no authentication method available: set OWLCTL_TOKEN, store token in keychain, or provide OWLCTL_USERNAME/OWLCTL_PASSWORD/OWLCTL_URL")
 }
 
 // StoreToken stores a token in the system keychain
@@ -284,16 +284,16 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 
 	// Get credentials from environment variables
 	// Note: With v1.0 profiles, credentials are no longer stored in profiles.json
-	username := os.Getenv("VCLI_USERNAME")
-	apiURL := os.Getenv("VCLI_URL")
-	password := os.Getenv("VCLI_PASSWORD")
+	username := os.Getenv("OWLCTL_USERNAME")
+	apiURL := os.Getenv("OWLCTL_URL")
+	password := os.Getenv("OWLCTL_PASSWORD")
 
 	if username == "" || apiURL == "" {
-		return "", errors.New("VCLI_USERNAME or VCLI_URL environment variable not set")
+		return "", errors.New("OWLCTL_USERNAME or OWLCTL_URL environment variable not set")
 	}
 
 	if password == "" {
-		return "", errors.New("VCLI_PASSWORD environment variable not set")
+		return "", errors.New("OWLCTL_PASSWORD environment variable not set")
 	}
 
 	// Create token manager and get token

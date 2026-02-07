@@ -3,10 +3,10 @@
 # with development-specific settings.
 #
 # Usage:
-#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml
-#   vcli job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml --dry-run
+#   owlctl job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml
+#   owlctl job apply ../jobs/database-backup.yaml -o database-backup-overlay.yaml --dry-run
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Database Backup

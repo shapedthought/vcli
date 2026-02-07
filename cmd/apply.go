@@ -6,11 +6,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/shapedthought/vcli/config"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/resources"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/resources"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -30,21 +30,21 @@ It supports overlay files for environment-specific customization.
 
 Examples:
   # Apply a job configuration
-  vcli job apply backup-job.yaml
+  owlctl job apply backup-job.yaml
 
   # Apply with overlay file
-  vcli job apply base-job.yaml -o prod-overlay.yaml
+  owlctl job apply base-job.yaml -o prod-overlay.yaml
 
-  # Apply with environment (uses overlay from vcli.yaml)
-  vcli job apply base-job.yaml --env production
+  # Apply with environment (uses overlay from owlctl.yaml)
+  owlctl job apply base-job.yaml --env production
 
   # Dry run to preview changes
-  vcli job apply base-job.yaml -o prod-overlay.yaml --dry-run
+  owlctl job apply base-job.yaml -o prod-overlay.yaml --dry-run
 
 Overlay Resolution:
   1. If -o/--overlay is specified, use that overlay file
-  2. If --env is specified, use overlay from vcli.yaml for that environment
-  3. If vcli.yaml exists and has currentEnvironment set, use that overlay
+  2. If --env is specified, use overlay from owlctl.yaml for that environment
+  3. If owlctl.yaml exists and has currentEnvironment set, use that overlay
   4. Otherwise, apply base configuration without overlay
 `,
 	Args: cobra.ExactArgs(1),
@@ -83,7 +83,7 @@ func applyJob(configFile string) {
 		}
 		finalSpec = mergedSpec
 	} else if environment != "" || needsConfigOverlay() {
-		// Try to use overlay from vcli.yaml
+		// Try to use overlay from owlctl.yaml
 		overlayPath, err := getConfiguredOverlay()
 		if err != nil {
 			// If no overlay configured, just use base spec
@@ -141,7 +141,7 @@ func applyJob(configFile string) {
 	fmt.Printf("\n✓ Successfully applied job: %s\n", finalSpec.Metadata.Name)
 }
 
-// needsConfigOverlay checks if we should try to use vcli.yaml overlay
+// needsConfigOverlay checks if we should try to use owlctl.yaml overlay
 func needsConfigOverlay() bool {
 	// Try to load config
 	cfg, err := config.LoadConfig()
@@ -158,11 +158,11 @@ func needsConfigOverlay() bool {
 	return false
 }
 
-// getConfiguredOverlay gets the overlay path from vcli.yaml
+// getConfiguredOverlay gets the overlay path from owlctl.yaml
 func getConfiguredOverlay() (string, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to load vcli.yaml: %w", err)
+		return "", fmt.Errorf("failed to load owlctl.yaml: %w", err)
 	}
 
 	// Use explicit environment if specified
@@ -172,7 +172,7 @@ func getConfiguredOverlay() (string, error) {
 	}
 
 	if env == "" {
-		return "", fmt.Errorf("no environment specified and no currentEnvironment in vcli.yaml")
+		return "", fmt.Errorf("no environment specified and no currentEnvironment in owlctl.yaml")
 	}
 
 	overlayPath, err := cfg.GetEnvironmentOverlay(env)
@@ -220,8 +220,8 @@ func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
 
 		// Debug: Print what we're sending
 		debugBytes, _ := json.MarshalIndent(jobForPut, "", "  ")
-		_ = os.WriteFile("/tmp/vcli-debug-request.json", debugBytes, 0644)
-		fmt.Printf("\nDEBUG: Full request saved to /tmp/vcli-debug-request.json\n")
+		_ = os.WriteFile("/tmp/owlctl-debug-request.json", debugBytes, 0644)
+		fmt.Printf("\nDEBUG: Full request saved to /tmp/owlctl-debug-request.json\n")
 		fmt.Printf("Job ID in body: %s\n", jobForPut.ID)
 
 		endpoint := fmt.Sprintf("jobs/%s", existingJob.ID)
@@ -380,7 +380,7 @@ func findJobByName(name string, profile models.Profile) (models.VbrJobGet, bool)
 
 func init() {
 	applyCmd.Flags().StringVarP(&overlayFile, "overlay", "o", "", "Overlay file to merge with base configuration")
-	applyCmd.Flags().StringVar(&environment, "env", "", "Environment to use (looks up overlay from vcli.yaml)")
+	applyCmd.Flags().StringVar(&environment, "env", "", "Environment to use (looks up overlay from owlctl.yaml)")
 	applyCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without applying them")
 
 	jobsCmd.AddCommand(applyCmd)

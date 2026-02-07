@@ -7,7 +7,7 @@
 # 3. Post-deploy: Verify changes were applied successfully
 #
 # Prerequisites:
-# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 # - Environment 'vbr-production' with approval gates configured (optional)
 # - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs,kms}/*.yaml
 
@@ -25,7 +25,7 @@ pool:
 
 variables:
   - group: 'veeam-credentials'
-  - name: vcliVersion
+  - name: owlctlVersion
     value: 'latest'
   - name: specsPath
     value: 'infrastructure'
@@ -41,14 +41,14 @@ stages:
           - checkout: self
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               echo "=== Pre-Deploy: Dry-Run All Specs ==="
@@ -57,28 +57,28 @@ stages:
               for spec in $(specsPath)/jobs/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Validating: $spec"
-                ./vcli job apply "$spec" --dry-run
+                ./owlctl job apply "$spec" --dry-run
                 if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
               done
 
               for spec in $(specsPath)/repos/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Validating: $spec"
-                ./vcli repo apply "$spec" --dry-run
+                ./owlctl repo apply "$spec" --dry-run
                 if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
               done
 
               for spec in $(specsPath)/sobrs/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Validating: $spec"
-                ./vcli repo sobr-apply "$spec" --dry-run
+                ./owlctl repo sobr-apply "$spec" --dry-run
                 if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
               done
 
               for spec in $(specsPath)/kms/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Validating: $spec"
-                ./vcli encryption kms-apply "$spec" --dry-run
+                ./owlctl encryption kms-apply "$spec" --dry-run
                 if [ $? -ne 0 ] && [ $? -ne 6 ]; then FAILED=$((FAILED + 1)); fi
               done
 
@@ -91,28 +91,28 @@ stages:
               echo "All specs validated successfully"
             displayName: 'Validate all specs (dry-run)'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
           - script: |
               echo "=== Pre-Deploy: Current State Summary ==="
 
               echo ""
               echo "Jobs:"
-              ./vcli job diff --all 2>&1 | head -50 || true
+              ./owlctl job diff --all 2>&1 | head -50 || true
 
               echo ""
               echo "Repositories:"
-              ./vcli repo diff --all 2>&1 | head -50 || true
+              ./owlctl repo diff --all 2>&1 | head -50 || true
 
               echo ""
               echo "SOBRs:"
-              ./vcli repo sobr-diff --all 2>&1 | head -50 || true
+              ./owlctl repo sobr-diff --all 2>&1 | head -50 || true
 
               echo ""
               echo "=== Ready for deployment ==="
             displayName: 'Show current drift state'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 2: Deploy with optional approval
   - stage: Deploy
@@ -131,14 +131,14 @@ stages:
                 - checkout: self
 
                 - script: |
-                    curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-                    chmod +x vcli
-                    ./vcli init && ./vcli profile --set vbr && ./vcli login
-                  displayName: 'Install and authenticate vcli'
+                    curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+                    chmod +x owlctl
+                    ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+                  displayName: 'Install and authenticate owlctl'
                   env:
-                    VCLI_USERNAME: $(VCLI_USERNAME)
-                    VCLI_PASSWORD: $(VCLI_PASSWORD)
-                    VCLI_URL: $(VCLI_URL)
+                    OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+                    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+                    OWLCTL_URL: $(OWLCTL_URL)
 
                 - script: |
                     APPLIED=0
@@ -152,7 +152,7 @@ stages:
                     for spec in $(specsPath)/jobs/*.yaml; do
                       [ -f "$spec" ] || continue
                       echo "Applying: $spec"
-                      ./vcli job apply "$spec"
+                      ./owlctl job apply "$spec"
                       EXIT=$?
                       case $EXIT in
                         0) APPLIED=$((APPLIED + 1)) ;;
@@ -167,7 +167,7 @@ stages:
                     for spec in $(specsPath)/repos/*.yaml; do
                       [ -f "$spec" ] || continue
                       echo "Applying: $spec"
-                      ./vcli repo apply "$spec"
+                      ./owlctl repo apply "$spec"
                       EXIT=$?
                       case $EXIT in
                         0) APPLIED=$((APPLIED + 1)) ;;
@@ -182,7 +182,7 @@ stages:
                     for spec in $(specsPath)/sobrs/*.yaml; do
                       [ -f "$spec" ] || continue
                       echo "Applying: $spec"
-                      ./vcli repo sobr-apply "$spec"
+                      ./owlctl repo sobr-apply "$spec"
                       EXIT=$?
                       case $EXIT in
                         0) APPLIED=$((APPLIED + 1)) ;;
@@ -197,7 +197,7 @@ stages:
                     for spec in $(specsPath)/kms/*.yaml; do
                       [ -f "$spec" ] || continue
                       echo "Applying: $spec"
-                      ./vcli encryption kms-apply "$spec"
+                      ./owlctl encryption kms-apply "$spec"
                       EXIT=$?
                       case $EXIT in
                         0) APPLIED=$((APPLIED + 1)) ;;
@@ -224,7 +224,7 @@ stages:
                     fi
                   displayName: 'Apply all specs'
                   env:
-                    VCLI_PASSWORD: $(VCLI_PASSWORD)
+                    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 3: Post-deployment verification
   - stage: PostDeploy
@@ -236,14 +236,14 @@ stages:
         displayName: 'Verify configuration applied'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               set +e  # Don't exit on error - we handle exit codes manually
@@ -253,28 +253,28 @@ stages:
               echo "Checking that applied configuration matches VBR state..."
               echo ""
 
-              ./vcli job diff --all 2>&1
+              ./owlctl job diff --all 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]Job drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli repo diff --all 2>&1
+              ./owlctl repo diff --all 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]Repository drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli repo sobr-diff --all 2>&1
+              ./owlctl repo sobr-diff --all 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]SOBR drift detected after deployment"
                 DRIFT=1
               fi
 
-              ./vcli encryption kms-diff --all 2>&1
+              ./owlctl encryption kms-diff --all 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then
                 echo "##vso[task.logissue type=warning]KMS drift detected after deployment"
@@ -290,7 +290,7 @@ stages:
               fi
             displayName: 'Verify no drift'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
           - script: |
               echo "=== Deployment Complete ==="

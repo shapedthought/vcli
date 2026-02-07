@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/pterm/pterm"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -21,28 +21,28 @@ var (
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize vcli configuration files",
-	Long: `Initialize vcli by creating settings.json and profiles.json files.
+	Short: "Initialize owlctl configuration files",
+	Long: `Initialize owlctl by creating settings.json and profiles.json files.
 
 By default, init runs non-interactively and outputs JSON to stdout.
 Use --interactive flag for the legacy interactive prompt behavior.
 
 Examples:
-  # Non-interactive init (outputs to current directory or VCLI_SETTINGS_PATH)
-  vcli init
+  # Non-interactive init (outputs to current directory or OWLCTL_SETTINGS_PATH)
+  owlctl init
 
   # Output to specific directory
-  vcli init --output-dir .vcli/
+  owlctl init --output-dir .owlctl/
 
   # With configuration flags
-  vcli init --insecure --creds-file
+  owlctl init --insecure --creds-file
 
   # Pipe to jq for custom handling
-  vcli init | jq '.settings' > .vcli/settings.json
-  vcli init | jq '.profiles' > .vcli/profiles.json
+  owlctl init | jq '.settings' > .owlctl/settings.json
+  owlctl init | jq '.profiles' > .owlctl/profiles.json
 
   # Interactive mode (legacy)
-  vcli init --interactive
+  owlctl init --interactive
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if interactive {
@@ -60,9 +60,9 @@ var initSettingsCmd = &cobra.Command{
 	Long: `Initialize only the settings.json file with configuration options.
 
 Examples:
-  vcli init settings
-  vcli init settings --insecure --creds-file
-  vcli init settings --output-dir .vcli/
+  owlctl init settings
+  owlctl init settings --insecure --creds-file
+  owlctl init settings --output-dir .owlctl/
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if interactive {
@@ -80,8 +80,8 @@ var initProfilesCmd = &cobra.Command{
 	Long: `Initialize only the profiles.json file with all product profiles.
 
 Examples:
-  vcli init profiles
-  vcli init profiles --output-dir .vcli/
+  owlctl init profiles
+  owlctl init profiles --output-dir .owlctl/
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		initProfilesOnly()
@@ -96,7 +96,7 @@ func init() {
 	// Add flags to all init commands
 	for _, cmd := range []*cobra.Command{initCmd, initSettingsCmd, initProfilesCmd} {
 		cmd.Flags().BoolVar(&interactive, "interactive", false, "Run in interactive mode (legacy behavior)")
-		cmd.Flags().StringVar(&outputDir, "output-dir", "", "Directory to write configuration files (default: current dir or VCLI_SETTINGS_PATH)")
+		cmd.Flags().StringVar(&outputDir, "output-dir", "", "Directory to write configuration files (default: current dir or OWLCTL_SETTINGS_PATH)")
 	}
 
 	// Settings-specific flags
@@ -115,7 +115,7 @@ func getOutputPath() string {
 		// Use explicit --output-dir flag
 		return ensureTrailingSlash(outputDir)
 	}
-	// Use VCLI_SETTINGS_PATH or current directory
+	// Use OWLCTL_SETTINGS_PATH or current directory
 	return utils.SettingPath()
 }
 
@@ -296,7 +296,7 @@ func initAppNonInteractive() {
 
 	// Print helpful message to stderr so it doesn't interfere with JSON piping
 	fmt.Fprintln(os.Stderr, "\nInitialized successfully (profiles v1.0)")
-	fmt.Fprintln(os.Stderr, "Ensure environment variables are set: VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL")
+	fmt.Fprintln(os.Stderr, "Ensure environment variables are set: OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, "Available profiles: %v\n", getProfileNames(profilesFile))
 	fmt.Fprintf(os.Stderr, "Current profile: %s\n", profilesFile.CurrentProfile)
@@ -359,8 +359,8 @@ func initAppInteractive() {
 	// Show deprecation warning if not explicitly in interactive mode
 	if !interactive && isInteractiveSession() {
 		fmt.Fprintln(os.Stderr, "⚠️  WARNING: Interactive mode is deprecated and will be removed in v0.12.0")
-		fmt.Fprintln(os.Stderr, "   Use 'vcli init --interactive' to explicitly enable interactive mode")
-		fmt.Fprintln(os.Stderr, "   Or use non-interactive mode: 'vcli init --insecure --creds-file'")
+		fmt.Fprintln(os.Stderr, "   Use 'owlctl init --interactive' to explicitly enable interactive mode")
+		fmt.Fprintln(os.Stderr, "   Or use non-interactive mode: 'owlctl init --insecure --creds-file'")
 		fmt.Fprintln(os.Stderr, "")
 	}
 
@@ -381,7 +381,7 @@ func initAppInteractive() {
 	}
 
 	fmt.Println("Initialized successfully. Ensure environment variables are set:")
-	fmt.Println("  - VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL")
+	fmt.Println("  - OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL")
 
 	settingsPath := basePath + "settings"
 	utils.SaveJson(&settings, settingsPath)

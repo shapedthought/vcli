@@ -1,6 +1,6 @@
 package cmd
 
-// Exit codes for vcli commands.
+// Exit codes for owlctl commands.
 // These codes are used for CI/CD integration to distinguish between
 // different outcomes.
 const (

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/pterm/pterm"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -88,7 +88,7 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 
 			fmt.Println("Job JSON POST file created.")
 		} else if (result == "Check Version") {
-			res, err := http.Get("https://api.github.com/repos/shapedthought/vcli/releases/latest");
+			res, err := http.Get("https://api.github.com/repos/shapedthought/owlctl/releases/latest");
 			utils.IsErr(err)
 
 			body, err := io.ReadAll(res.Body)

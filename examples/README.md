@@ -1,6 +1,6 @@
-# vcli Configuration Examples
+# owlctl Configuration Examples
 
-This directory contains example configuration files demonstrating vcli's declarative management features for all VBR resource types.
+This directory contains example configuration files demonstrating owlctl's declarative management features for all VBR resource types.
 
 ## Overlay System
 
@@ -66,13 +66,13 @@ spec:
 
 ```bash
 # Create production job
-vcli job apply overlay-base.yaml --overlay overlay-prod.yaml
+owlctl job apply overlay-base.yaml --overlay overlay-prod.yaml
 
 # Create development job
-vcli job apply overlay-base.yaml --overlay overlay-dev.yaml
+owlctl job apply overlay-base.yaml --overlay overlay-dev.yaml
 
 # Plan changes before applying
-vcli job plan overlay-base.yaml --overlay overlay-prod.yaml
+owlctl job plan overlay-base.yaml --overlay overlay-prod.yaml
 ```
 
 ### Benefits
@@ -93,23 +93,23 @@ The overlay system works for all VBR resource types, including repositories.
 
 ```bash
 # Export existing repository to YAML
-vcli repo export "Default Backup Repository" -o base-repo.yaml
+owlctl repo export "Default Backup Repository" -o base-repo.yaml
 
 # Apply repository configuration
-vcli repo apply base-repo.yaml
+owlctl repo apply base-repo.yaml
 
 # Apply with environment overlay
-vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml
+owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml
 
 # Preview changes before applying
-vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml --dry-run
+owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml --dry-run
 ```
 
 ### Example: Multi-Environment Repository
 
 **Base Repository (`base-repo.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRRepository
 metadata:
   name: Primary Backup Repository
@@ -122,7 +122,7 @@ spec:
 
 **Production Overlay (`prod-repo-overlay.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRRepository
 spec:
   maxTaskCount: 8
@@ -131,7 +131,7 @@ spec:
 
 **Apply:**
 ```bash
-vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml
+owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml
 ```
 
 ---
@@ -142,23 +142,23 @@ vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml
 
 ```bash
 # Export existing SOBR to YAML
-vcli repo sobr-export "Scale-out Repository 1" -o base-sobr.yaml
+owlctl repo sobr-export "Scale-out Repository 1" -o base-sobr.yaml
 
 # Apply SOBR configuration
-vcli repo sobr-apply base-sobr.yaml
+owlctl repo sobr-apply base-sobr.yaml
 
 # Apply with environment overlay
-vcli repo sobr-apply base-sobr.yaml -o prod-sobr-overlay.yaml
+owlctl repo sobr-apply base-sobr.yaml -o prod-sobr-overlay.yaml
 
 # Preview changes before applying
-vcli repo sobr-apply base-sobr.yaml -o prod-sobr-overlay.yaml --dry-run
+owlctl repo sobr-apply base-sobr.yaml -o prod-sobr-overlay.yaml --dry-run
 ```
 
 ### Example: Multi-Environment SOBR
 
 **Base SOBR (`base-sobr.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRSOBR
 metadata:
   name: Scale-out Repository
@@ -170,7 +170,7 @@ spec:
 
 **Production Overlay (`prod-sobr-overlay.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRSOBR
 spec:
   description: Production scale-out backup storage
@@ -187,23 +187,23 @@ spec:
 
 ```bash
 # Export existing KMS server to YAML
-vcli encryption kms-export "Azure Key Vault" -o base-kms.yaml
+owlctl encryption kms-export "Azure Key Vault" -o base-kms.yaml
 
 # Apply KMS configuration
-vcli encryption kms-apply base-kms.yaml
+owlctl encryption kms-apply base-kms.yaml
 
 # Apply with environment overlay
-vcli encryption kms-apply base-kms.yaml -o prod-kms-overlay.yaml
+owlctl encryption kms-apply base-kms.yaml -o prod-kms-overlay.yaml
 
 # Preview changes before applying
-vcli encryption kms-apply base-kms.yaml -o prod-kms-overlay.yaml --dry-run
+owlctl encryption kms-apply base-kms.yaml -o prod-kms-overlay.yaml --dry-run
 ```
 
 ### Example: Multi-Environment KMS
 
 **Base KMS (`base-kms.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRKmsServer
 metadata:
   name: Company Key Vault
@@ -214,7 +214,7 @@ spec:
 
 **Production Overlay (`prod-kms-overlay.yaml`):**
 ```yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRKmsServer
 spec:
   description: Production enterprise key management - 24x7 monitoring
@@ -228,35 +228,35 @@ Here's a complete example managing all resource types across environments:
 
 ```bash
 # 1. Export all resources from VBR
-vcli export --all -d ./specs/jobs/
-vcli repo export --all -d ./specs/repos/
-vcli repo sobr-export --all -d ./specs/sobrs/
-vcli encryption kms-export --all -d ./specs/kms/
+owlctl export --all -d ./specs/jobs/
+owlctl repo export --all -d ./specs/repos/
+owlctl repo sobr-export --all -d ./specs/sobrs/
+owlctl encryption kms-export --all -d ./specs/kms/
 
 # 2. Create environment overlays in ./overlays/prod/ and ./overlays/dev/
 
 # 3. Apply production configuration
 for job in specs/jobs/*.yaml; do
-  vcli job apply "$job" -o overlays/prod/$(basename "$job")
+  owlctl job apply "$job" -o overlays/prod/$(basename "$job")
 done
 
 for repo in specs/repos/*.yaml; do
-  vcli repo apply "$repo" -o overlays/prod/$(basename "$repo")
+  owlctl repo apply "$repo" -o overlays/prod/$(basename "$repo")
 done
 
 for sobr in specs/sobrs/*.yaml; do
-  vcli repo sobr-apply "$sobr" -o overlays/prod/$(basename "$sobr")
+  owlctl repo sobr-apply "$sobr" -o overlays/prod/$(basename "$sobr")
 done
 
 for kms in specs/kms/*.yaml; do
-  vcli encryption kms-apply "$kms" -o overlays/prod/$(basename "$kms")
+  owlctl encryption kms-apply "$kms" -o overlays/prod/$(basename "$kms")
 done
 
 # 4. Verify no drift after applying
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption kms-diff --all
 ```
 
 ---

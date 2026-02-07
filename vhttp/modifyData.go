@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shapedthought/vcli/auth"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/auth"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 )
 
 // PostData sends a POST request with data and returns the response
@@ -43,9 +43,9 @@ func sendRequestWithError(method string, url string, data interface{}, profile m
 	settings := utils.ReadSettings()
 
 	// With v1.0 profiles, credentials are always from environment variables
-	api_url := os.Getenv("VCLI_URL")
+	api_url := os.Getenv("OWLCTL_URL")
 	if api_url == "" {
-		return nil, fmt.Errorf("VCLI_URL environment variable not set")
+		return nil, fmt.Errorf("OWLCTL_URL environment variable not set")
 	}
 
 	client := Client(settings.ApiNotSecure)
@@ -111,9 +111,9 @@ func sendRequest[T any](method string, url string, data interface{}, profile mod
 	settings := utils.ReadSettings()
 
 	// With v1.0 profiles, credentials are always from environment variables
-	api_url := os.Getenv("VCLI_URL")
+	api_url := os.Getenv("OWLCTL_URL")
 	if api_url == "" {
-		log.Fatal("VCLI_URL environment variable not set")
+		log.Fatal("OWLCTL_URL environment variable not set")
 	}
 
 	client := Client(settings.ApiNotSecure)

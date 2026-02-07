@@ -9,7 +9,7 @@ import (
 )
 
 // severityConfigFile represents the JSON structure for customizing severity classifications.
-// Place as severity-config.json in ~/.vcli/ or VCLI_SETTINGS_PATH.
+// Place as severity-config.json in ~/.owlctl/ or OWLCTL_SETTINGS_PATH.
 //
 // Example:
 //
@@ -64,8 +64,8 @@ func loadSeverityOverrides() {
 }
 
 func findSeverityConfig() string {
-	// Check VCLI_SETTINGS_PATH first
-	settingsPath := os.Getenv("VCLI_SETTINGS_PATH")
+	// Check OWLCTL_SETTINGS_PATH first
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
 	if settingsPath != "" {
 		p := filepath.Join(settingsPath, "severity-config.json")
 		if _, err := os.Stat(p); err == nil {
@@ -73,10 +73,10 @@ func findSeverityConfig() string {
 		}
 	}
 
-	// Fall back to ~/.vcli/
+	// Fall back to ~/.owlctl/
 	home, err := os.UserHomeDir()
 	if err == nil {
-		p := filepath.Join(home, ".vcli", "severity-config.json")
+		p := filepath.Join(home, ".owlctl", "severity-config.json")
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}

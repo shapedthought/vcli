@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shapedthought/vcli/models"
+	"github.com/shapedthought/owlctl/models"
 )
 
 // TestGetDefaultProfiles verifies the default profile configuration
@@ -75,23 +75,23 @@ func TestEnsureTrailingSlash(t *testing.T) {
 		},
 		{
 			name:  "unix path without slash",
-			input: "/tmp/vcli",
-			want:  "/tmp/vcli/",
+			input: "/tmp/owlctl",
+			want:  "/tmp/owlctl/",
 		},
 		{
 			name:  "unix path with slash",
-			input: "/tmp/vcli/",
-			want:  "/tmp/vcli/",
+			input: "/tmp/owlctl/",
+			want:  "/tmp/owlctl/",
 		},
 		{
 			name:  "relative path",
-			input: ".vcli",
-			want:  ".vcli/",
+			input: ".owlctl",
+			want:  ".owlctl/",
 		},
 		{
 			name:  "relative path with slash",
-			input: ".vcli/",
-			want:  ".vcli/",
+			input: ".owlctl/",
+			want:  ".owlctl/",
 		},
 	}
 
@@ -109,12 +109,12 @@ func TestEnsureTrailingSlash(t *testing.T) {
 func TestGetOutputPath(t *testing.T) {
 	// Save original values
 	origOutputDir := outputDir
-	origVCLIPath := os.Getenv("VCLI_SETTINGS_PATH")
+	origVCLIPath := os.Getenv("OWLCTL_SETTINGS_PATH")
 
 	// Restore after test
 	defer func() {
 		outputDir = origOutputDir
-		os.Setenv("VCLI_SETTINGS_PATH", origVCLIPath)
+		os.Setenv("OWLCTL_SETTINGS_PATH", origVCLIPath)
 	}()
 
 	tests := []struct {
@@ -132,7 +132,7 @@ func TestGetOutputPath(t *testing.T) {
 			wantTrailingSlash: true,
 		},
 		{
-			name:             "VCLI_SETTINGS_PATH set",
+			name:             "OWLCTL_SETTINGS_PATH set",
 			outputDirFlag:    "",
 			envVar:           "/env/path/",
 			wantContains:     "/env/path/",
@@ -150,7 +150,7 @@ func TestGetOutputPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			outputDir = tt.outputDirFlag
-			os.Setenv("VCLI_SETTINGS_PATH", tt.envVar)
+			os.Setenv("OWLCTL_SETTINGS_PATH", tt.envVar)
 
 			got := getOutputPath()
 
@@ -174,7 +174,7 @@ func TestGetOutputPath(t *testing.T) {
 // TestInitAppNonInteractive verifies non-interactive init creates correct files
 func TestInitAppNonInteractive(t *testing.T) {
 	// Create temporary directory for test files
-	tempDir, err := os.MkdirTemp("", "vcli-test-*")
+	tempDir, err := os.MkdirTemp("", "owlctl-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestInitAppNonInteractive(t *testing.T) {
 // TestInitSettingsNonInteractive verifies settings-only initialization
 func TestInitSettingsNonInteractive(t *testing.T) {
 	// Create temporary directory for test files
-	tempDir, err := os.MkdirTemp("", "vcli-test-settings-*")
+	tempDir, err := os.MkdirTemp("", "owlctl-test-settings-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestInitSettingsNonInteractive(t *testing.T) {
 // TestInitProfilesOnly verifies profiles-only initialization
 func TestInitProfilesOnly(t *testing.T) {
 	// Create temporary directory for test files
-	tempDir, err := os.MkdirTemp("", "vcli-test-profiles-*")
+	tempDir, err := os.MkdirTemp("", "owlctl-test-profiles-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

@@ -1,6 +1,6 @@
 # Development environment overlay
 # Extends base template with dev-specific settings
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup

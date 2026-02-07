@@ -8,7 +8,7 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -29,23 +29,23 @@ var profileCmd = &cobra.Command{
 
 Examples:
   # Get current profile (machine-readable)
-  vcli profile -g
-  vcli profile --get
+  owlctl profile -g
+  owlctl profile --get
 
   # Set profile (requires argument)
-  vcli profile -s vbr
-  vcli profile --set ent_man
+  owlctl profile -s vbr
+  owlctl profile --set ent_man
 
   # List profiles (JSON by default)
-  vcli profile -l
-  vcli profile --list
+  owlctl profile -l
+  owlctl profile --list
 
   # List profiles (human-readable table)
-  vcli profile -l --table
+  owlctl profile -l --table
 
   # Show current profile details
-  vcli profile -p
-  vcli profile --profile
+  owlctl profile -p
+  owlctl profile --profile
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if getFlag {
@@ -55,7 +55,7 @@ Examples:
 		} else if setFlag {
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: profile name required")
-				fmt.Fprintln(os.Stderr, "Usage: vcli profile --set <profile-name>")
+				fmt.Fprintln(os.Stderr, "Usage: owlctl profile --set <profile-name>")
 				os.Exit(1)
 			}
 			setProfile(args[0])

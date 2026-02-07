@@ -1,6 +1,6 @@
 # Security Alerting
 
-vcli provides enhanced security alerting for configuration drift that goes beyond simple field-level comparison. It uses **value-aware severity classification** and **cross-resource validation** to assess the actual security impact of each change.
+owlctl provides enhanced security alerting for configuration drift that goes beyond simple field-level comparison. It uses **value-aware severity classification** and **cross-resource validation** to assess the actual security impact of each change.
 
 ## Value-Aware Severity
 
@@ -27,11 +27,11 @@ For example, `isDisabled` changing to `true` (job disabled) is CRITICAL, but cha
 
 ## Cross-Resource Repository Validation
 
-When a job's `storage.backupRepositoryId` changes, vcli cross-references the repository state to determine if the job was moved off a **hardened repository** (Linux Hardened type).
+When a job's `storage.backupRepositoryId` changes, owlctl cross-references the repository state to determine if the job was moved off a **hardened repository** (Linux Hardened type).
 
 ### What Gets Detected
 
-If the old repository was `LinuxHardened` and the new repository is not, vcli:
+If the old repository was `LinuxHardened` and the new repository is not, owlctl:
 
 1. Ensures the drift is classified as CRITICAL
 2. Adds a descriptive synthetic drift entry:
@@ -46,10 +46,10 @@ For cross-resource validation to work, the repositories must be snapshotted in s
 
 ```bash
 # Snapshot all repositories first
-vcli repo snapshot --all
+owlctl repo snapshot --all
 
 # Then job diffs will cross-reference repository data
-vcli job diff --all
+owlctl job diff --all
 ```
 
 If the repositories are not in state, the standard severity classification still applies.
@@ -149,26 +149,26 @@ The severity level of the header reflects the highest severity drift found. The 
 
 ```bash
 # 1. Snapshot all resources to establish baseline
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # 2. Apply job configurations (creates job state)
-vcli job apply prod-backup.yaml
+owlctl job apply prod-backup.yaml
 
 # 3. Periodic security check (run via cron or CI/CD)
-vcli job diff --all --security-only
-vcli repo diff --all --security-only
-vcli repo sobr-diff --all --security-only
-vcli encryption diff --all --security-only
+owlctl job diff --all --security-only
+owlctl repo diff --all --security-only
+owlctl repo sobr-diff --all --security-only
+owlctl encryption diff --all --security-only
 
 # 4. Full audit check
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption diff --all
+owlctl encryption kms-diff --all
 ```
 
 ### Automated Security Gate
@@ -180,10 +180,10 @@ vcli encryption kms-diff --all
 CRITICAL=0
 
 for CMD in \
-    "vcli job diff --all --severity critical" \
-    "vcli repo diff --all --severity critical" \
-    "vcli repo sobr-diff --all --severity critical" \
-    "vcli encryption diff --all --severity critical"
+    "owlctl job diff --all --severity critical" \
+    "owlctl repo diff --all --severity critical" \
+    "owlctl repo sobr-diff --all --severity critical" \
+    "owlctl encryption diff --all --severity critical"
 do
     eval $CMD
     if [ $? -eq 4 ]; then

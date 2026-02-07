@@ -1,10 +1,10 @@
 # User Guide
 
-vcli is a CLI tool for interacting with Veeam APIs across multiple products. It provides both imperative (direct API access) and declarative (infrastructure-as-code) workflows.
+owlctl is a CLI tool for interacting with Veeam APIs across multiple products. It provides both imperative (direct API access) and declarative (infrastructure-as-code) workflows.
 
-## What is vcli?
+## What is owlctl?
 
-vcli simplifies working with Veeam APIs by:
+owlctl simplifies working with Veeam APIs by:
 - Managing authentication across multiple products (VBR, Enterprise Manager, VB365, VONE, cloud products)
 - Providing consistent command structure for all Veeam APIs
 - Supporting both imperative commands (GET, POST, PUT) and declarative workflows (export, apply, diff)
@@ -13,7 +13,7 @@ vcli simplifies working with Veeam APIs by:
 
 ## Getting Started
 
-New to vcli? Start here:
+New to owlctl? Start here:
 
 1. **[Getting Started Guide](docs/getting-started.md)** - Complete setup walkthrough
 2. **[Authentication Guide](docs/authentication.md)** - Profiles, credentials, and authentication modes
@@ -30,15 +30,15 @@ Direct API access for quick operations, one-off tasks, and API exploration.
 **Common commands:**
 ```bash
 # Query data
-vcli get jobs
-vcli get backupInfrastructure/repositories
+owlctl get jobs
+owlctl get backupInfrastructure/repositories
 
 # Trigger operations
-vcli post jobs/<id>/start
-vcli post jobs/<id>/stop
+owlctl post jobs/<id>/start
+owlctl post jobs/<id>/stop
 
 # Update resources
-vcli put jobs/<id> -f updated-job.json
+owlctl put jobs/<id> -f updated-job.json
 ```
 
 **Best for:**
@@ -56,16 +56,16 @@ Infrastructure-as-code workflows for backup jobs, repositories, SOBRs, encryptio
 **Common commands:**
 ```bash
 # Export resources to YAML
-vcli export --all -d ./jobs/
-vcli repo export --all -d ./repos/
+owlctl export --all -d ./jobs/
+owlctl repo export --all -d ./repos/
 
 # Apply configurations with overlays
-vcli job apply base.yaml -o prod-overlay.yaml
-vcli repo apply repo.yaml --dry-run
+owlctl job apply base.yaml -o prod-overlay.yaml
+owlctl repo apply repo.yaml --dry-run
 
 # Detect configuration drift
-vcli job diff --all --security-only
-vcli repo diff --all
+owlctl job diff --all --security-only
+owlctl repo diff --all
 ```
 
 **Best for:**
@@ -85,14 +85,14 @@ Monitor VBR infrastructure for unauthorized changes with security-aware severity
 **Quick reference:**
 ```bash
 # Snapshot resources to establish baseline
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
 
 # Detect drift
-vcli job diff --all --security-only
-vcli repo diff --all --severity critical
-vcli encryption kms-diff --all
+owlctl job diff --all --security-only
+owlctl repo diff --all --severity critical
+owlctl encryption kms-diff --all
 
 # Exit codes:
 # 0 = No drift
@@ -103,7 +103,7 @@ vcli encryption kms-diff --all
 
 ## CI/CD Integration
 
-Automate vcli in CI/CD pipelines for continuous monitoring and deployment.
+Automate owlctl in CI/CD pipelines for continuous monitoring and deployment.
 
 **📖 [Azure DevOps Integration](docs/azure-devops-integration.md)**
 
@@ -134,7 +134,7 @@ To change API version, update the `api_version` or `x-api-version` field in `pro
 
 ### Profiles
 
-vcli supports multiple Veeam products through profiles:
+owlctl supports multiple Veeam products through profiles:
 
 | Profile | Product | Port | Authentication |
 |---------|---------|------|----------------|
@@ -148,37 +148,37 @@ vcli supports multiple Veeam products through profiles:
 
 ```bash
 # List all profiles
-vcli profile --list
+owlctl profile --list
 
 # Get current profile
-vcli profile --get
+owlctl profile --get
 
 # Set active profile
-vcli profile --set vbr
+owlctl profile --set vbr
 
 # View profile details
-vcli profile --profile vbr
+owlctl profile --profile vbr
 ```
 
 ## Tips and Tricks
 
 ### Using with jq
 
-[jq](https://stedolan.github.io/jq/) is excellent for parsing vcli JSON output:
+[jq](https://stedolan.github.io/jq/) is excellent for parsing owlctl JSON output:
 
 ```bash
 # Get all job names
-vcli get jobs | jq '.data[].name'
+owlctl get jobs | jq '.data[].name'
 
 # Filter disabled jobs
-vcli get jobs | jq '.data[] | select(.isDisabled == true)'
+owlctl get jobs | jq '.data[] | select(.isDisabled == true)'
 
 # Get specific fields
-vcli get jobs | jq '.data[] | {name: .name, type: .type}'
+owlctl get jobs | jq '.data[] | {name: .name, type: .type}'
 
 # Explore object structure
-vcli get jobs | jq 'keys'
-vcli get jobs | jq '.data[0] | keys'
+owlctl get jobs | jq 'keys'
+owlctl get jobs | jq '.data[0] | keys'
 ```
 
 ### Using with Nushell
@@ -187,28 +187,28 @@ vcli get jobs | jq '.data[0] | keys'
 
 ```bash
 # Parse JSON and explore
-vcli get jobs | from json | get data
+owlctl get jobs | from json | get data
 
 # Filter by criteria
-vcli get jobs | from json | get data | where isDisabled == false
+owlctl get jobs | from json | get data | where isDisabled == false
 
 # Select specific columns
-vcli get jobs | from json | get data | select name type
+owlctl get jobs | from json | get data | select name type
 
 # Convert formats
-vcli get jobs | from json | get data | to yaml
+owlctl get jobs | from json | get data | to yaml
 ```
 
 **Create reusable module (v.nu):**
 ```nu
 export def vget [url: string] {
-    vcli get $url | from json | get data
+    owlctl get $url | from json | get data
 }
 
 export-env {
-    let-env VCLI_USERNAME = "administrator"
-    let-env VCLI_PASSWORD = "password"
-    let-env VCLI_URL = "vbr.example.com"
+    let-env OWLCTL_USERNAME = "administrator"
+    let-env OWLCTL_PASSWORD = "password"
+    let-env OWLCTL_URL = "vbr.example.com"
 }
 ```
 
@@ -223,8 +223,8 @@ cat job.json | jq '.name'
 # Replace value in file
 sd '"name": "Backup Job 2"' '"name": "Backup Job 12"' ./job.json
 
-# Pipe vcli output directly to sd
-vcli get jobs/<id> | sd '"name": "Old Name"' '"name": "New Name"' > job.json
+# Pipe owlctl output directly to sd
+owlctl get jobs/<id> | sd '"name": "Old Name"' '"name": "New Name"' > job.json
 ```
 
 **Installation:**
@@ -274,9 +274,9 @@ The `examples/` directory contains ready-to-use configuration examples:
 
 ## Support
 
-- **Issues:** https://github.com/shapedthought/vcli/issues
-- **Documentation:** https://github.com/shapedthought/vcli/tree/master/docs
+- **Issues:** https://github.com/shapedthought/owlctl/issues
+- **Documentation:** https://github.com/shapedthought/owlctl/tree/master/docs
 
 ## Version
 
-vcli follows semantic versioning. Use `vcli utils` and select "Check Version" to compare against the latest GitHub release.
+owlctl follows semantic versioning. Use `owlctl utils` and select "Check Version" to compare against the latest GitHub release.

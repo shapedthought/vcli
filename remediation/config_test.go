@@ -97,9 +97,9 @@ func TestFilterChanges(t *testing.T) {
 
 func TestLoadConfig_NoFile(t *testing.T) {
 	// Ensure no config file exists
-	origPath := os.Getenv("VCLI_SETTINGS_PATH")
-	os.Setenv("VCLI_SETTINGS_PATH", "/nonexistent/path/that/does/not/exist")
-	defer os.Setenv("VCLI_SETTINGS_PATH", origPath)
+	origPath := os.Getenv("OWLCTL_SETTINGS_PATH")
+	os.Setenv("OWLCTL_SETTINGS_PATH", "/nonexistent/path/that/does/not/exist")
+	defer os.Setenv("OWLCTL_SETTINGS_PATH", origPath)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -127,9 +127,9 @@ job:
 	}
 
 	// Set env to use temp dir
-	origPath := os.Getenv("VCLI_SETTINGS_PATH")
-	os.Setenv("VCLI_SETTINGS_PATH", tmpDir)
-	defer os.Setenv("VCLI_SETTINGS_PATH", origPath)
+	origPath := os.Getenv("OWLCTL_SETTINGS_PATH")
+	os.Setenv("OWLCTL_SETTINGS_PATH", tmpDir)
+	defer os.Setenv("OWLCTL_SETTINGS_PATH", origPath)
 
 	cfg, err := LoadConfig()
 	if err != nil {

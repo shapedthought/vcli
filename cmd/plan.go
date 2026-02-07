@@ -6,10 +6,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/shapedthought/vcli/config"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/resources"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/resources"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -33,16 +33,16 @@ The plan command is useful for:
 
 Examples:
   # Preview base configuration
-  vcli job plan backup-job.yaml
+  owlctl job plan backup-job.yaml
 
   # Preview with overlay
-  vcli job plan base-job.yaml -o prod-overlay.yaml
+  owlctl job plan base-job.yaml -o prod-overlay.yaml
 
   # Preview with environment overlay
-  vcli job plan base-job.yaml --env production
+  owlctl job plan base-job.yaml --env production
 
   # Show full YAML output
-  vcli job plan base-job.yaml -o prod-overlay.yaml --show-yaml
+  owlctl job plan base-job.yaml -o prod-overlay.yaml --show-yaml
 
 Note: This command shows the merged configuration but does not compare
 against current VBR state. Full drift detection will be available in Phase 2.
@@ -84,7 +84,7 @@ func planJob(configFile string) {
 		}
 		finalSpec = mergedSpec
 	} else if planEnvironment != "" || needsPlanConfigOverlay() {
-		// Try to use overlay from vcli.yaml
+		// Try to use overlay from owlctl.yaml
 		overlayPath, err := getPlanConfiguredOverlay()
 		if err != nil {
 			// If no overlay configured, just use base spec
@@ -158,17 +158,17 @@ func planJob(configFile string) {
 	fmt.Printf("  To apply this configuration:\n")
 	if overlayUsed != "none" {
 		if planOverlayFile != "" {
-			fmt.Printf("    vcli job apply %s -o %s\n", configFile, planOverlayFile)
+			fmt.Printf("    owlctl job apply %s -o %s\n", configFile, planOverlayFile)
 		} else {
-			fmt.Printf("    vcli job apply %s --env %s\n", configFile, planEnvironment)
+			fmt.Printf("    owlctl job apply %s --env %s\n", configFile, planEnvironment)
 		}
 	} else {
-		fmt.Printf("    vcli job apply %s\n", configFile)
+		fmt.Printf("    owlctl job apply %s\n", configFile)
 	}
 	fmt.Println()
 }
 
-// needsPlanConfigOverlay checks if we should try to use vcli.yaml overlay
+// needsPlanConfigOverlay checks if we should try to use owlctl.yaml overlay
 func needsPlanConfigOverlay() bool {
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -183,11 +183,11 @@ func needsPlanConfigOverlay() bool {
 	return false
 }
 
-// getPlanConfiguredOverlay gets the overlay path from vcli.yaml
+// getPlanConfiguredOverlay gets the overlay path from owlctl.yaml
 func getPlanConfiguredOverlay() (string, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to load vcli.yaml: %w", err)
+		return "", fmt.Errorf("failed to load owlctl.yaml: %w", err)
 	}
 
 	env := planEnvironment
@@ -196,7 +196,7 @@ func getPlanConfiguredOverlay() (string, error) {
 	}
 
 	if env == "" {
-		return "", fmt.Errorf("no environment specified and no currentEnvironment in vcli.yaml")
+		return "", fmt.Errorf("no environment specified and no currentEnvironment in owlctl.yaml")
 	}
 
 	overlayPath, err := cfg.GetEnvironmentOverlay(env)
@@ -396,7 +396,7 @@ func printPlanDrift(drift Drift) {
 
 func init() {
 	planCmd.Flags().StringVarP(&planOverlayFile, "overlay", "o", "", "Overlay file to merge with base configuration")
-	planCmd.Flags().StringVar(&planEnvironment, "env", "", "Environment to use (looks up overlay from vcli.yaml)")
+	planCmd.Flags().StringVar(&planEnvironment, "env", "", "Environment to use (looks up overlay from owlctl.yaml)")
 	planCmd.Flags().BoolVar(&planShowYAML, "show-yaml", false, "Display full merged YAML configuration")
 
 	jobsCmd.AddCommand(planCmd)

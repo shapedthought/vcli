@@ -76,7 +76,7 @@ Quickly rebuild backup infrastructure from version-controlled configuration.
 
 ## Resource Types
 
-vcli supports declarative management for these VBR resource types:
+owlctl supports declarative management for these VBR resource types:
 
 | Resource | Commands | Create Support | Notes |
 |----------|----------|----------------|-------|
@@ -95,14 +95,14 @@ A base YAML file defines common settings shared across all environments.
 Overlay files contain environment-specific changes that merge with the base.
 
 ### 3. Strategic Merge
-vcli uses strategic merge to combine base + overlay:
+owlctl uses strategic merge to combine base + overlay:
 - Maps are merged recursively (nested objects)
 - Arrays are replaced (overlay replaces base)
 - Labels/annotations are combined
 - Base values preserved unless overridden
 
 ### 4. State Management
-vcli maintains state in `state.json` to track:
+owlctl maintains state in `state.json` to track:
 - Last known configuration of each resource
 - When snapshots were taken
 - Configuration origin (applied vs adopted)
@@ -118,22 +118,22 @@ Export existing VBR resources to YAML format for declarative management.
 
 ```bash
 # Export single job by ID
-vcli export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
+owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
 
 # Export single job by name
-vcli export "Database Backup" -o my-job.yaml
+owlctl export "Database Backup" -o my-job.yaml
 
 # Export all jobs to directory
-vcli export --all -d ./jobs/
+owlctl export --all -d ./jobs/
 
 # Export as overlay (minimal changes only)
-vcli export <id> --as-overlay -o overlay.yaml
+owlctl export <id> --as-overlay -o overlay.yaml
 
 # Export as overlay with base comparison
-vcli export <id> --as-overlay --base base-job.yaml -o overlay.yaml
+owlctl export <id> --as-overlay --base base-job.yaml -o overlay.yaml
 
 # Legacy simplified format (20-30 fields)
-vcli export <id> --simplified -o job.yaml
+owlctl export <id> --simplified -o job.yaml
 ```
 
 **Full export (default):** Captures all VBR API fields (300+) ensuring complete job fidelity.
@@ -146,30 +146,30 @@ vcli export <id> --simplified -o job.yaml
 
 ```bash
 # Export single repository by name
-vcli repo export "Default Backup Repository" -o repo.yaml
+owlctl repo export "Default Backup Repository" -o repo.yaml
 
 # Export all repositories
-vcli repo export --all -d ./repos/
+owlctl repo export --all -d ./repos/
 ```
 
 ### Scale-Out Repositories (SOBRs)
 
 ```bash
 # Export single SOBR by name
-vcli repo sobr-export "SOBR-Production" -o sobr.yaml
+owlctl repo sobr-export "SOBR-Production" -o sobr.yaml
 
 # Export all SOBRs
-vcli repo sobr-export --all -d ./sobrs/
+owlctl repo sobr-export --all -d ./sobrs/
 ```
 
 ### Encryption Passwords
 
 ```bash
 # Export single encryption password by name
-vcli encryption export "Production Encryption Key" -o enc.yaml
+owlctl encryption export "Production Encryption Key" -o enc.yaml
 
 # Export all encryption passwords
-vcli encryption export --all -d ./encryption/
+owlctl encryption export --all -d ./encryption/
 ```
 
 **Note:** Password values are never exported. Only metadata (name, description, hint) is captured.
@@ -178,10 +178,10 @@ vcli encryption export --all -d ./encryption/
 
 ```bash
 # Export single KMS server by name
-vcli encryption kms-export "Azure Key Vault" -o kms.yaml
+owlctl encryption kms-export "Azure Key Vault" -o kms.yaml
 
 # Export all KMS servers
-vcli encryption kms-export --all -d ./kms/
+owlctl encryption kms-export --all -d ./kms/
 ```
 
 ## Apply Configurations
@@ -192,16 +192,16 @@ Apply YAML configurations to VBR with optional dry-run preview.
 
 ```bash
 # Apply single job
-vcli job apply my-job.yaml
+owlctl job apply my-job.yaml
 
 # Preview changes without applying (recommended)
-vcli job apply my-job.yaml --dry-run
+owlctl job apply my-job.yaml --dry-run
 
 # Apply with environment overlay
-vcli job apply base-job.yaml -o prod-overlay.yaml
+owlctl job apply base-job.yaml -o prod-overlay.yaml
 
-# Apply using environment from vcli.yaml
-vcli job apply base-job.yaml --env production
+# Apply using environment from owlctl.yaml
+owlctl job apply base-job.yaml --env production
 ```
 
 **Note:** Jobs support both creation (POST) and updates (PUT).
@@ -210,13 +210,13 @@ vcli job apply base-job.yaml --env production
 
 ```bash
 # Apply repository configuration
-vcli repo apply repo.yaml
+owlctl repo apply repo.yaml
 
 # Preview changes
-vcli repo apply repo.yaml --dry-run
+owlctl repo apply repo.yaml --dry-run
 
 # Apply with overlay
-vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml
+owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml
 ```
 
 **Important:** Repositories must be created in VBR console first. Apply only updates existing repositories.
@@ -225,10 +225,10 @@ vcli repo apply base-repo.yaml -o prod-repo-overlay.yaml
 
 ```bash
 # Apply SOBR configuration
-vcli repo sobr-apply sobr.yaml
+owlctl repo sobr-apply sobr.yaml
 
 # Preview changes
-vcli repo sobr-apply sobr.yaml --dry-run
+owlctl repo sobr-apply sobr.yaml --dry-run
 ```
 
 **Important:** SOBRs must be created in VBR console first. Apply only updates existing SOBRs.
@@ -237,10 +237,10 @@ vcli repo sobr-apply sobr.yaml --dry-run
 
 ```bash
 # Apply KMS server configuration
-vcli encryption kms-apply kms.yaml
+owlctl encryption kms-apply kms.yaml
 
 # Preview changes
-vcli encryption kms-apply kms.yaml --dry-run
+owlctl encryption kms-apply kms.yaml --dry-run
 ```
 
 **Important:** KMS servers must be created in VBR console first. Apply only updates existing KMS servers.
@@ -258,7 +258,7 @@ Apply commands return specific exit codes for automation:
 
 **Example usage in scripts:**
 ```bash
-vcli repo apply repo.yaml
+owlctl repo apply repo.yaml
 if [ $? -eq 6 ]; then
     echo "Repository doesn't exist - create it in VBR console first"
     exit 1
@@ -267,7 +267,7 @@ fi
 
 ## State Management
 
-vcli maintains state in `state.json` to track resource configurations and enable drift detection.
+owlctl maintains state in `state.json` to track resource configurations and enable drift detection.
 
 ### Snapshot Commands
 
@@ -276,37 +276,37 @@ Snapshot captures the current VBR configuration and saves it to state for drift 
 **Repositories:**
 ```bash
 # Snapshot single repository
-vcli repo snapshot "Default Backup Repository"
+owlctl repo snapshot "Default Backup Repository"
 
 # Snapshot all repositories
-vcli repo snapshot --all
+owlctl repo snapshot --all
 ```
 
 **SOBRs:**
 ```bash
 # Snapshot single SOBR
-vcli repo sobr-snapshot "SOBR-Production"
+owlctl repo sobr-snapshot "SOBR-Production"
 
 # Snapshot all SOBRs
-vcli repo sobr-snapshot --all
+owlctl repo sobr-snapshot --all
 ```
 
 **Encryption Passwords:**
 ```bash
 # Snapshot single encryption password
-vcli encryption snapshot "Production Encryption Key"
+owlctl encryption snapshot "Production Encryption Key"
 
 # Snapshot all encryption passwords
-vcli encryption snapshot --all
+owlctl encryption snapshot --all
 ```
 
 **KMS Servers:**
 ```bash
 # Snapshot single KMS server
-vcli encryption kms-snapshot "Azure Key Vault"
+owlctl encryption kms-snapshot "Azure Key Vault"
 
 # Snapshot all KMS servers
-vcli encryption kms-snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 **Note:** Jobs are snapshotted automatically when you apply them. Manual snapshots not needed for jobs.
@@ -341,16 +341,16 @@ Adopt existing resources into declarative management without applying changes:
 
 ```bash
 # Adopt repository (snapshot without changes)
-vcli repo adopt "Default Backup Repository"
+owlctl repo adopt "Default Backup Repository"
 
 # Adopt all repositories
-vcli repo adopt --all
+owlctl repo adopt --all
 
 # Adopt SOBR
-vcli repo sobr-adopt "SOBR-Production"
+owlctl repo sobr-adopt "SOBR-Production"
 
 # Adopt KMS server
-vcli encryption kms-adopt "Azure Key Vault"
+owlctl encryption kms-adopt "Azure Key Vault"
 ```
 
 Adopt takes a snapshot and marks the resource as declaratively managed in `state.json` with `origin: "adopted"`.
@@ -365,23 +365,23 @@ For full details see [Drift Detection Guide](drift-detection.md) and [Security A
 
 ```bash
 # Single resource
-vcli job diff "Database Backup"
-vcli repo diff "Default Backup Repository"
-vcli repo sobr-diff "SOBR-Production"
-vcli encryption diff "Production Encryption Key"
-vcli encryption kms-diff "Azure Key Vault"
+owlctl job diff "Database Backup"
+owlctl repo diff "Default Backup Repository"
+owlctl repo sobr-diff "SOBR-Production"
+owlctl encryption diff "Production Encryption Key"
+owlctl encryption kms-diff "Azure Key Vault"
 
 # All resources of a type
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption diff --all
+owlctl encryption kms-diff --all
 
 # Filter by severity
-vcli job diff --all --severity critical    # Only CRITICAL
-vcli job diff --all --severity warning     # WARNING and above
-vcli repo diff --all --security-only       # WARNING and above (alias)
+owlctl job diff --all --severity critical    # Only CRITICAL
+owlctl job diff --all --severity warning     # WARNING and above
+owlctl repo diff --all --security-only       # WARNING and above (alias)
 ```
 
 ### Severity Classification
@@ -407,7 +407,7 @@ Drift commands return specific exit codes:
 
 **Example usage in monitoring:**
 ```bash
-vcli job diff --all --security-only
+owlctl job diff --all --security-only
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 4 ]; then
@@ -430,13 +430,13 @@ Overlays contain only the fields you want to override from the base configuratio
 **Example Base Configuration:**
 ```yaml
 # base-backup.yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup
   labels:
     app: database
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   type: VSphereBackup
   description: Database backup job
@@ -462,7 +462,7 @@ spec:
 **Production Overlay:**
 ```yaml
 # overlays/prod-overlay.yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup
@@ -481,7 +481,7 @@ spec:
 **Development Overlay:**
 ```yaml
 # overlays/dev-overlay.yaml
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: database-backup
@@ -503,16 +503,16 @@ Use the `plan` command to preview the merged configuration:
 
 ```bash
 # Preview base configuration (no overlay)
-vcli job plan base-backup.yaml
+owlctl job plan base-backup.yaml
 
 # Preview with production overlay
-vcli job plan base-backup.yaml -o overlays/prod-overlay.yaml
+owlctl job plan base-backup.yaml -o overlays/prod-overlay.yaml
 
 # Preview with development overlay
-vcli job plan base-backup.yaml -o overlays/dev-overlay.yaml
+owlctl job plan base-backup.yaml -o overlays/dev-overlay.yaml
 
 # Show full merged YAML
-vcli job plan base-backup.yaml -o overlays/prod-overlay.yaml --show-yaml
+owlctl job plan base-backup.yaml -o overlays/prod-overlay.yaml --show-yaml
 ```
 
 **Output:**
@@ -530,23 +530,23 @@ The plan command displays:
 
 ```bash
 # Preview changes (recommended)
-vcli job apply base-backup.yaml -o overlays/prod-overlay.yaml --dry-run
+owlctl job apply base-backup.yaml -o overlays/prod-overlay.yaml --dry-run
 
 # Apply to production
-vcli job apply base-backup.yaml -o overlays/prod-overlay.yaml
+owlctl job apply base-backup.yaml -o overlays/prod-overlay.yaml
 
 # Apply to development
-vcli job apply base-backup.yaml -o overlays/dev-overlay.yaml
+owlctl job apply base-backup.yaml -o overlays/dev-overlay.yaml
 ```
 
 ## Environment Configuration
 
-The `vcli.yaml` file manages environment-specific settings and overlay mappings.
+The `owlctl.yaml` file manages environment-specific settings and overlay mappings.
 
 ### Configuration Structure
 
 ```yaml
-# vcli.yaml
+# owlctl.yaml
 currentEnvironment: production
 defaultOverlayDir: ./overlays
 
@@ -556,50 +556,50 @@ environments:
     profile: vbr-prod
     labels:
       env: production
-      managed-by: vcli
+      managed-by: owlctl
 
   development:
     overlay: dev-overlay.yaml
     profile: vbr-dev
     labels:
       env: development
-      managed-by: vcli
+      managed-by: owlctl
 
   staging:
     overlay: staging-overlay.yaml
     profile: vbr-staging
     labels:
       env: staging
-      managed-by: vcli
+      managed-by: owlctl
 ```
 
 ### Configuration File Locations
 
-vcli searches for `vcli.yaml` in this order:
-1. Path in `VCLI_CONFIG` environment variable
-2. Current directory (`./vcli.yaml`)
-3. Home directory (`~/.vcli/vcli.yaml`)
+owlctl searches for `owlctl.yaml` in this order:
+1. Path in `OWLCTL_CONFIG` environment variable
+2. Current directory (`./owlctl.yaml`)
+3. Home directory (`~/.owlctl/owlctl.yaml`)
 
 ### Using Environment Configuration
 
 ```bash
 # Apply using currentEnvironment (production)
-vcli job plan base-backup.yaml
-vcli job apply base-backup.yaml
+owlctl job plan base-backup.yaml
+owlctl job apply base-backup.yaml
 
 # Override with specific environment
-vcli job plan base-backup.yaml --env development
-vcli job apply base-backup.yaml --env development
+owlctl job plan base-backup.yaml --env development
+owlctl job apply base-backup.yaml --env development
 
 # Explicit overlay takes precedence
-vcli job plan base-backup.yaml -o custom-overlay.yaml
+owlctl job plan base-backup.yaml -o custom-overlay.yaml
 ```
 
 ### Overlay Resolution Priority
 
 1. `-o/--overlay` flag (highest priority)
-2. `--env` flag (looks up in vcli.yaml)
-3. `currentEnvironment` from vcli.yaml
+2. `--env` flag (looks up in owlctl.yaml)
+3. `currentEnvironment` from owlctl.yaml
 4. No overlay (base config only)
 
 ## Strategic Merge Behavior
@@ -675,7 +675,7 @@ Combined (merged) from base and overlay.
 # Base
 labels:
   app: database
-  managed-by: vcli
+  managed-by: owlctl
 
 # Overlay
 labels:
@@ -684,7 +684,7 @@ labels:
 # Result
 labels:
   app: database           # From base
-  managed-by: vcli        # From base
+  managed-by: owlctl        # From base
   env: production         # From overlay
 ```
 
@@ -694,7 +694,7 @@ labels:
 
 ```
 my-backups/
-├── vcli.yaml
+├── owlctl.yaml
 ├── base-backup.yaml
 ├── overlays/
 │   ├── prod-overlay.yaml
@@ -711,7 +711,7 @@ my-backups/
 
 ```bash
 # 1. Export existing job as base template
-vcli export <job-id> -o base-backup.yaml
+owlctl export <job-id> -o base-backup.yaml
 
 # 2. Create overlays directory
 mkdir overlays
@@ -719,8 +719,8 @@ mkdir overlays
 # 3. Create environment overlays
 # Edit overlays/prod-overlay.yaml, dev-overlay.yaml, etc.
 
-# 4. Create vcli.yaml configuration
-cat > vcli.yaml <<EOF
+# 4. Create owlctl.yaml configuration
+cat > owlctl.yaml <<EOF
 currentEnvironment: production
 defaultOverlayDir: ./overlays
 environments:
@@ -733,19 +733,19 @@ environments:
 EOF
 
 # 5. Preview configurations
-vcli job plan base-backup.yaml              # Uses production (currentEnvironment)
-vcli job plan base-backup.yaml --env dev    # Preview development
-vcli job plan base-backup.yaml --env staging # Preview staging
+owlctl job plan base-backup.yaml              # Uses production (currentEnvironment)
+owlctl job plan base-backup.yaml --env dev    # Preview development
+owlctl job plan base-backup.yaml --env staging # Preview staging
 
 # 6. Show full merged YAML
-vcli job plan base-backup.yaml --show-yaml
+owlctl job plan base-backup.yaml --show-yaml
 
 # 7. Apply configurations with dry-run first
-vcli job apply base-backup.yaml --env production --dry-run
-vcli job apply base-backup.yaml --env production
+owlctl job apply base-backup.yaml --env production --dry-run
+owlctl job apply base-backup.yaml --env production
 
-vcli job apply base-backup.yaml --env development --dry-run
-vcli job apply base-backup.yaml --env development
+owlctl job apply base-backup.yaml --env development --dry-run
+owlctl job apply base-backup.yaml --env development
 
 # 8. Commit to version control
 git add .
@@ -759,16 +759,16 @@ Start managing existing VBR infrastructure declaratively:
 
 ```bash
 # 1. Export current VBR state
-vcli export --all -d specs/jobs/
-vcli repo export --all -d specs/repos/
-vcli repo sobr-export --all -d specs/sobrs/
-vcli encryption kms-export --all -d specs/kms/
+owlctl export --all -d specs/jobs/
+owlctl repo export --all -d specs/repos/
+owlctl repo sobr-export --all -d specs/sobrs/
+owlctl encryption kms-export --all -d specs/kms/
 
 # 2. Snapshot current state
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 
 # 3. Commit to Git (state.json and specs)
 git add specs/ state.json
@@ -776,11 +776,11 @@ git commit -m "Bootstrap VBR declarative management"
 git push
 
 # 4. Verify no drift
-vcli job diff --all
-vcli repo diff --all
-vcli repo sobr-diff --all
-vcli encryption diff --all
-vcli encryption kms-diff --all
+owlctl job diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption diff --all
+owlctl encryption kms-diff --all
 ```
 
 ## Best Practices
@@ -837,7 +837,7 @@ metadata:
   labels:
     app: database
     env: production
-    managed-by: vcli
+    managed-by: owlctl
     team: infrastructure
 ```
 
@@ -845,7 +845,7 @@ metadata:
 Commit both base and overlays to Git.
 
 ```bash
-git add base-backup.yaml overlays/ vcli.yaml
+git add base-backup.yaml overlays/ owlctl.yaml
 git commit -m "Update production retention to 30 days"
 git push
 ```
@@ -855,13 +855,13 @@ Always use plan or --dry-run before applying.
 
 ```bash
 # Preview merged configuration
-vcli job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
+owlctl job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
 
 # Dry-run apply
-vcli job apply base-backup.yaml -o prod-overlay.yaml --dry-run
+owlctl job apply base-backup.yaml -o prod-overlay.yaml --dry-run
 
 # Apply for real
-vcli job apply base-backup.yaml -o prod-overlay.yaml
+owlctl job apply base-backup.yaml -o prod-overlay.yaml
 ```
 
 ### 6. Consistent Naming
@@ -889,15 +889,15 @@ Apply to development environment before production.
 
 ```bash
 # 1. Test in development
-vcli job apply base-backup.yaml --env development --dry-run
-vcli job apply base-backup.yaml --env development
+owlctl job apply base-backup.yaml --env development --dry-run
+owlctl job apply base-backup.yaml --env development
 
 # 2. Verify in development
 # Run test backup, verify results
 
 # 3. Apply to production
-vcli job apply base-backup.yaml --env production --dry-run
-vcli job apply base-backup.yaml --env production
+owlctl job apply base-backup.yaml --env production --dry-run
+owlctl job apply base-backup.yaml --env production
 ```
 
 ### 9. Regular Drift Scans
@@ -905,10 +905,10 @@ Schedule drift detection to catch unauthorized changes.
 
 ```bash
 # Daily drift scan
-vcli job diff --all --security-only
-vcli repo diff --all --security-only
-vcli repo sobr-diff --all --security-only
-vcli encryption kms-diff --all --security-only
+owlctl job diff --all --security-only
+owlctl repo diff --all --security-only
+owlctl repo sobr-diff --all --security-only
+owlctl encryption kms-diff --all --security-only
 ```
 
 ### 10. Snapshot Before Changes
@@ -916,16 +916,16 @@ Snapshot resources before making changes.
 
 ```bash
 # Before applying changes
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
 
 # Apply changes
-vcli repo apply repo.yaml
-vcli repo sobr-apply sobr.yaml
+owlctl repo apply repo.yaml
+owlctl repo sobr-apply sobr.yaml
 
 # Verify no unexpected drift
-vcli repo diff --all
-vcli repo sobr-diff --all
+owlctl repo diff --all
+owlctl repo sobr-diff --all
 ```
 
 ## Troubleshooting
@@ -937,16 +937,16 @@ vcli repo sobr-diff --all
 **Solutions:**
 1. Check overlay resolution priority:
    - Explicit `-o` flag has highest priority
-   - `--env` flag looks up environment in vcli.yaml
-   - `currentEnvironment` in vcli.yaml is used if no flags
-2. Verify vcli.yaml exists and is in search path:
-   - Check `VCLI_CONFIG` environment variable
-   - Check current directory (`./vcli.yaml`)
-   - Check home directory (`~/.vcli/vcli.yaml`)
-3. Confirm environment exists in vcli.yaml
+   - `--env` flag looks up environment in owlctl.yaml
+   - `currentEnvironment` in owlctl.yaml is used if no flags
+2. Verify owlctl.yaml exists and is in search path:
+   - Check `OWLCTL_CONFIG` environment variable
+   - Check current directory (`./owlctl.yaml`)
+   - Check home directory (`~/.owlctl/owlctl.yaml`)
+3. Confirm environment exists in owlctl.yaml
 4. Use `--show-yaml` to see the actual merged result:
    ```bash
-   vcli job plan base.yaml -o overlay.yaml --show-yaml
+   owlctl job plan base.yaml -o overlay.yaml --show-yaml
    ```
 
 ### Unexpected Merge Results
@@ -960,7 +960,7 @@ vcli repo sobr-diff --all
    ```
 2. Use `--show-yaml` to see full merged result:
    ```bash
-   vcli job plan base.yaml -o overlay.yaml --show-yaml
+   owlctl job plan base.yaml -o overlay.yaml --show-yaml
    ```
 3. Check that overlay `kind` matches base `kind`:
    ```yaml
@@ -989,10 +989,10 @@ vcli repo sobr-diff --all
 Repositories, SOBRs, and KMS servers are update-only. Create them in VBR console first:
 ```bash
 # This will fail if repository doesn't exist
-vcli repo apply repo.yaml  # Exit code 6
+owlctl repo apply repo.yaml  # Exit code 6
 
 # Create the repository in VBR console first, then:
-vcli repo apply repo.yaml  # Now succeeds
+owlctl repo apply repo.yaml  # Now succeeds
 ```
 
 ### Drift Detected After Apply
@@ -1012,10 +1012,10 @@ vcli repo apply repo.yaml  # Now succeeds
 **Solution:**
 Re-snapshot resources to refresh state:
 ```bash
-vcli repo snapshot --all
-vcli repo sobr-snapshot --all
-vcli encryption snapshot --all
-vcli encryption kms-snapshot --all
+owlctl repo snapshot --all
+owlctl repo sobr-snapshot --all
+owlctl encryption snapshot --all
+owlctl encryption kms-snapshot --all
 ```
 
 ### Encryption Password Apply Not Supported

@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shapedthought/vcli/auth"
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/utils"
+	"github.com/shapedthought/owlctl/auth"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/utils"
 	"gopkg.in/yaml.v2"
 )
 

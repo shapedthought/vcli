@@ -1,4 +1,4 @@
-module github.com/shapedthought/vcli
+module github.com/shapedthought/owlctl
 
 go 1.24.0
 

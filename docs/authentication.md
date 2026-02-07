@@ -1,6 +1,6 @@
 # Authentication and Setup
 
-This guide covers initializing vcli, managing profiles, and setting up authentication for all Veeam products.
+This guide covers initializing owlctl, managing profiles, and setting up authentication for all Veeam products.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ This guide covers initializing vcli, managing profiles, and setting up authentic
 
 ## First-Time Setup
 
-### Initialize vcli
+### Initialize owlctl
 
 Init is non-interactive by default for GitOps/CI/CD compatibility.
 
@@ -21,13 +21,13 @@ Run the init command to create configuration files:
 
 ```bash
 # Non-interactive init (default)
-./vcli init
+./owlctl init
 
 # With specific settings
-./vcli init --insecure --output-dir ~/.vcli/
+./owlctl init --insecure --output-dir ~/.owlctl/
 
 # Legacy interactive mode
-./vcli init --interactive
+./owlctl init --interactive
 ```
 
 **Available Flags:**
@@ -36,7 +36,7 @@ Run the init command to create configuration files:
 - `--interactive` - Use legacy interactive prompts
 
 **Files created:**
-- `settings.json` - vcli settings and preferences
+- `settings.json` - owlctl settings and preferences
 - `profiles.json` - API profiles for each Veeam product (v1.0 format)
 
 **Output:** Init now outputs JSON to stdout for automation/piping:
@@ -59,19 +59,19 @@ By default, files are created in the current directory. To use a custom location
 **Set before running init:**
 ```bash
 # Bash/Zsh
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
-mkdir -p ~/.vcli
-./vcli init
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
+mkdir -p ~/.owlctl
+./owlctl init
 
 # PowerShell
-$env:VCLI_SETTINGS_PATH = "$HOME\.vcli\"
-New-Item -ItemType Directory -Path $HOME\.vcli -Force
-.\vcli init
+$env:OWLCTL_SETTINGS_PATH = "$HOME\.owlctl\"
+New-Item -ItemType Directory -Path $HOME\.owlctl -Force
+.\owlctl init
 ```
 
 **Example paths:**
-- Windows: `C:\Users\UserName\.vcli\`
-- macOS/Linux: `/home/username/.vcli/`
+- Windows: `C:\Users\UserName\.owlctl\`
+- macOS/Linux: `/home/username/.owlctl/`
 
 **Note:** The directory must exist before running `init`.
 
@@ -101,23 +101,23 @@ Profile commands require explicit arguments (no interactive prompts).
 
 ```bash
 # List all available profiles
-./vcli profile --list
-./vcli profile -l
+./owlctl profile --list
+./owlctl profile -l
 
 # Get current active profile (returns clean output: "vbr")
-./vcli profile --get
-./vcli profile -g
+./owlctl profile --get
+./owlctl profile -g
 
 # Set active profile (requires explicit argument)
-./vcli profile --set vbr
-./vcli profile -s vbr
+./owlctl profile --set vbr
+./owlctl profile -s vbr
 
 # View profile details
-./vcli profile --profile vbr
-./vcli profile -p vbr
+./owlctl profile --profile vbr
+./owlctl profile -p vbr
 ```
 
-**Breaking Change:** `./vcli profile --set` now requires an argument. Previously it prompted interactively.
+**Breaking Change:** `./owlctl profile --set` now requires an argument. Previously it prompted interactively.
 
 ### Profile Structure (v1.0 Format)
 
@@ -190,36 +190,36 @@ Credentials always come from environment variables. Tokens are stored securely i
 
 ### Setting Credentials
 
-vcli requires three environment variables for authentication:
+owlctl requires three environment variables for authentication:
 
 **Bash/Zsh (macOS/Linux):**
 ```bash
-export VCLI_USERNAME="administrator"
-export VCLI_PASSWORD="your-password"
-export VCLI_URL="vbr.example.com"
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"  # Optional
+export OWLCTL_USERNAME="administrator"
+export OWLCTL_PASSWORD="your-password"
+export OWLCTL_URL="vbr.example.com"
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"  # Optional
 ```
 
 **PowerShell (Windows):**
 ```powershell
-$env:VCLI_USERNAME = "administrator"
-$env:VCLI_PASSWORD = "your-password"
-$env:VCLI_URL = "vbr.example.com"
-$env:VCLI_SETTINGS_PATH = "$HOME\.vcli\"  # Optional
+$env:OWLCTL_USERNAME = "administrator"
+$env:OWLCTL_PASSWORD = "your-password"
+$env:OWLCTL_URL = "vbr.example.com"
+$env:OWLCTL_SETTINGS_PATH = "$HOME\.owlctl\"  # Optional
 ```
 
 **Environment Variables:**
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VCLI_USERNAME` | Yes* | API username (may need `DOMAIN\user` format) |
-| `VCLI_PASSWORD` | Yes* | API password |
-| `VCLI_URL` | Yes* | Server hostname/IP (without `https://` or port) |
-| `VCLI_TOKEN` | No | Explicit authentication token (bypasses auto-auth) |
-| `VCLI_SETTINGS_PATH` | No | Config file directory (default: current directory) |
-| `VCLI_FILE_KEY` | No | File keyring password (for non-interactive systems) |
+| `OWLCTL_USERNAME` | Yes* | API username (may need `DOMAIN\user` format) |
+| `OWLCTL_PASSWORD` | Yes* | API password |
+| `OWLCTL_URL` | Yes* | Server hostname/IP (without `https://` or port) |
+| `OWLCTL_TOKEN` | No | Explicit authentication token (bypasses auto-auth) |
+| `OWLCTL_SETTINGS_PATH` | No | Config file directory (default: current directory) |
+| `OWLCTL_FILE_KEY` | No | File keyring password (for non-interactive systems) |
 
-*Not required if `VCLI_TOKEN` is set
+*Not required if `OWLCTL_TOKEN` is set
 
 ### Secure Token Storage
 
@@ -227,14 +227,14 @@ Authentication tokens are stored in your system's secure keychain instead of pla
 
 #### Token Resolution Priority
 
-vcli attempts authentication in this order:
+owlctl attempts authentication in this order:
 
-1. **`VCLI_TOKEN` environment variable** (highest priority)
+1. **`OWLCTL_TOKEN` environment variable** (highest priority)
    - For explicit token control
    - Useful for service accounts or long-lived tokens
    ```bash
-   export VCLI_TOKEN="your-long-lived-token"
-   ./vcli get jobs
+   export OWLCTL_TOKEN="your-long-lived-token"
+   ./owlctl get jobs
    ```
 
 2. **System keychain** (interactive sessions only)
@@ -242,35 +242,35 @@ vcli attempts authentication in this order:
    - **Windows:** Credential Manager
    - **Linux:** Secret Service (GNOME Keyring, KWallet)
    - Token stored encrypted by OS
-   - Persists across vcli sessions
+   - Persists across owlctl sessions
    ```bash
-   ./vcli login  # Token stored in keychain
-   ./vcli get jobs  # Uses token from keychain
+   ./owlctl login  # Token stored in keychain
+   ./owlctl get jobs  # Uses token from keychain
    ```
 
 3. **Auto-authenticate** (CI/CD and non-TTY environments)
    - Detects non-interactive sessions automatically
-   - Authenticates on-demand using `VCLI_USERNAME`/`VCLI_PASSWORD`/`VCLI_URL`
+   - Authenticates on-demand using `OWLCTL_USERNAME`/`OWLCTL_PASSWORD`/`OWLCTL_URL`
    - No keychain interaction on headless systems
    ```bash
    # GitHub Actions, GitLab CI, Jenkins, etc.
-   ./vcli get jobs  # Auto-authenticates using env vars
+   ./owlctl get jobs  # Auto-authenticates using env vars
    ```
 
 #### File-Based Keyring (Fallback)
 
-If system keychain is unavailable, vcli uses encrypted file storage (`~/.vcli/vcli-keyring`):
+If system keychain is unavailable, owlctl uses encrypted file storage (`~/.owlctl/owlctl-keyring`):
 
 **Interactive systems:**
 ```bash
-./vcli login
-# Prompts: Enter password for vcli file keyring: _
+./owlctl login
+# Prompts: Enter password for owlctl file keyring: _
 ```
 
 **CI/CD systems:**
 ```bash
-export VCLI_FILE_KEY="your-secure-password"
-./vcli login  # Uses VCLI_FILE_KEY for encryption
+export OWLCTL_FILE_KEY="your-secure-password"
+./owlctl login  # Uses OWLCTL_FILE_KEY for encryption
 ```
 
 ### Authentication Flow
@@ -278,20 +278,20 @@ export VCLI_FILE_KEY="your-secure-password"
 **Interactive Session (Local Development):**
 ```bash
 # 1. Set credentials
-export VCLI_USERNAME="admin"
-export VCLI_PASSWORD="pass"
-export VCLI_URL="vbr.local"
+export OWLCTL_USERNAME="admin"
+export OWLCTL_PASSWORD="pass"
+export OWLCTL_URL="vbr.local"
 
 # 2. Set profile
-./vcli profile --set vbr
+./owlctl profile --set vbr
 
 # 3. Login (stores token in keychain)
-./vcli login
+./owlctl login
 # Token stored in system keychain
 
 # 4. Make API calls (uses keychain token)
-./vcli get jobs
-./vcli post jobs/<id>/start
+./owlctl get jobs
+./owlctl post jobs/<id>/start
 ```
 
 **CI/CD Pipeline:**
@@ -299,20 +299,20 @@ export VCLI_URL="vbr.local"
 # GitHub Actions example
 - name: Check VBR drift
   env:
-    VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-    VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-    VCLI_URL: ${{ secrets.VBR_URL }}
+    OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+    OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+    OWLCTL_URL: ${{ secrets.VBR_URL }}
   run: |
-    ./vcli profile --set vbr
-    ./vcli job diff --all --security-only
+    ./owlctl profile --set vbr
+    ./owlctl job diff --all --security-only
     # Auto-authenticates, no keychain interaction
 ```
 
 **Explicit Token Control:**
 ```bash
 # Use specific token
-export VCLI_TOKEN="your-service-account-token"
-./vcli get jobs  # Bypasses keychain and auto-auth
+export OWLCTL_TOKEN="your-service-account-token"
+./owlctl get jobs  # Bypasses keychain and auto-auth
 ```
 
 ## Logging In
@@ -320,7 +320,7 @@ export VCLI_TOKEN="your-service-account-token"
 After setting up credentials and selecting a profile, authenticate:
 
 ```bash
-./vcli login
+./owlctl login
 ```
 
 **On success:**
@@ -356,16 +356,16 @@ After setting up credentials and selecting a profile, authenticate:
 
 ```bash
 # Connect to VBR
-export VCLI_USERNAME="admin" VCLI_PASSWORD="pass1" VCLI_URL="vbr.example.com"
-./vcli profile --set vbr
-./vcli login
-./vcli get jobs
+export OWLCTL_USERNAME="admin" OWLCTL_PASSWORD="pass1" OWLCTL_URL="vbr.example.com"
+./owlctl profile --set vbr
+./owlctl login
+./owlctl get jobs
 
 # Switch to VB365
-export VCLI_USERNAME="admin" VCLI_PASSWORD="pass2" VCLI_URL="vb365.example.com"
-./vcli profile --set vb365
-./vcli login
-./vcli get organizations
+export OWLCTL_USERNAME="admin" OWLCTL_PASSWORD="pass2" OWLCTL_URL="vb365.example.com"
+./owlctl profile --set vb365
+./owlctl login
+./owlctl get organizations
 ```
 
 Each profile gets its own token in the keychain (keyed by profile name).
@@ -376,16 +376,16 @@ Use separate directories for different environments:
 
 ```bash
 # Production VBR
-export VCLI_SETTINGS_PATH="$HOME/.vcli/prod/"
-export VCLI_USERNAME="prod-admin" VCLI_PASSWORD="prod-pass" VCLI_URL="vbr-prod.local"
-./vcli profile --set vbr
-./vcli login
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/prod/"
+export OWLCTL_USERNAME="prod-admin" OWLCTL_PASSWORD="prod-pass" OWLCTL_URL="vbr-prod.local"
+./owlctl profile --set vbr
+./owlctl login
 
 # Development VBR
-export VCLI_SETTINGS_PATH="$HOME/.vcli/dev/"
-export VCLI_USERNAME="dev-admin" VCLI_PASSWORD="dev-pass" VCLI_URL="vbr-dev.local"
-./vcli profile --set vbr
-./vcli login
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/dev/"
+export OWLCTL_USERNAME="dev-admin" OWLCTL_PASSWORD="dev-pass" OWLCTL_URL="vbr-dev.local"
+./owlctl profile --set vbr
+./owlctl login
 ```
 
 ### Method 3: Shell Functions for Quick Switching
@@ -393,27 +393,27 @@ export VCLI_USERNAME="dev-admin" VCLI_PASSWORD="dev-pass" VCLI_URL="vbr-dev.loca
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
 vbr-prod() {
-    export VCLI_USERNAME="prod-admin"
-    export VCLI_PASSWORD="$VBR_PROD_PASS"
-    export VCLI_URL="vbr-prod.local"
-    ./vcli profile --set vbr
-    ./vcli login
+    export OWLCTL_USERNAME="prod-admin"
+    export OWLCTL_PASSWORD="$VBR_PROD_PASS"
+    export OWLCTL_URL="vbr-prod.local"
+    ./owlctl profile --set vbr
+    ./owlctl login
 }
 
 vbr-dev() {
-    export VCLI_USERNAME="dev-admin"
-    export VCLI_PASSWORD="$VBR_DEV_PASS"
-    export VCLI_URL="vbr-dev.local"
-    ./vcli profile --set vbr
-    ./vcli login
+    export OWLCTL_USERNAME="dev-admin"
+    export OWLCTL_PASSWORD="$VBR_DEV_PASS"
+    export OWLCTL_URL="vbr-dev.local"
+    ./owlctl profile --set vbr
+    ./owlctl login
 }
 
 # Usage
 vbr-prod
-./vcli get jobs
+./owlctl get jobs
 
 vbr-dev
-./vcli get jobs
+./owlctl get jobs
 ```
 
 ## Troubleshooting
@@ -424,8 +424,8 @@ vbr-dev
 
 **Solution:**
 ```bash
-./vcli profile --set vbr
-./vcli login
+./owlctl profile --set vbr
+./owlctl login
 ```
 
 ### "Authentication failed" or 401 Unauthorized
@@ -441,13 +441,13 @@ vbr-dev
 **Try different username formats:**
 ```bash
 # Standard
-export VCLI_USERNAME="administrator"
+export OWLCTL_USERNAME="administrator"
 
 # Domain user (format 1)
-export VCLI_USERNAME="DOMAIN\\administrator"
+export OWLCTL_USERNAME="DOMAIN\\administrator"
 
 # Domain user (format 2)
-export VCLI_USERNAME="administrator@domain.com"
+export OWLCTL_USERNAME="administrator@domain.com"
 ```
 
 **Check VBR REST API is enabled:**
@@ -479,10 +479,10 @@ nc -zv vbr.example.com 9419
 **Verify profile and URL:**
 ```bash
 # Check current profile
-./vcli profile --get
+./owlctl profile --get
 
-# Verify VCLI_URL doesn't include protocol or port
-echo $VCLI_URL
+# Verify OWLCTL_URL doesn't include protocol or port
+echo $OWLCTL_URL
 # Should be: vbr.example.com
 # NOT: https://vbr.example.com:9419
 ```
@@ -510,18 +510,18 @@ See [Getting Started Guide - Troubleshooting](getting-started.md#tls-certificate
 
 **Solution:**
 
-1. Set `VCLI_SETTINGS_PATH` before running `init`:
+1. Set `OWLCTL_SETTINGS_PATH` before running `init`:
 ```bash
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
-mkdir -p ~/.vcli
-./vcli init
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
+mkdir -p ~/.owlctl
+./owlctl init
 ```
 
 2. Or move files manually:
 ```bash
-mkdir -p ~/.vcli
-mv settings.json profiles.json ~/.vcli/
-export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+mkdir -p ~/.owlctl
+mv settings.json profiles.json ~/.owlctl/
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 ```
 
 ### Token Expired
@@ -530,7 +530,7 @@ export VCLI_SETTINGS_PATH="$HOME/.vcli/"
 
 **Solution:** Re-login to refresh the token in keychain:
 ```bash
-./vcli login
+./owlctl login
 ```
 
 The keychain token is automatically refreshed.
@@ -545,18 +545,18 @@ The keychain token is automatically refreshed.
 
 **Option 1: Use explicit token**
 ```bash
-export VCLI_TOKEN="your-long-lived-token"
-./vcli get jobs
+export OWLCTL_TOKEN="your-long-lived-token"
+./owlctl get jobs
 ```
 
 **Option 2: Set file keyring password**
 ```bash
 # CI/CD environments
-export VCLI_FILE_KEY="your-secure-password"
-./vcli login
+export OWLCTL_FILE_KEY="your-secure-password"
+./owlctl login
 
 # Interactive systems
-./vcli login
+./owlctl login
 # Prompts for file keyring password
 ```
 
@@ -570,15 +570,15 @@ export VCLI_FILE_KEY="your-secure-password"
 ```yaml
 # GitHub Actions
 env:
-  VCLI_USERNAME: ${{ secrets.VBR_USERNAME }}
-  VCLI_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-  VCLI_URL: ${{ secrets.VBR_URL }}
+  OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
+  OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+  OWLCTL_URL: ${{ secrets.VBR_URL }}
 ```
 
 Check environment variables in pipeline:
 ```bash
-echo "Username: $VCLI_USERNAME"
-echo "URL: $VCLI_URL"
+echo "Username: $OWLCTL_USERNAME"
+echo "URL: $OWLCTL_URL"
 # Don't echo password for security
 ```
 
@@ -590,8 +590,8 @@ echo "URL: $VCLI_URL"
 2. **Use secrets management** in CI/CD - Azure Key Vault, GitHub Secrets, AWS Secrets Manager, etc.
 3. **Rotate credentials regularly** - Especially for service accounts
 4. **Use dedicated service accounts** for automation - Separate accounts for CI/CD vs interactive use
-5. **Trust system keychain** - Let vcli manage token storage securely
-6. **Use `VCLI_TOKEN` for long-lived tokens** - Service accounts with explicit token control
+5. **Trust system keychain** - Let owlctl manage token storage securely
+6. **Use `OWLCTL_TOKEN` for long-lived tokens** - Service accounts with explicit token control
 
 **What to commit to Git:**
 - ✅ `settings.json` (no secrets)
@@ -604,46 +604,46 @@ echo "URL: $VCLI_URL"
 
 1. **Use custom settings path** to keep config centralized:
    ```bash
-   export VCLI_SETTINGS_PATH="$HOME/.vcli/"
+   export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
    ```
 
 2. **Name config directories** clearly for multiple environments:
-   - `~/.vcli/prod/` - Production environment
-   - `~/.vcli/dev/` - Development environment
-   - `~/.vcli/customer-a/` - Customer-specific config
+   - `~/.owlctl/prod/` - Production environment
+   - `~/.owlctl/dev/` - Development environment
+   - `~/.owlctl/customer-a/` - Customer-specific config
 
 3. **Document environment setup** in project README:
    ```markdown
    # Setup
-   export VCLI_SETTINGS_PATH="$HOME/.vcli/prod/"
-   export VCLI_USERNAME="prod-admin"
-   export VCLI_URL="vbr-prod.example.com"
+   export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/prod/"
+   export OWLCTL_USERNAME="prod-admin"
+   export OWLCTL_URL="vbr-prod.example.com"
    ```
 
 ### Automation
 
 1. **Set credentials in CI/CD secrets** - Use platform-native secret stores
-2. **Let auto-authentication work** - vcli detects CI/CD environments automatically
-3. **Set `VCLI_SETTINGS_PATH` to build directory** to avoid conflicts
+2. **Let auto-authentication work** - owlctl detects CI/CD environments automatically
+3. **Set `OWLCTL_SETTINGS_PATH` to build directory** to avoid conflicts
 4. **Pass profile as argument** (not interactive):
 ```bash
 #!/bin/bash
 # CI/CD automation script
-export VCLI_SETTINGS_PATH="./vcli-config/"
+export OWLCTL_SETTINGS_PATH="./owlctl-config/"
 
 # Non-interactive init
-./vcli init --output-dir ./vcli-config/
+./owlctl init --output-dir ./owlctl-config/
 
 # Set profile with argument (not interactive)
-./vcli profile --set vbr
+./owlctl profile --set vbr
 
-# Auto-authenticates using VCLI_USERNAME/PASSWORD/URL from secrets
-./vcli job diff --all --security-only
+# Auto-authenticates using OWLCTL_USERNAME/PASSWORD/URL from secrets
+./owlctl job diff --all --security-only
 ```
 
 5. **Handle exit codes properly** for drift detection:
 ```bash
-./vcli job diff --all --security-only
+./owlctl job diff --all --security-only
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 4 ]; then
     echo "CRITICAL drift detected"

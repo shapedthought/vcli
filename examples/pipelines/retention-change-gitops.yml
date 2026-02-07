@@ -11,7 +11,7 @@
 #
 # Prerequisites:
 #   - Run bootstrap.yml first to populate infrastructure/ and state.json
-#   - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+#   - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 #   - Self-hosted agent with Go installed
 #
 # Usage:
@@ -36,14 +36,14 @@ variables:
   - name: DESIRED_RETENTION_DAYS
     value: '30'
 
-  # vcli source (for self-hosted agent building from source)
-  - name: vcliRepo
-    value: 'https://github.com/shapedthought/vcli.git'
-  - name: vcliBranch
+  # owlctl source (for self-hosted agent building from source)
+  - name: owlctlRepo
+    value: 'https://github.com/shapedthought/owlctl.git'
+  - name: owlctlBranch
     value: 'master'
 
-  # Ensure vcli writes config and state into the repo checkout
-  - name: VCLI_SETTINGS_PATH
+  # Ensure owlctl writes config and state into the repo checkout
+  - name: OWLCTL_SETTINGS_PATH
     value: '$(Build.SourcesDirectory)'
 
 stages:
@@ -59,24 +59,24 @@ stages:
           - checkout: self
 
           - script: |
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
-              cd $(Agent.TempDirectory)/vcli-src
-              go build -o $(Build.SourcesDirectory)/vcli
-            displayName: 'Build vcli'
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Agent.TempDirectory)/owlctl-src
+              cd $(Agent.TempDirectory)/owlctl-src
+              go build -o $(Build.SourcesDirectory)/owlctl
+            displayName: 'Build owlctl'
 
           - script: |
               cd $(Build.SourcesDirectory)
-              ./vcli init --insecure
-              ./vcli login
+              ./owlctl init --insecure
+              ./owlctl login
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
                 exit 1
               fi
             displayName: 'Initialize and authenticate'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -92,7 +92,7 @@ stages:
               fi
               echo "Found state.json"
 
-              # Derive the job filename using the same logic as vcli export
+              # Derive the job filename using the same logic as owlctl export
               # (see cmd/export.go sanitizeFilename)
               JOB_FILE="infrastructure/jobs/$(echo "$(JOB_NAME)" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[<>:"\/\\|?*]/-/g; s/-\+/-/g; s/^-//; s/-$//').yaml"
 
@@ -121,7 +121,7 @@ stages:
               echo "=========================================="
 
               cat > retention-overlay.yaml <<EOF
-              apiVersion: vcli.veeam.com/v1
+              apiVersion: owlctl.veeam.com/v1
               kind: VBRJob
               metadata:
                 name: $(JOB_NAME)
@@ -144,7 +144,7 @@ stages:
               echo "Dry Run: Previewing Changes"
               echo "=========================================="
 
-              ./vcli job apply "$JOB_FILE" -o retention-overlay.yaml --dry-run
+              ./owlctl job apply "$JOB_FILE" -o retention-overlay.yaml --dry-run
               DRY_RUN_EXIT=$?
 
               echo ""
@@ -158,9 +158,9 @@ stages:
               fi
             displayName: 'Dry run with overlay'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
   # ============================================================
   # Stage 2: Apply - Modify VBR and commit state back to Git
@@ -178,24 +178,24 @@ stages:
             persistCredentials: true
 
           - script: |
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
-              cd $(Agent.TempDirectory)/vcli-src
-              go build -o $(Build.SourcesDirectory)/vcli
-            displayName: 'Build vcli'
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Agent.TempDirectory)/owlctl-src
+              cd $(Agent.TempDirectory)/owlctl-src
+              go build -o $(Build.SourcesDirectory)/owlctl
+            displayName: 'Build owlctl'
 
           - script: |
               cd $(Build.SourcesDirectory)
-              ./vcli init --insecure
-              ./vcli login
+              ./owlctl init --insecure
+              ./owlctl login
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
                 exit 1
               fi
             displayName: 'Initialize and authenticate'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -205,7 +205,7 @@ stages:
               echo "=========================================="
 
               cat > retention-overlay.yaml <<EOF
-              apiVersion: vcli.veeam.com/v1
+              apiVersion: owlctl.veeam.com/v1
               kind: VBRJob
               metadata:
                 name: $(JOB_NAME)
@@ -227,7 +227,7 @@ stages:
               echo "Target retention: $(DESIRED_RETENTION_DAYS) days"
               echo ""
 
-              ./vcli job apply "$(JOB_FILE)" -o retention-overlay.yaml
+              ./owlctl job apply "$(JOB_FILE)" -o retention-overlay.yaml
               APPLY_EXIT=$?
 
               case $APPLY_EXIT in
@@ -249,9 +249,9 @@ stages:
               esac
             displayName: 'Apply retention change'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -262,24 +262,24 @@ stages:
 
               # Snapshot the updated state
               echo "Snapshotting updated state..."
-              ./vcli job snapshot "$(JOB_NAME)"
+              ./owlctl job snapshot "$(JOB_NAME)"
 
               # Re-export the job YAML to reflect VBR's authoritative state
               echo ""
               echo "Re-exporting job from VBR..."
-              JOB_ID=$(./vcli get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
+              JOB_ID=$(./owlctl get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
 
               if [ -z "$JOB_ID" ]; then
                 echo "##vso[task.logissue type=warning]Could not look up job ID for re-export"
               else
-                ./vcli export "$JOB_ID" -o "$(JOB_FILE)"
+                ./owlctl export "$JOB_ID" -o "$(JOB_FILE)"
                 echo "Re-exported: $(JOB_FILE)"
               fi
             displayName: 'Update state and re-export'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -288,8 +288,8 @@ stages:
               echo "Committing updated state to Git"
               echo "=========================================="
 
-              git config user.email "vcli-pipeline@azure-devops.local"
-              git config user.name "vcli GitOps Pipeline"
+              git config user.email "owlctl-pipeline@azure-devops.local"
+              git config user.name "owlctl GitOps Pipeline"
 
               git add state.json
               git add "$(JOB_FILE)"
@@ -334,24 +334,24 @@ stages:
             displayName: 'Pull latest state'
 
           - script: |
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Agent.TempDirectory)/vcli-src
-              cd $(Agent.TempDirectory)/vcli-src
-              go build -o $(Build.SourcesDirectory)/vcli
-            displayName: 'Build vcli'
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Agent.TempDirectory)/owlctl-src
+              cd $(Agent.TempDirectory)/owlctl-src
+              go build -o $(Build.SourcesDirectory)/owlctl
+            displayName: 'Build owlctl'
 
           - script: |
               cd $(Build.SourcesDirectory)
-              ./vcli init --insecure
-              ./vcli login
+              ./owlctl init --insecure
+              ./owlctl login
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to authenticate with VBR"
                 exit 1
               fi
             displayName: 'Initialize and authenticate'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               cd $(Build.SourcesDirectory)
@@ -361,7 +361,7 @@ stages:
               echo "=========================================="
               echo ""
 
-              ./vcli job diff "$(JOB_NAME)"
+              ./owlctl job diff "$(JOB_NAME)"
               DIFF_EXIT=$?
 
               echo ""
@@ -400,6 +400,6 @@ stages:
               echo "Future drift checks will compare against this baseline."
             displayName: 'Verify no drift'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)

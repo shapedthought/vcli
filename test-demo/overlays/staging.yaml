@@ -1,6 +1,6 @@
 # Staging Environment Overlay
 # Extends base backup with staging-specific settings
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Backup Job 1

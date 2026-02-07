@@ -8,7 +8,7 @@
 # 4. Notifies team of any manual intervention needed
 #
 # Prerequisites:
-# - Variable Group 'veeam-credentials' with VCLI_USERNAME, VCLI_PASSWORD, VCLI_URL
+# - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
 # - Git repo contains infrastructure specs in infrastructure/{jobs,repos,sobrs}/*.yaml
 # - Optional: SLACK_WEBHOOK_URL for notifications
 
@@ -27,7 +27,7 @@ pool:
 
 variables:
   - group: 'veeam-credentials'
-  - name: vcliVersion
+  - name: owlctlVersion
     value: 'latest'
   - name: specsPath
     value: 'infrastructure'
@@ -41,14 +41,14 @@ stages:
         displayName: 'Scan all resources'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               set +e  # Don't exit on error - we handle exit codes manually
@@ -56,35 +56,35 @@ stages:
               WARNING=0
 
               echo "=== Scanning Jobs ==="
-              ./vcli job diff --all --security-only 2>&1
+              ./owlctl job diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Repositories ==="
-              ./vcli repo diff --all --security-only 2>&1
+              ./owlctl repo diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Scale-Out Repositories ==="
-              ./vcli repo sobr-diff --all --security-only 2>&1
+              ./owlctl repo sobr-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning Encryption ==="
-              ./vcli encryption diff --all --security-only 2>&1
+              ./owlctl encryption diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
 
               echo ""
               echo "=== Scanning KMS Servers ==="
-              ./vcli encryption kms-diff --all --security-only 2>&1
+              ./owlctl encryption kms-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ]; then CRITICAL=1; fi
               if [ $EXIT -eq 3 ]; then WARNING=1; fi
@@ -105,7 +105,7 @@ stages:
             displayName: 'Run drift scan'
             name: scan
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 2: Remediate if drift was found
   - stage: Remediate
@@ -123,14 +123,14 @@ stages:
           - checkout: self
 
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               PARTIAL=0
@@ -142,7 +142,7 @@ stages:
               for spec in $(specsPath)/jobs/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Applying: $spec"
-                ./vcli job apply "$spec"
+                ./owlctl job apply "$spec"
                 EXIT=$?
                 case $EXIT in
                   0) APPLIED=$((APPLIED + 1)) ;;
@@ -157,7 +157,7 @@ stages:
               for spec in $(specsPath)/repos/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Applying: $spec"
-                ./vcli repo apply "$spec"
+                ./owlctl repo apply "$spec"
                 EXIT=$?
                 case $EXIT in
                   0) APPLIED=$((APPLIED + 1)) ;;
@@ -172,7 +172,7 @@ stages:
               for spec in $(specsPath)/sobrs/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Applying: $spec"
-                ./vcli repo sobr-apply "$spec"
+                ./owlctl repo sobr-apply "$spec"
                 EXIT=$?
                 case $EXIT in
                   0) APPLIED=$((APPLIED + 1)) ;;
@@ -187,7 +187,7 @@ stages:
               for spec in $(specsPath)/kms/*.yaml; do
                 [ -f "$spec" ] || continue
                 echo "Applying: $spec"
-                ./vcli encryption kms-apply "$spec"
+                ./owlctl encryption kms-apply "$spec"
                 EXIT=$?
                 case $EXIT in
                   0) APPLIED=$((APPLIED + 1)) ;;
@@ -218,7 +218,7 @@ stages:
             displayName: 'Apply desired state'
             name: apply
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 3: Verify remediation was successful
   - stage: Verify
@@ -230,14 +230,14 @@ stages:
         displayName: 'Verify no remaining drift'
         steps:
           - script: |
-              curl -sL https://github.com/shapedthought/vcli/releases/download/$(vcliVersion)/vcli-linux-amd64 -o vcli
-              chmod +x vcli
-              ./vcli init && ./vcli profile --set vbr && ./vcli login
-            displayName: 'Install and authenticate vcli'
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
               set +e  # Don't exit on error - we handle exit codes manually
@@ -245,23 +245,23 @@ stages:
 
               echo "=== Post-Remediation Verification ==="
 
-              ./vcli job diff --all --security-only 2>&1
+              ./owlctl job diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli repo diff --all --security-only 2>&1
+              ./owlctl repo diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli repo sobr-diff --all --security-only 2>&1
+              ./owlctl repo sobr-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli encryption diff --all --security-only 2>&1
+              ./owlctl encryption diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
-              ./vcli encryption kms-diff --all --security-only 2>&1
+              ./owlctl encryption kms-diff --all --security-only 2>&1
               EXIT=$?
               if [ $EXIT -eq 4 ] || [ $EXIT -eq 3 ]; then REMAINING=1; fi
 
@@ -273,7 +273,7 @@ stages:
               fi
             displayName: 'Verify remediation'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
   # Stage 4: Notify team if manual intervention needed
   - stage: Notify

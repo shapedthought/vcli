@@ -8,15 +8,15 @@
 # Usage:
 #   # 1. Configure KMS server in VBR console first
 #   # 2. Snapshot existing KMS server:
-#   vcli encryption kms-snapshot "Azure Key Vault Production"
+#   owlctl encryption kms-snapshot "Azure Key Vault Production"
 #   # 3. Export to YAML:
-#   vcli encryption kms-export "Azure Key Vault Production" -o azure-key-vault.yaml
+#   owlctl encryption kms-export "Azure Key Vault Production" -o azure-key-vault.yaml
 #   # 4. Edit YAML as needed (typically just description)
 #   # 5. Apply updates:
-#   vcli encryption kms-apply azure-key-vault.yaml --dry-run
-#   vcli encryption kms-apply azure-key-vault.yaml
+#   owlctl encryption kms-apply azure-key-vault.yaml --dry-run
+#   owlctl encryption kms-apply azure-key-vault.yaml
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRKmsServer
 metadata:
   name: Azure Key Vault Production
@@ -24,7 +24,7 @@ metadata:
     environment: production
     kms-provider: azure
     compliance: pci-dss
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   description: Production Azure Key Vault for backup encryption - 24x7 monitoring enabled
 

@@ -1,6 +1,6 @@
 # Azure DevOps Agent in Docker
 
-This directory contains a Docker setup for running an Azure DevOps self-hosted agent to test vcli pipelines locally.
+This directory contains a Docker setup for running an Azure DevOps self-hosted agent to test owlctl pipelines locally.
 
 ## Why Use This?
 
@@ -14,7 +14,7 @@ This directory contains a Docker setup for running an Azure DevOps self-hosted a
 1. **Docker and Docker Compose** installed on your machine
 2. **Azure DevOps account** with permission to create agent pools
 3. **Personal Access Token (PAT)** with `Agent Pools (Read & Manage)` scope
-4. **VBR server** accessible from your Docker host (for testing vcli commands)
+4. **VBR server** accessible from your Docker host (for testing owlctl commands)
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ This directory contains a Docker setup for running an Azure DevOps self-hosted a
 1. Go to your Azure DevOps organization: `https://dev.azure.com/yourorg`
 2. Click your profile icon → **Personal access tokens**
 3. Click **+ New Token**
-4. Name: `vcli-docker-agent`
+4. Name: `owlctl-docker-agent`
 5. Scopes: **Agent Pools (Read & Manage)**
 6. Click **Create** and **copy the token** (you won't see it again)
 
@@ -42,9 +42,9 @@ Fill in:
 AZP_URL=https://dev.azure.com/yourorganization
 AZP_TOKEN=your_pat_token_here
 AZP_POOL=Default
-VCLI_USERNAME=your_vbr_username
-VCLI_PASSWORD=your_vbr_password
-VCLI_URL=https://vbr.example.com:9419
+OWLCTL_USERNAME=your_vbr_username
+OWLCTL_PASSWORD=your_vbr_password
+OWLCTL_URL=https://vbr.example.com:9419
 ```
 
 ### 3. Build and Start the Agent
@@ -88,26 +88,26 @@ pool:
 
 steps:
   - script: |
-      echo "Testing vcli agent"
+      echo "Testing owlctl agent"
       go version
       git --version
     displayName: 'Check environment'
 
   - script: |
-      cd $(Agent.WorkFolder)/_vcli
-      go build -o vcli
-      ./vcli --version
-    displayName: 'Build vcli'
+      cd $(Agent.WorkFolder)/_owlctl
+      go build -o owlctl
+      ./owlctl --version
+    displayName: 'Build owlctl'
 
   - script: |
-      cd $(Agent.WorkFolder)/_vcli
-      ./vcli init
-      ./vcli profile --list
-    displayName: 'Test vcli commands'
+      cd $(Agent.WorkFolder)/_owlctl
+      ./owlctl init
+      ./owlctl profile --list
+    displayName: 'Test owlctl commands'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 ```
 
 ## Usage
@@ -144,9 +144,9 @@ docker compose exec azure-agent bash
 docker compose down -v  # Removes volumes
 ```
 
-## Testing vcli Pipelines
+## Testing owlctl Pipelines
 
-Pipelines clone the vcli repository from GitHub and build from source, just like they would in production. This approach:
+Pipelines clone the owlctl repository from GitHub and build from source, just like they would in production. This approach:
 
 1. **Tests the real workflow** - Same as production pipelines
 2. **No mount dependencies** - Works with any repository
@@ -154,20 +154,20 @@ Pipelines clone the vcli repository from GitHub and build from source, just like
 
 ### Alternative: Use Local Source for Development
 
-If you're developing vcli and want faster iteration, you can mount your local source:
+If you're developing owlctl and want faster iteration, you can mount your local source:
 
 ```yaml
 # docker-compose.yml
 volumes:
-  - ../../:/home/agent/local-vcli:ro
+  - ../../:/home/agent/local-owlctl:ro
 ```
 
 Then in your pipeline, replace the `git clone` step with:
 ```yaml
 - script: |
-    cp -r /home/agent/local-vcli $(Build.SourcesDirectory)/vcli
-    cd $(Build.SourcesDirectory)/vcli
-    go build -o vcli
+    cp -r /home/agent/local-owlctl $(Build.SourcesDirectory)/owlctl
+    cd $(Build.SourcesDirectory)/owlctl
+    go build -o owlctl
   displayName: 'Build from local source'
 ```
 
@@ -189,24 +189,24 @@ steps:
   - checkout: none
 
   - script: |
-      # Clone and build vcli
-      git clone --branch master --depth 1 https://github.com/shapedthought/vcli.git $(Build.SourcesDirectory)/vcli
-      cd $(Build.SourcesDirectory)/vcli
-      go build -o vcli
+      # Clone and build owlctl
+      git clone --branch master --depth 1 https://github.com/shapedthought/owlctl.git $(Build.SourcesDirectory)/owlctl
+      cd $(Build.SourcesDirectory)/owlctl
+      go build -o owlctl
 
-      # Initialize vcli (creates config files in current directory)
-      ./vcli init
-      ./vcli profile --set vbr
-      ./vcli login
-    displayName: 'Setup vcli'
+      # Initialize owlctl (creates config files in current directory)
+      ./owlctl init
+      ./owlctl profile --set vbr
+      ./owlctl login
+    displayName: 'Setup owlctl'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 
   - script: |
-      cd $(Build.SourcesDirectory)/vcli
-      ./vcli job diff --all --security-only
+      cd $(Build.SourcesDirectory)/owlctl
+      ./owlctl job diff --all --security-only
       EXIT_CODE=$?
 
       if [ $EXIT_CODE -eq 4 ]; then
@@ -217,10 +217,10 @@ steps:
       fi
     displayName: 'Run drift detection'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
-**Important:** Combine `vcli init`, `profile --set`, and `login` in a single script block. vcli creates configuration files in the current directory, and separate steps won't see those files (each step runs in a new shell session).
+**Important:** Combine `owlctl init`, `profile --set`, and `login` in a single script block. owlctl creates configuration files in the current directory, and separate steps won't see those files (each step runs in a new shell session).
 
 ## Using with Pipeline Templates
 
@@ -238,51 +238,51 @@ The templates will run on your local Docker agent, allowing you to debug and ite
 
 ## Pipeline Best Practices
 
-### vcli Configuration Files
+### owlctl Configuration Files
 
-vcli creates configuration files (`settings.json`, `profiles.json`, `headers.json`) in the current directory by default. In pipelines:
+owlctl creates configuration files (`settings.json`, `profiles.json`, `headers.json`) in the current directory by default. In pipelines:
 
 **✅ Correct - Combined steps:**
 ```yaml
 - script: |
-    cd $(Build.SourcesDirectory)/vcli
-    ./vcli init
-    ./vcli profile --set vbr
-    ./vcli login
+    cd $(Build.SourcesDirectory)/owlctl
+    ./owlctl init
+    ./owlctl profile --set vbr
+    ./owlctl login
   env:
-    VCLI_USERNAME: $(VCLI_USERNAME)
-    VCLI_PASSWORD: $(VCLI_PASSWORD)
-    VCLI_URL: $(VCLI_URL)
+    OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+    OWLCTL_URL: $(OWLCTL_URL)
 ```
 
 **❌ Incorrect - Separate steps:**
 ```yaml
-- script: ./vcli init
-- script: ./vcli profile --set vbr  # ❌ Can't find profiles.json
+- script: ./owlctl init
+- script: ./owlctl profile --set vbr  # ❌ Can't find profiles.json
 ```
 
-Each Azure DevOps pipeline step runs in a new shell session, so configuration files created in one step won't be visible to the next. **Always combine vcli initialization and login in a single script block.**
+Each Azure DevOps pipeline step runs in a new shell session, so configuration files created in one step won't be visible to the next. **Always combine owlctl initialization and login in a single script block.**
 
 ### Environment Variables
 
-The vcli credentials are set as environment variables in docker-compose.yml, but they don't automatically propagate to pipeline script steps. Set them explicitly using the `env:` section in each step that needs them:
+The owlctl credentials are set as environment variables in docker-compose.yml, but they don't automatically propagate to pipeline script steps. Set them explicitly using the `env:` section in each step that needs them:
 
 ```yaml
 - script: |
-    ./vcli login
+    ./owlctl login
   env:
-    VCLI_USERNAME: $(VCLI_USERNAME)
-    VCLI_PASSWORD: $(VCLI_PASSWORD)
-    VCLI_URL: $(VCLI_URL)
+    OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+    OWLCTL_URL: $(OWLCTL_URL)
 ```
 
-The `VCLI_PASSWORD` should be set in subsequent steps that call vcli commands after login:
+The `OWLCTL_PASSWORD` should be set in subsequent steps that call owlctl commands after login:
 
 ```yaml
 - script: |
-    ./vcli job diff --all
+    ./owlctl job diff --all
   env:
-    VCLI_PASSWORD: $(VCLI_PASSWORD)  # Required for authenticated API calls
+    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)  # Required for authenticated API calls
 ```
 
 ## Troubleshooting
@@ -311,12 +311,12 @@ docker compose restart azure-agent
 docker compose exec azure-agent cat .agent
 ```
 
-### vcli Commands Fail
+### owlctl Commands Fail
 
 **Check VBR connectivity:**
 ```bash
 docker compose exec azure-agent bash
-curl -k $VCLI_URL
+curl -k $OWLCTL_URL
 ```
 
 **Check credentials:**
@@ -324,19 +324,19 @@ curl -k $VCLI_URL
 docker compose exec azure-agent env | grep VCLI
 ```
 
-### Pipeline Can't Clone vcli
+### Pipeline Can't Clone owlctl
 
 **Check network connectivity:**
 ```bash
-docker compose exec azure-agent bash -c "git clone --depth 1 https://github.com/shapedthought/vcli.git /tmp/test-clone"
+docker compose exec azure-agent bash -c "git clone --depth 1 https://github.com/shapedthought/owlctl.git /tmp/test-clone"
 ```
 
 **Use a specific branch or fork:**
 ```yaml
 variables:
-  - name: vcliRepo
-    value: 'https://github.com/yourfork/vcli.git'
-  - name: vcliBranch
+  - name: owlctlRepo
+    value: 'https://github.com/yourfork/owlctl.git'
+  - name: owlctlBranch
     value: 'your-branch'
 ```
 
@@ -358,7 +358,7 @@ docker compose exec azure-agent go clean -cache
 Error: failed to login
 ```
 
-- Verify `VCLI_URL` includes port (e.g., `https://vbr.example.com:9419`)
+- Verify `OWLCTL_URL` includes port (e.g., `https://vbr.example.com:9419`)
 - Check username format (may need `DOMAIN\user`)
 - Ensure VBR REST API is enabled
 - Verify credentials are set in pipeline environment variables
@@ -369,9 +369,9 @@ Error: failed to login
 Error: open profiles.json: no such file or directory
 ```
 
-- Ensure `vcli init` and `vcli profile --set` are in the same script block
-- Don't split vcli initialization across multiple pipeline steps
-- Check that you're in the correct directory (`cd $(Build.SourcesDirectory)/vcli`)
+- Ensure `owlctl init` and `owlctl profile --set` are in the same script block
+- Don't split owlctl initialization across multiple pipeline steps
+- Check that you're in the correct directory (`cd $(Build.SourcesDirectory)/owlctl`)
 
 ## Architecture Considerations
 
@@ -398,7 +398,7 @@ pool:
 - Ensuring consistency across pipeline runs
 - Working with architecture-specific dependencies
 
-**For vcli testing:** Architecture doesn't matter - Go produces portable binaries and vcli works identically on ARM64 and X64.
+**For owlctl testing:** Architecture doesn't matter - Go produces portable binaries and owlctl works identically on ARM64 and X64.
 
 ## Advanced Configuration
 
@@ -406,12 +406,12 @@ pool:
 
 1. Create a new agent pool in Azure DevOps:
    - Project Settings → Agent pools → Add pool
-   - Name: `vcli-testing`
+   - Name: `owlctl-testing`
    - Grant access to your project
 
 2. Update `.env`:
    ```bash
-   AZP_POOL=vcli-testing
+   AZP_POOL=owlctl-testing
    ```
 
 3. Restart agent:
@@ -419,14 +419,14 @@ pool:
    docker compose restart
    ```
 
-### Mount Local vcli Config
+### Mount Local owlctl Config
 
-If you want to use your existing vcli configuration:
+If you want to use your existing owlctl configuration:
 
 ```yaml
 # docker-compose.yml
 volumes:
-  - ~/.vcli:/home/agent/.vcli:ro
+  - ~/.owlctl:/home/agent/.owlctl:ro
 ```
 
 ### Run Multiple Agents
@@ -438,27 +438,27 @@ docker compose up -d --scale azure-agent=3
 
 Each agent will register with a unique name (hostname-based).
 
-### Use Pre-Built vcli Binary
+### Use Pre-Built owlctl Binary
 
-If you want to test with a specific vcli release instead of building from source:
+If you want to test with a specific owlctl release instead of building from source:
 
 ```dockerfile
 # Add to Dockerfile after Go installation
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        VCLI_ARCH="linux-arm64"; \
+        OWLCTL_ARCH="linux-arm64"; \
     else \
-        VCLI_ARCH="linux-amd64"; \
+        OWLCTL_ARCH="linux-amd64"; \
     fi && \
-    curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-${VCLI_ARCH} -o /usr/local/bin/vcli && \
-    chmod +x /usr/local/bin/vcli
+    curl -sL https://github.com/shapedthought/owlctl/releases/download/v0.12.1-beta1/owlctl-${OWLCTL_ARCH} -o /usr/local/bin/owlctl && \
+    chmod +x /usr/local/bin/owlctl
 ```
 
 Then in your pipeline:
 ```yaml
 steps:
-  - script: vcli --version
-    displayName: 'Test vcli'
+  - script: owlctl --version
+    displayName: 'Test owlctl'
 ```
 
 ## Network Considerations
@@ -470,7 +470,7 @@ If you're running VBR in Docker, add the agent to the same network:
 ```yaml
 # docker-compose.yml
 networks:
-  vcli-test:
+  owlctl-test:
     external: true
     name: vbr_network
 ```
@@ -481,7 +481,7 @@ The agent can reach host services via `host.docker.internal`:
 
 ```bash
 # .env
-VCLI_URL=https://host.docker.internal:9419
+OWLCTL_URL=https://host.docker.internal:9419
 ```
 
 ### VBR on Remote Server
@@ -535,25 +535,25 @@ steps:
 
       # Clone and build
       git clone --branch master --depth 1 \
-        https://github.com/shapedthought/vcli.git \
-        $(Build.SourcesDirectory)/vcli
-      cd $(Build.SourcesDirectory)/vcli
-      go build -o vcli
+        https://github.com/shapedthought/owlctl.git \
+        $(Build.SourcesDirectory)/owlctl
+      cd $(Build.SourcesDirectory)/owlctl
+      go build -o owlctl
 
       # Initialize and authenticate
-      ./vcli init
-      ./vcli profile --set vbr
-      ./vcli login
+      ./owlctl init
+      ./owlctl profile --set vbr
+      ./owlctl login
 
-      echo "✓ vcli ready"
-    displayName: 'Setup vcli'
+      echo "✓ owlctl ready"
+    displayName: 'Setup owlctl'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 
   - script: |
-      cd $(Build.SourcesDirectory)/vcli
+      cd $(Build.SourcesDirectory)/owlctl
 
       # Run all drift checks
       CRITICAL=0
@@ -565,8 +565,8 @@ steps:
         "encryption diff --all --security-only" \
         "encryption kms-diff --all --security-only"
       do
-        echo "Running: vcli $CMD"
-        ./vcli $CMD || EXIT_CODE=$?
+        echo "Running: owlctl $CMD"
+        ./owlctl $CMD || EXIT_CODE=$?
 
         if [ $EXIT_CODE -eq 4 ]; then
           CRITICAL=1
@@ -580,23 +580,23 @@ steps:
       fi
     displayName: 'Drift detection scan'
     env:
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 ```
 
 ### Test Specific Branch or Fork
 
 ```yaml
 variables:
-  - name: vcliRepo
-    value: 'https://github.com/yourfork/vcli.git'
-  - name: vcliBranch
+  - name: owlctlRepo
+    value: 'https://github.com/yourfork/owlctl.git'
+  - name: owlctlBranch
     value: 'feature-branch'
 
 steps:
   - script: |
-      git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
-      cd $(Build.SourcesDirectory)/vcli
-      go build -o vcli
+      git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Build.SourcesDirectory)/owlctl
+      cd $(Build.SourcesDirectory)/owlctl
+      go build -o owlctl
 ```
 
 ### Use Pre-Built Binary Instead of Building
@@ -607,24 +607,24 @@ steps:
       # Detect architecture
       ARCH=$(uname -m)
       if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-        VCLI_ARCH="linux-arm64"
+        OWLCTL_ARCH="linux-arm64"
       else
-        VCLI_ARCH="linux-amd64"
+        OWLCTL_ARCH="linux-amd64"
       fi
 
       # Download pre-built binary
-      curl -sL https://github.com/shapedthought/vcli/releases/download/v0.12.1-beta1/vcli-${VCLI_ARCH} -o vcli
-      chmod +x vcli
+      curl -sL https://github.com/shapedthought/owlctl/releases/download/v0.12.1-beta1/owlctl-${OWLCTL_ARCH} -o owlctl
+      chmod +x owlctl
 
       # Initialize
-      ./vcli init
-      ./vcli profile --set vbr
-      ./vcli login
-    displayName: 'Setup vcli (pre-built)'
+      ./owlctl init
+      ./owlctl profile --set vbr
+      ./owlctl login
+    displayName: 'Setup owlctl (pre-built)'
     env:
-      VCLI_USERNAME: $(VCLI_USERNAME)
-      VCLI_PASSWORD: $(VCLI_PASSWORD)
-      VCLI_URL: $(VCLI_URL)
+      OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+      OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+      OWLCTL_URL: $(OWLCTL_URL)
 ```
 
 ## See Also

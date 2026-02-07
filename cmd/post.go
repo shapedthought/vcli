@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -16,11 +16,11 @@ var postCmd = &cobra.Command{
 
 Payload needs to be in the JSON format.
 
-Note that vcli does not type check the payload.
+Note that owlctl does not type check the payload.
 
 Commands:
-vcli post jobs/c69eb538-5a07-4bd7-80cb-bdf5142eadd6/start
-vcli post jobs -f job.json
+owlctl post jobs/c69eb538-5a07-4bd7-80cb-bdf5142eadd6/start
+owlctl post jobs -f job.json
 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/shapedthought/vcli/state"
+	"github.com/shapedthought/owlctl/state"
 )
 
 // enhanceJobDriftSeverity post-processes classified drifts, upgrading or

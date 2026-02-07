@@ -9,10 +9,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shapedthought/vcli/models"
-	"github.com/shapedthought/vcli/resources"
-	"github.com/shapedthought/vcli/utils"
-	"github.com/shapedthought/vcli/vhttp"
+	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/resources"
+	"github.com/shapedthought/owlctl/utils"
+	"github.com/shapedthought/owlctl/vhttp"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -33,22 +33,22 @@ var exportCmd = &cobra.Command{
 
 Examples:
   # Export single job to stdout
-  vcli export 57b3baab-6237-41bf-add7-db63d41d984c
+  owlctl export 57b3baab-6237-41bf-add7-db63d41d984c
 
   # Export single job to file
-  vcli export 57b3baab-6237-41bf-add7-db63d41d984c -o backup.yaml
+  owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o backup.yaml
 
   # Export as overlay (minimal patch with only changed fields)
-  vcli export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay -o overlay.yaml
+  owlctl export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay -o overlay.yaml
 
   # Export as overlay with specific base
-  vcli export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay --base base/defaults.yaml -o overlay.yaml
+  owlctl export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay --base base/defaults.yaml -o overlay.yaml
 
   # Export all jobs to current directory
-  vcli export --all
+  owlctl export --all
 
   # Export all jobs to specific directory
-  vcli export --all -d ./configs/
+  owlctl export --all -d ./configs/
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		settings := utils.ReadSettings()
@@ -164,7 +164,7 @@ func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
 func convertJobToYAMLFull(vbrJob *models.VbrJobGet) ([]byte, error) {
 	// Create full resource spec with complete job object
 	resourceSpec := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
+		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
 			Name: vbrJob.Name,
@@ -264,7 +264,7 @@ func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 
 	// Create full resource spec
 	resourceSpec := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
+		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
 			Name: vbrJob.Name,
@@ -340,7 +340,7 @@ func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte,
 
 	// Create resource spec
 	resourceSpec := resources.ResourceSpec{
-		APIVersion: "vcli.veeam.com/v1",
+		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
 			Name: vbrJob.Name,
@@ -354,7 +354,7 @@ func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte,
 		header += fmt.Sprintf("# Base: %s\n", basePath)
 	}
 	header += fmt.Sprintf("# Job ID: %s\n", vbrJob.ID)
-	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: vcli job apply base.yaml -o this-file.yaml\n\n"
+	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: owlctl job apply base.yaml -o this-file.yaml\n\n"
 
 	// Marshal to YAML
 	yamlBytes, err := yaml.Marshal(resourceSpec)

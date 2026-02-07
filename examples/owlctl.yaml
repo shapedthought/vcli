@@ -1,5 +1,5 @@
-# vcli Configuration File
-# Place this file in your project root or ~/.vcli/vcli.yaml
+# owlctl Configuration File
+# Place this file in your project root or ~/.owlctl/owlctl.yaml
 
 # Current active environment
 currentEnvironment: production
@@ -17,35 +17,35 @@ environments:
     # Labels applied to all resources in this environment
     labels:
       env: production
-      managed-by: vcli
+      managed-by: owlctl
 
   development:
     overlay: dev-overlay.yaml
     profile: vbr-dev
     labels:
       env: development
-      managed-by: vcli
+      managed-by: owlctl
 
   staging:
     overlay: staging-overlay.yaml
     profile: vbr-staging
     labels:
       env: staging
-      managed-by: vcli
+      managed-by: owlctl
 
 # Usage Examples:
 #
 # 1. Apply job with environment overlay (uses currentEnvironment)
-#    vcli job apply base-job.yaml
+#    owlctl job apply base-job.yaml
 #
 # 2. Apply job with specific environment
-#    vcli job apply base-job.yaml --env development
+#    owlctl job apply base-job.yaml --env development
 #
 # 3. Override with custom overlay
-#    vcli job apply base-job.yaml -o custom-overlay.yaml
+#    owlctl job apply base-job.yaml -o custom-overlay.yaml
 #
 # 4. Change current environment
-#    vcli config set-env staging
+#    owlctl config set-env staging
 #
 # 5. View current configuration
-#    vcli config show
+#    owlctl config show

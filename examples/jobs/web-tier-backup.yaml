@@ -3,9 +3,9 @@
 # with shorter retention and image-level backup only.
 #
 # Usage:
-#   vcli job apply web-tier-backup.yaml
+#   owlctl job apply web-tier-backup.yaml
 
-apiVersion: vcli.veeam.com/v1
+apiVersion: owlctl.veeam.com/v1
 kind: VBRJob
 metadata:
   name: Web Tier Backup
@@ -13,7 +13,7 @@ metadata:
     app: web
     tier: frontend
     team: platform
-    managed-by: vcli
+    managed-by: owlctl
 spec:
   type: VSphereBackup
   description: Web server tier backup with 14-day retention

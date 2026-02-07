@@ -18,12 +18,12 @@ Production SOBR with capacity tier:
 
 **⚠️ SOBRs are Update-Only**
 
-SOBRs **cannot be created** via vcli apply. They must be created in the VBR console first, including:
+SOBRs **cannot be created** via owlctl apply. They must be created in the VBR console first, including:
 - SOBR creation
 - Adding extent repositories
 - Basic capacity/archive tier setup
 
-vcli can **update** SOBR settings:
+owlctl can **update** SOBR settings:
 - Capacity tier move policies
 - Operational restore windows
 - Encryption settings
@@ -34,9 +34,9 @@ vcli can **update** SOBR settings:
 1. Create SOBR in VBR console
 2. Add extent repositories
 3. Configure basic tier settings
-4. Export to YAML: `vcli repo sobr-export "SOBR Name" -o sobr.yaml`
+4. Export to YAML: `owlctl repo sobr-export "SOBR Name" -o sobr.yaml`
 5. Edit YAML for desired settings
-6. Apply updates: `vcli repo sobr-apply sobr.yaml`
+6. Apply updates: `owlctl repo sobr-apply sobr.yaml`
 
 ## Usage
 
@@ -44,46 +44,46 @@ vcli can **update** SOBR settings:
 
 ```bash
 # Snapshot single SOBR
-vcli repo sobr-snapshot "Scale-out Repository 1"
+owlctl repo sobr-snapshot "Scale-out Repository 1"
 
 # Snapshot all SOBRs
-vcli repo sobr-snapshot --all
+owlctl repo sobr-snapshot --all
 ```
 
 ### Export SOBR Configuration
 
 ```bash
 # Export by name
-vcli repo sobr-export "Scale-out Repository 1" -o sobr.yaml
+owlctl repo sobr-export "Scale-out Repository 1" -o sobr.yaml
 
 # Export all SOBRs
-vcli repo sobr-export --all -d ./all-sobrs/
+owlctl repo sobr-export --all -d ./all-sobrs/
 ```
 
 ### Apply SOBR Updates
 
 ```bash
 # Preview changes first (recommended)
-vcli repo sobr-apply scale-out-repository.yaml --dry-run
+owlctl repo sobr-apply scale-out-repository.yaml --dry-run
 
 # Apply updates
-vcli repo sobr-apply scale-out-repository.yaml
+owlctl repo sobr-apply scale-out-repository.yaml
 
 # Apply with environment overlay
-vcli repo sobr-apply scale-out-repository.yaml -o ../overlays/prod/sobr-overlay.yaml
+owlctl repo sobr-apply scale-out-repository.yaml -o ../overlays/prod/sobr-overlay.yaml
 ```
 
 ### Detect Configuration Drift
 
 ```bash
 # Check single SOBR
-vcli repo sobr-diff "Scale-out Repository 1"
+owlctl repo sobr-diff "Scale-out Repository 1"
 
 # Check all SOBRs
-vcli repo sobr-diff --all
+owlctl repo sobr-diff --all
 
 # Check for security-relevant drift only
-vcli repo sobr-diff --all --security-only
+owlctl repo sobr-diff --all --security-only
 ```
 
 ## Customization
@@ -98,7 +98,7 @@ vcli repo sobr-diff --all --security-only
 
 ### Updateable Fields
 
-Via vcli apply, you can update:
+Via owlctl apply, you can update:
 - Policy type (PerformanceTier vs DataLocality)
 - Capacity tier settings:
   - Days to move

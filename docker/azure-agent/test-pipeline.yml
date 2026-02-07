@@ -1,5 +1,5 @@
 # Test pipeline for local Azure DevOps agent
-# This pipeline verifies the agent is working and tests basic vcli functionality
+# This pipeline verifies the agent is working and tests basic owlctl functionality
 
 trigger: none
 
@@ -11,10 +11,10 @@ pool:
   # No architecture demand - works on both ARM64 (Apple Silicon) and X64 (Intel)
 
 variables:
-  # vcli repository to test with
-  - name: vcliRepo
-    value: 'https://github.com/shapedthought/vcli.git'
-  - name: vcliBranch
+  # owlctl repository to test with
+  - name: owlctlRepo
+    value: 'https://github.com/shapedthought/owlctl.git'
+  - name: owlctlBranch
     value: 'master'
 
 stages:
@@ -53,78 +53,78 @@ stages:
             displayName: 'Show environment info'
 
   - stage: Build
-    displayName: 'Build vcli'
+    displayName: 'Build owlctl'
     dependsOn: Verify
     jobs:
       - job: BuildVcli
-        displayName: 'Build vcli from source'
+        displayName: 'Build owlctl from source'
         workspace:
           clean: all
         steps:
           - checkout: none
 
           - script: |
-              echo "Cloning vcli repository..."
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
-              cd $(Build.SourcesDirectory)/vcli
+              echo "Cloning owlctl repository..."
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Build.SourcesDirectory)/owlctl
+              cd $(Build.SourcesDirectory)/owlctl
               echo ""
               echo "Repository info:"
               git log -1 --oneline
               echo ""
-              echo "Building vcli..."
-              go build -o vcli
+              echo "Building owlctl..."
+              go build -o owlctl
               echo ""
               echo "Build successful!"
-              ./vcli --version || echo "vcli version command not available"
-              ls -lh vcli
-            displayName: 'Clone and build vcli'
+              ./owlctl --version || echo "owlctl version command not available"
+              ls -lh owlctl
+            displayName: 'Clone and build owlctl'
 
   - stage: TestImperative
     displayName: 'Test Imperative Mode'
     dependsOn: Build
     jobs:
       - job: TestCommands
-        displayName: 'Test vcli commands'
+        displayName: 'Test owlctl commands'
         workspace:
           clean: all
         steps:
           - checkout: none
 
           - script: |
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
-              cd $(Build.SourcesDirectory)/vcli
-              go build -o vcli
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Build.SourcesDirectory)/owlctl
+              cd $(Build.SourcesDirectory)/owlctl
+              go build -o owlctl
 
-              # Initialize vcli (creates config files in current directory)
-              echo "Initializing vcli..."
-              ./vcli init --insecure
+              # Initialize owlctl (creates config files in current directory)
+              echo "Initializing owlctl..."
+              ./owlctl init --insecure
 
               echo ""
               echo "Available profiles:"
-              ./vcli profile --list
-            displayName: 'Clone, build, and initialize vcli'
+              ./owlctl profile --list
+            displayName: 'Clone, build, and initialize owlctl'
 
           - script: |
-              cd $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/owlctl
               echo "Setting VBR profile..."
-              ./vcli profile --set vbr
+              ./owlctl profile --set vbr
 
               echo ""
               echo "Attempting login to VBR..."
-              ./vcli login
+              ./owlctl login
 
               if [ $? -eq 0 ]; then
                 echo "Login successful"
               else
                 echo "Login failed"
-                echo "Check VCLI_USERNAME, VCLI_PASSWORD, and VCLI_URL in pipeline variables"
+                echo "Check OWLCTL_USERNAME, OWLCTL_PASSWORD, and OWLCTL_URL in pipeline variables"
                 exit 1
               fi
             displayName: 'Test VBR login'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
             continueOnError: true  # Don't fail if VBR is not reachable
 
   - stage: TestDeclarative
@@ -140,64 +140,64 @@ stages:
           - checkout: none
 
           - script: |
-              git clone --branch $(vcliBranch) --depth 1 $(vcliRepo) $(Build.SourcesDirectory)/vcli
-              cd $(Build.SourcesDirectory)/vcli
-              go build -o vcli
+              git clone --branch $(owlctlBranch) --depth 1 $(owlctlRepo) $(Build.SourcesDirectory)/owlctl
+              cd $(Build.SourcesDirectory)/owlctl
+              go build -o owlctl
 
               # Initialize and login
-              echo "Initializing vcli..."
-              ./vcli init --insecure
-              ./vcli profile --set vbr
+              echo "Initializing owlctl..."
+              ./owlctl init --insecure
+              ./owlctl profile --set vbr
 
               echo "Logging in to VBR..."
-              ./vcli login
-            displayName: 'Clone, build, and setup vcli'
+              ./owlctl login
+            displayName: 'Clone, build, and setup owlctl'
             env:
-              VCLI_USERNAME: $(VCLI_USERNAME)
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
-              VCLI_URL: $(VCLI_URL)
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
 
           - script: |
-              cd $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/owlctl
 
               echo "=========================================="
               echo "Snapshotting Current State as Baseline"
               echo "=========================================="
 
               echo "Snapshotting all jobs..."
-              ./vcli job snapshot --all || true
+              ./owlctl job snapshot --all || true
 
               echo ""
               echo "Snapshotting repositories..."
-              ./vcli repo snapshot --all || true
+              ./owlctl repo snapshot --all || true
 
               echo ""
               echo "Snapshotting scale-out repositories..."
-              ./vcli repo sobr-snapshot --all || true
+              ./owlctl repo sobr-snapshot --all || true
 
               echo ""
               echo "Snapshotting encryption passwords..."
-              ./vcli encryption snapshot --all || true
+              ./owlctl encryption snapshot --all || true
 
               echo ""
               echo "Snapshotting KMS servers..."
-              ./vcli encryption kms-snapshot --all || true
+              ./owlctl encryption kms-snapshot --all || true
 
               echo ""
               echo "State file created:"
               ls -lh state.json 2>/dev/null || echo "No state file found"
             displayName: 'Snapshot current VBR state as baseline'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
 
           - script: |
-              cd $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/owlctl
 
               echo "=========================================="
               echo "Testing Job Drift Detection"
               echo "=========================================="
 
-              ./vcli job diff --all
+              ./owlctl job diff --all
               JOB_EXIT=$?
 
               echo ""
@@ -221,34 +221,34 @@ stages:
               esac
             displayName: 'Test job diff'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
             continueOnError: true
 
           - script: |
-              cd $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/owlctl
 
               echo "=========================================="
               echo "Testing Repository Drift Detection"
               echo "=========================================="
 
-              ./vcli repo diff --all
+              ./owlctl repo diff --all
               REPO_EXIT=$?
 
               echo ""
               echo "Repository diff exit code: $REPO_EXIT"
             displayName: 'Test repo diff'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
             continueOnError: true
 
           - script: |
-              cd $(Build.SourcesDirectory)/vcli
+              cd $(Build.SourcesDirectory)/owlctl
 
               echo "=========================================="
               echo "Testing Security-Only Filtering"
               echo "=========================================="
 
-              ./vcli job diff --all --security-only
+              ./owlctl job diff --all --security-only
               EXIT_CODE=$?
 
               if [ $EXIT_CODE -eq 4 ]; then
@@ -263,7 +263,7 @@ stages:
               fi
             displayName: 'Test security drift filtering'
             env:
-              VCLI_PASSWORD: $(VCLI_PASSWORD)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
             continueOnError: true
 
   - stage: Summary
@@ -287,7 +287,7 @@ stages:
               echo "Agent: $(Agent.Name)"
               echo ""
               echo "Agent verification: Complete"
-              echo "vcli build: Check previous stages"
+              echo "owlctl build: Check previous stages"
               echo "Imperative mode tests: Check previous stages"
               echo "Declarative mode tests: Check previous stages"
               echo "=========================================="

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-02-07
+
+### Rebrand: vcli is now owlctl
+
+This release marks the rebrand from **vcli** to **owlctl** and the project's first stable release.
+
+See the [Migration Guide](docs/migration-vcli-to-owlctl.md) for upgrade instructions.
+
+### Changed
+- Renamed binary from `vcli` to `owlctl`
+- Renamed Go module from `github.com/shapedthought/vcli` to `github.com/shapedthought/owlctl`
+- Renamed all environment variables: `VCLI_*` → `OWLCTL_*`
+- Renamed config directory: `~/.vcli/` → `~/.owlctl/`
+- Renamed config file: `vcli.yaml` → `owlctl.yaml`
+- Updated API version string: `vcli.veeam.com/v1` → `owlctl.veeam.com/v1`
+- Updated keyring service name from `vcli` to `owlctl`
+- Updated all pipeline templates, Docker files, and GitHub Actions
+- Updated all documentation and examples
+
+### Fixed
+- Debug file write in job apply now gated behind `OWLCTL_DEBUG` env var with 0600 permissions
+- Fixed incorrect `owlctl job export` remediation guidance to `owlctl export`
+- Fixed typo in get command help text
+- Updated stale hardcoded version in Check Version utility
+
 ## [0.12.1-beta1] - 2026-02-06
 
 ### Fixed

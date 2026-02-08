@@ -23,12 +23,6 @@ groups:
       - specs/jobs/web-frontend.yaml
       - specs/jobs/web-api.yaml
 
-  repos:
-    description: Repository configurations
-    specs:
-      - specs/repos/production-repo.yaml
-      - specs/repos/archive-repo.yaml
-
 # Targets define named VBR server connections.
 # Use --target to switch: owlctl job apply --group sql-tier --target primary
 targets:

@@ -287,9 +287,9 @@ owlctl job diff --group sql-tier --target primary
 
 ---
 
-## Complete Multi-Environment Workflow
+## Complete Multi-Target Workflow
 
-### Group-Based Approach (Recommended)
+### Group-Based Approach (Recommended for Jobs)
 
 ```bash
 # 1. Export all resources from VBR
@@ -304,16 +304,32 @@ owlctl encryption kms-export --all -d ./specs/kms/
 
 # 3. Define groups in owlctl.yaml (see example above)
 
-# 4. Apply groups
+# 4. Apply job groups
 owlctl job apply --group sql-tier --target primary --dry-run
 owlctl job apply --group sql-tier --target primary
 
 owlctl job apply --group web-tier --target primary --dry-run
 owlctl job apply --group web-tier --target primary
 
-# 5. Verify no drift after applying
+# 5. Apply non-job resources individually
+for repo in specs/repos/*.yaml; do
+  owlctl repo apply "$repo"
+done
+
+for sobr in specs/sobrs/*.yaml; do
+  owlctl repo sobr-apply "$sobr"
+done
+
+for kms in specs/kms/*.yaml; do
+  owlctl encryption kms-apply "$kms"
+done
+
+# 6. Verify no drift after applying
 owlctl job diff --group sql-tier --target primary
 owlctl job diff --group web-tier --target primary
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption kms-diff --all
 ```
 
 ### Simpler Alternative: Single-File Overlay

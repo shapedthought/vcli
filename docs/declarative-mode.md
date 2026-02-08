@@ -16,7 +16,7 @@ Declarative mode enables infrastructure-as-code workflows for Veeam Backup & Rep
 - [Groups](#groups)
 - [Targets](#targets)
 - [Strategic Merge Behavior](#strategic-merge-behavior)
-- [Multi-Environment Workflow](#multi-environment-workflow)
+- [Multi-Target Workflow](#multi-target-workflow)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
@@ -567,15 +567,15 @@ groups:
     profile: profiles/gold.yaml         # kind: Profile — base defaults
     overlay: overlays/compliance.yaml   # kind: Overlay — policy patch
     specs:
-      - specs/sql-vm-01.yaml
-      - specs/sql-vm-02.yaml
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
 
   web-tier:
     description: Web server backups
     profile: profiles/standard.yaml
     specs:
-      - specs/web-frontend.yaml
-      - specs/web-api.yaml
+      - specs/jobs/web-frontend.yaml
+      - specs/jobs/web-api.yaml
 
 targets:
   primary:
@@ -639,7 +639,7 @@ owlctl job apply --group sql-tier --dry-run
 owlctl job apply --group sql-tier
 ```
 
-`--group` works on all resource types: jobs, repos, SOBRs, and KMS.
+`--group` is available on `job apply` and `job diff`. The apply command dispatches by `kind`, so a group can contain specs of any resource type (VBRJob, VBRRepository, VBRSOBR, VBRKmsServer).
 
 ### Diff with --group
 
@@ -796,7 +796,7 @@ labels:
   env: production         # From overlay
 ```
 
-## Multi-Environment Workflow
+## Multi-Target Workflow
 
 ### Project Structure
 

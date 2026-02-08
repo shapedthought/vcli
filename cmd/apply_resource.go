@@ -69,19 +69,22 @@ type ApplyResult struct {
 	Error        error
 }
 
-// applyResource applies a resource spec to VBR using the provided config.
-// It handles loading specs, fetching existing resources, merging, and state updates.
-// If dryRun is true, it fetches current state (read-only) and displays what would change,
-// but makes no modifications to VBR and does not update state.
+// applyResource applies a resource spec file to VBR using the provided config.
+// It loads the spec from disk, then delegates to applyResourceSpec.
 func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
-	result := ApplyResult{DryRun: dryRun}
-
-	// Load the YAML spec
 	spec, err := resources.LoadResourceSpec(specFile)
 	if err != nil {
-		result.Error = fmt.Errorf("failed to load spec file: %w", err)
-		return result
+		return ApplyResult{Error: fmt.Errorf("failed to load spec file: %w", err), DryRun: dryRun}
 	}
+	return applyResourceSpec(spec, cfg, profile, dryRun)
+}
+
+// applyResourceSpec applies a pre-loaded ResourceSpec to VBR using the provided config.
+// It handles fetching existing resources, merging, and state updates.
+// If dryRun is true, it fetches current state (read-only) and displays what would change,
+// but makes no modifications to VBR and does not update state.
+func applyResourceSpec(spec resources.ResourceSpec, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
+	result := ApplyResult{DryRun: dryRun}
 
 	result.ResourceName = spec.Metadata.Name
 

@@ -21,14 +21,6 @@ var (
 	groupName   string
 )
 
-// GroupApplyResult tracks the outcome of applying a single spec within a group
-type GroupApplyResult struct {
-	SpecPath string
-	JobName  string
-	Action   string // "created", "updated", "would-create", "would-update"
-	Error    error
-}
-
 var applyCmd = &cobra.Command{
 	Use:   "apply [config-file]",
 	Short: "Apply a declarative job configuration",
@@ -256,7 +248,7 @@ func applyGroup(group string) {
 			continue
 		}
 
-		result.JobName = mergedSpec.Metadata.Name
+		result.ResourceName = mergedSpec.Metadata.Name
 
 		// Validate kind
 		if mergedSpec.Kind != resources.KindVBRJob {
@@ -313,38 +305,6 @@ func applyGroup(group string) {
 		os.Exit(ExitPartialApply)
 	}
 	// All succeeded — exit 0 (default)
-}
-
-// printGroupApplySummary prints a summary table after group apply
-func printGroupApplySummary(group string, results []GroupApplyResult) {
-	fmt.Printf("\n=== Group Apply Summary: %s ===\n", group)
-	fmt.Printf("%-40s %-20s %-10s\n", "SPEC", "JOB NAME", "STATUS")
-	fmt.Printf("%-40s %-20s %-10s\n", "----", "--------", "------")
-
-	for _, r := range results {
-		status := r.Action
-		if r.Error != nil {
-			status = fmt.Sprintf("FAILED: %v", r.Error)
-		}
-		jobName := r.JobName
-		if jobName == "" {
-			jobName = "(unknown)"
-		}
-		fmt.Printf("%-40s %-20s %s\n", r.SpecPath, jobName, status)
-	}
-
-	// Count results
-	successCount := 0
-	failCount := 0
-	for _, r := range results {
-		if r.Error == nil {
-			successCount++
-		} else {
-			failCount++
-		}
-	}
-
-	fmt.Printf("\nTotal: %d specs, %d succeeded, %d failed\n", len(results), successCount, failCount)
 }
 
 // needsConfigOverlay checks if we should try to use owlctl.yaml overlay

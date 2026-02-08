@@ -299,6 +299,132 @@ func TestResolvePath(t *testing.T) {
 	}
 }
 
+func TestTargetConfig(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "owlctl-target-config-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "owlctl.yaml")
+	configYAML := `apiVersion: owlctl.veeam.com/v1
+kind: Config
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR server
+  dr:
+    url: https://vbr-dr.example.com
+    description: Disaster recovery site
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	cfg, err := LoadConfigFrom(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify targets parsed
+	if len(cfg.Targets) != 2 {
+		t.Fatalf("Expected 2 targets, got %d", len(cfg.Targets))
+	}
+
+	// GetTarget
+	primary, err := cfg.GetTarget("primary")
+	if err != nil {
+		t.Fatalf("GetTarget failed: %v", err)
+	}
+	if primary.URL != "https://vbr-prod.example.com" {
+		t.Errorf("Expected URL https://vbr-prod.example.com, got %s", primary.URL)
+	}
+	if primary.Description != "Production VBR server" {
+		t.Errorf("Expected description, got %s", primary.Description)
+	}
+
+	// GetTarget — not found
+	_, err = cfg.GetTarget("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent target")
+	}
+
+	// ListTargets — sorted
+	names := cfg.ListTargets()
+	if len(names) != 2 || names[0] != "dr" || names[1] != "primary" {
+		t.Errorf("Expected sorted [dr, primary], got %v", names)
+	}
+}
+
+func TestTargetConfigEmpty(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "owlctl-target-empty-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "owlctl.yaml")
+	configYAML := `apiVersion: owlctl.veeam.com/v1
+kind: Config
+groups:
+  sql-tier:
+    specs:
+      - specs/sql.yaml
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	cfg, err := LoadConfigFrom(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Targets map should be initialized but empty
+	if cfg.Targets == nil {
+		t.Error("Expected Targets to be initialized")
+	}
+	if len(cfg.Targets) != 0 {
+		t.Errorf("Expected 0 targets, got %d", len(cfg.Targets))
+	}
+
+	// ListTargets returns empty slice
+	names := cfg.ListTargets()
+	if len(names) != 0 {
+		t.Errorf("Expected 0 target names, got %d", len(names))
+	}
+}
+
+func TestTargetConfigMissingURL(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "owlctl-target-nourl-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "owlctl.yaml")
+	configYAML := `apiVersion: owlctl.veeam.com/v1
+kind: Config
+targets:
+  broken:
+    description: Missing URL field
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	cfg, err := LoadConfigFrom(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// GetTarget should fail for target with no URL
+	_, err = cfg.GetTarget("broken")
+	if err == nil {
+		t.Error("Expected error for target with missing URL")
+	}
+}
+
 func TestHasDeprecatedFields(t *testing.T) {
 	// No deprecated fields
 	cfg := &VCLIConfig{

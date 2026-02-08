@@ -337,6 +337,13 @@ Exit Codes:
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if diffGroupName != "" {
+			// Validate mutual exclusivity
+			if diffAll {
+				log.Fatal("Cannot use --group with --all")
+			}
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional job name argument")
+			}
 			diffGroup(diffGroupName)
 		} else if diffAll {
 			diffAllJobs()
@@ -587,19 +594,48 @@ func diffGroup(group string) {
 	}
 	fmt.Println()
 
+	// Pre-load profile and overlay once to avoid repeated disk I/O
+	var profileSpec, overlaySpec *resources.ResourceSpec
+	opts := resources.DefaultMergeOptions()
+
+	if profilePath != "" {
+		p, err := resources.LoadResourceSpec(profilePath)
+		if err != nil {
+			log.Fatalf("Failed to load profile %s: %v", profilePath, err)
+		}
+		profileSpec = &p
+	}
+	if overlayPath != "" {
+		o, err := resources.LoadResourceSpec(overlayPath)
+		if err != nil {
+			log.Fatalf("Failed to load overlay %s: %v", overlayPath, err)
+		}
+		overlaySpec = &o
+	}
+
 	minSev := parseSeverityFlag()
 	cleanCount := 0
 	driftedCount := 0
 	notFoundCount := 0
+	errorCount := 0
 	var allDrifts []Drift
 
 	for _, specRelPath := range groupCfg.Specs {
 		specPath := cfg.ResolvePath(specRelPath)
 
-		// Compute desired state from group merge
-		desiredSpec, err := resources.ApplyGroupMerge(specPath, profilePath, overlayPath, resources.DefaultMergeOptions())
+		// Load spec
+		spec, err := resources.LoadResourceSpec(specPath)
+		if err != nil {
+			fmt.Printf("  %s: Failed to load spec: %v\n", specRelPath, err)
+			errorCount++
+			continue
+		}
+
+		// Compute desired state from group merge using cached profile/overlay
+		desiredSpec, err := resources.ApplyGroupMergeFromSpecs(spec, profileSpec, overlaySpec, opts)
 		if err != nil {
 			fmt.Printf("  %s: Failed to merge: %v\n", specRelPath, err)
+			errorCount++
 			continue
 		}
 
@@ -617,12 +653,14 @@ func diffGroup(group string) {
 		currentBytes, err := json.Marshal(currentJob)
 		if err != nil {
 			fmt.Printf("  %s: Failed to marshal current job: %v\n", jobName, err)
+			errorCount++
 			continue
 		}
 
 		var currentMap map[string]interface{}
 		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
 			fmt.Printf("  %s: Failed to unmarshal current job: %v\n", jobName, err)
+			errorCount++
 			continue
 		}
 
@@ -658,7 +696,13 @@ func diffGroup(group string) {
 	if notFoundCount > 0 {
 		fmt.Printf("  - %d jobs not found in VBR (would be created by apply)\n", notFoundCount)
 	}
+	if errorCount > 0 {
+		fmt.Printf("  - %d specs failed to evaluate (see errors above)\n", errorCount)
+	}
 
+	if errorCount > 0 {
+		os.Exit(ExitError)
+	}
 	if driftedCount > 0 {
 		os.Exit(exitCodeForDrifts(allDrifts))
 	}

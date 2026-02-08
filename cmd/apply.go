@@ -215,14 +215,41 @@ func applyGroup(group string) {
 	}
 	fmt.Println()
 
+	// Pre-load profile and overlay once to avoid repeated disk I/O
+	var profileSpec, overlaySpec *resources.ResourceSpec
+	opts := resources.DefaultMergeOptions()
+
+	if profilePath != "" {
+		p, err := resources.LoadResourceSpec(profilePath)
+		if err != nil {
+			log.Fatalf("Failed to load profile %s: %v", profilePath, err)
+		}
+		profileSpec = &p
+	}
+	if overlayPath != "" {
+		o, err := resources.LoadResourceSpec(overlayPath)
+		if err != nil {
+			log.Fatalf("Failed to load overlay %s: %v", overlayPath, err)
+		}
+		overlaySpec = &o
+	}
+
 	var results []GroupApplyResult
 
 	for _, specRelPath := range groupCfg.Specs {
 		specPath := cfg.ResolvePath(specRelPath)
 		result := GroupApplyResult{SpecPath: specRelPath}
 
-		// Merge with group profile/overlay
-		mergedSpec, err := resources.ApplyGroupMerge(specPath, profilePath, overlayPath, resources.DefaultMergeOptions())
+		// Load spec
+		spec, err := resources.LoadResourceSpec(specPath)
+		if err != nil {
+			result.Error = fmt.Errorf("failed to load spec: %w", err)
+			results = append(results, result)
+			continue
+		}
+
+		// Merge with cached profile/overlay
+		mergedSpec, err := resources.ApplyGroupMergeFromSpecs(spec, profileSpec, overlaySpec, opts)
 		if err != nil {
 			result.Error = fmt.Errorf("merge failed: %w", err)
 			results = append(results, result)
@@ -238,17 +265,19 @@ func applyGroup(group string) {
 			continue
 		}
 
+		// Check existence BEFORE apply to correctly determine created vs updated
+		_, existedBefore := findJobByName(mergedSpec.Metadata.Name, profile)
+
 		if dryRun {
 			// Show dry-run preview for this spec
 			fmt.Printf("--- %s ---\n", specRelPath)
 			fmt.Printf("Resource: %s (%s)\n", mergedSpec.Metadata.Name, mergedSpec.Kind)
 
-			currentJob, exists := findJobByName(mergedSpec.Metadata.Name, profile)
-			if !exists {
+			if !existedBefore {
 				fmt.Println("  Would be created (not found in VBR)")
 				result.Action = "would-create"
 			} else {
-				fmt.Printf("  Found in VBR (ID: %s) — would be updated\n", currentJob.ID)
+				fmt.Printf("  Found in VBR — would be updated\n")
 				result.Action = "would-update"
 			}
 			fmt.Println()
@@ -257,9 +286,7 @@ func applyGroup(group string) {
 			if err := applyVBRJob(mergedSpec, profile); err != nil {
 				result.Error = err
 			} else {
-				// Determine action based on whether job existed
-				_, exists := findJobByName(mergedSpec.Metadata.Name, profile)
-				if exists {
+				if existedBefore {
 					result.Action = "updated"
 				} else {
 					result.Action = "created"

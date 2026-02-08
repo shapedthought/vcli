@@ -170,7 +170,11 @@ func mergeSlices(base, overlay interface{}, opts MergeOptions) (interface{}, err
 // Values from overlay override values in base. Nested maps are merged recursively.
 // This is useful for merging spec configurations.
 func DeepMergeMaps(base, overlay map[string]interface{}) (map[string]interface{}, error) {
-	opts := DefaultMergeOptions()
+	return DeepMergeMapsWithOptions(base, overlay, DefaultMergeOptions())
+}
+
+// DeepMergeMapsWithOptions performs a deep merge with explicit merge options.
+func DeepMergeMapsWithOptions(base, overlay map[string]interface{}, opts MergeOptions) (map[string]interface{}, error) {
 	result, err := mergeMapsInterface(base, overlay, opts)
 	if err != nil {
 		return nil, err
@@ -235,8 +239,8 @@ func ApplyGroupMergeFromSpec(spec ResourceSpec, profilePath, overlayPath string,
 			return ResourceSpec{}, fmt.Errorf("profile has invalid kind: %s (expected %s)", profile.Kind, KindProfile)
 		}
 
-		// Profile is base, spec overrides: DeepMergeMaps(profile.Spec, spec.Spec)
-		mergedSpec, err := DeepMergeMaps(profile.Spec, result.Spec)
+		// Profile is base, spec overrides: DeepMergeMapsWithOptions(profile.Spec, spec.Spec, opts)
+		mergedSpec, err := DeepMergeMapsWithOptions(profile.Spec, result.Spec, opts)
 		if err != nil {
 			return ResourceSpec{}, fmt.Errorf("failed to merge profile into spec: %w", err)
 		}
@@ -258,7 +262,7 @@ func ApplyGroupMergeFromSpec(spec ResourceSpec, profilePath, overlayPath string,
 		}
 
 		// Overlay overrides current spec
-		mergedSpec, err := DeepMergeMaps(result.Spec, overlay.Spec)
+		mergedSpec, err := DeepMergeMapsWithOptions(result.Spec, overlay.Spec, opts)
 		if err != nil {
 			return ResourceSpec{}, fmt.Errorf("failed to merge overlay into spec: %w", err)
 		}
@@ -267,6 +271,61 @@ func ApplyGroupMergeFromSpec(spec ResourceSpec, profilePath, overlayPath string,
 		// Merge labels: current first, then overlay overrides
 		result.Metadata.Labels = mergeMaps(result.Metadata.Labels, overlay.Metadata.Labels)
 		result.Metadata.Annotations = mergeMaps(result.Metadata.Annotations, overlay.Metadata.Annotations)
+	}
+
+	return result, nil
+}
+
+// ApplyGroupMergeFromSpecs performs a 3-way merge using already-loaded profile and overlay.
+// This avoids repeated disk I/O when processing multiple specs in a group.
+// Pass nil for profileSpec or overlaySpec to skip that merge layer.
+func ApplyGroupMergeFromSpecs(spec ResourceSpec, profileSpec, overlaySpec *ResourceSpec, opts MergeOptions) (ResourceSpec, error) {
+	if !IsResourceKind(spec.Kind) {
+		return ResourceSpec{}, fmt.Errorf("spec has non-resource kind: %s", spec.Kind)
+	}
+
+	// Preserve identity from spec
+	result := ResourceSpec{
+		APIVersion: spec.APIVersion,
+		Kind:       spec.Kind,
+		Metadata: Metadata{
+			Name:        spec.Metadata.Name,
+			Labels:      copyStringMap(spec.Metadata.Labels),
+			Annotations: copyStringMap(spec.Metadata.Annotations),
+		},
+		Spec: spec.Spec,
+	}
+
+	// Step 1: Merge profile under spec (profile provides defaults, spec wins)
+	if profileSpec != nil {
+		if profileSpec.Kind != KindProfile {
+			return ResourceSpec{}, fmt.Errorf("profile has invalid kind: %s (expected %s)", profileSpec.Kind, KindProfile)
+		}
+
+		mergedSpec, err := DeepMergeMapsWithOptions(profileSpec.Spec, result.Spec, opts)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to merge profile into spec: %w", err)
+		}
+		result.Spec = mergedSpec
+
+		result.Metadata.Labels = mergeMaps(profileSpec.Metadata.Labels, result.Metadata.Labels)
+		result.Metadata.Annotations = mergeMaps(profileSpec.Metadata.Annotations, result.Metadata.Annotations)
+	}
+
+	// Step 2: Merge overlay on top (overlay wins over everything)
+	if overlaySpec != nil {
+		if overlaySpec.Kind != KindOverlay {
+			return ResourceSpec{}, fmt.Errorf("overlay has invalid kind: %s (expected %s)", overlaySpec.Kind, KindOverlay)
+		}
+
+		mergedSpec, err := DeepMergeMapsWithOptions(result.Spec, overlaySpec.Spec, opts)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to merge overlay into spec: %w", err)
+		}
+		result.Spec = mergedSpec
+
+		result.Metadata.Labels = mergeMaps(result.Metadata.Labels, overlaySpec.Metadata.Labels)
+		result.Metadata.Annotations = mergeMaps(result.Metadata.Annotations, overlaySpec.Metadata.Annotations)
 	}
 
 	return result, nil

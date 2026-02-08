@@ -209,7 +209,8 @@ func (c *VCLIConfig) WarnDeprecatedFields() {
 		return
 	}
 	fmt.Fprintln(os.Stderr, "Warning: 'currentEnvironment' and 'environments' in owlctl.yaml are deprecated.")
-	fmt.Fprintln(os.Stderr, "         Use 'groups' instead. See docs/migration-v0.10-to-v0.11.md for details.")
+	fmt.Fprintln(os.Stderr, "         Migrate to 'groups' with profiles and overlays.")
+	fmt.Fprintln(os.Stderr, "         See docs/migration-v0.10-to-v0.11.md for migration steps.")
 }
 
 // GetEnvironmentOverlay returns the overlay file path for the given environment

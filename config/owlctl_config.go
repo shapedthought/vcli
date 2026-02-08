@@ -20,6 +20,9 @@ type VCLIConfig struct {
 	// Groups maps group names to their configuration
 	Groups map[string]GroupConfig `yaml:"groups,omitempty"`
 
+	// Targets maps target names to their VBR server connection configuration
+	Targets map[string]TargetConfig `yaml:"targets,omitempty"`
+
 	// ConfigDir is the directory containing the owlctl.yaml file.
 	// Populated during load, not serialized.
 	ConfigDir string `yaml:"-"`
@@ -34,6 +37,15 @@ type VCLIConfig struct {
 
 	// DefaultOverlayDir is the directory to search for overlay files
 	DefaultOverlayDir string `yaml:"defaultOverlayDir,omitempty"`
+}
+
+// TargetConfig defines a named VBR server connection
+type TargetConfig struct {
+	// URL is the VBR server address (e.g., "https://vbr-prod.example.com")
+	URL string `yaml:"url" json:"url"`
+
+	// Description is a human-readable description of the target
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 }
 
 // GroupConfig defines a named group of spec files with optional profile and overlay
@@ -100,6 +112,7 @@ func LoadConfig() (*VCLIConfig, error) {
 		return &VCLIConfig{
 			Environments: make(map[string]EnvironmentConfig),
 			Groups:       make(map[string]GroupConfig),
+			Targets:      make(map[string]TargetConfig),
 		}, nil
 	}
 
@@ -124,6 +137,9 @@ func LoadConfigFrom(path string) (*VCLIConfig, error) {
 	}
 	if config.Groups == nil {
 		config.Groups = make(map[string]GroupConfig)
+	}
+	if config.Targets == nil {
+		config.Targets = make(map[string]TargetConfig)
 	}
 
 	// Resolve ConfigDir from the file path
@@ -180,6 +196,28 @@ func (c *VCLIConfig) GetGroup(name string) (GroupConfig, error) {
 func (c *VCLIConfig) ListGroups() []string {
 	names := make([]string, 0, len(c.Groups))
 	for name := range c.Groups {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// GetTarget returns the target configuration for the given name
+func (c *VCLIConfig) GetTarget(name string) (TargetConfig, error) {
+	target, exists := c.Targets[name]
+	if !exists {
+		return TargetConfig{}, fmt.Errorf("target %q not found in configuration", name)
+	}
+	if target.URL == "" {
+		return TargetConfig{}, fmt.Errorf("target %q has no URL configured", name)
+	}
+	return target, nil
+}
+
+// ListTargets returns sorted target names
+func (c *VCLIConfig) ListTargets() []string {
+	names := make([]string, 0, len(c.Targets))
+	for name := range c.Targets {
 		names = append(names, name)
 	}
 	sort.Strings(names)

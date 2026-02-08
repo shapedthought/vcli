@@ -33,7 +33,9 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("--target %q: %w", targetFlag, err)
 		}
 
-		os.Setenv("OWLCTL_URL", target.URL)
+		if err := os.Setenv("OWLCTL_URL", target.URL); err != nil {
+			return fmt.Errorf("failed to set OWLCTL_URL: %w", err)
+		}
 		return nil
 	},
 }

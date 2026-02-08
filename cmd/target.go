@@ -60,7 +60,12 @@ var targetListCmd = &cobra.Command{
 		if targetListJSON {
 			out := make(map[string]config.TargetConfig)
 			for _, name := range names {
-				target, _ := cfg.GetTarget(name)
+				target, err := cfg.GetTarget(name)
+				if err != nil {
+					// Include raw config even if validation fails (e.g. missing URL)
+					out[name] = cfg.Targets[name]
+					continue
+				}
 				out[name] = target
 			}
 			data, err := json.MarshalIndent(out, "", "  ")
@@ -75,7 +80,11 @@ var targetListCmd = &cobra.Command{
 		fmt.Printf("%-20s %-40s %s\n", "----", "---", "-----------")
 
 		for _, name := range names {
-			target, _ := cfg.GetTarget(name)
+			target, err := cfg.GetTarget(name)
+			if err != nil {
+				fmt.Printf("%-20s %-40s %s\n", name, "<no url>", cfg.Targets[name].Description)
+				continue
+			}
 
 			desc := target.Description
 			if len(desc) > 40 {

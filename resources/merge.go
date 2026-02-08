@@ -193,6 +193,97 @@ func mergeMaps(base, overlay map[string]string) map[string]string {
 	return result
 }
 
+// ApplyGroupMerge performs a 3-way merge for group-based apply/diff.
+// Merge order: Profile (base defaults) -> Spec (identity + exceptions) -> Overlay (policy, wins over everything).
+// The spec's Kind, APIVersion, and Metadata.Name are always preserved.
+// Labels are merged additively across all layers.
+func ApplyGroupMerge(specPath, profilePath, overlayPath string, opts MergeOptions) (ResourceSpec, error) {
+	spec, err := LoadResourceSpec(specPath)
+	if err != nil {
+		return ResourceSpec{}, fmt.Errorf("failed to load spec: %w", err)
+	}
+
+	return ApplyGroupMergeFromSpec(spec, profilePath, overlayPath, opts)
+}
+
+// ApplyGroupMergeFromSpec performs a 3-way merge using an already-loaded spec.
+// This is useful for diff where the spec is already in memory.
+func ApplyGroupMergeFromSpec(spec ResourceSpec, profilePath, overlayPath string, opts MergeOptions) (ResourceSpec, error) {
+	if !IsResourceKind(spec.Kind) {
+		return ResourceSpec{}, fmt.Errorf("spec has non-resource kind: %s", spec.Kind)
+	}
+
+	// Preserve identity from spec
+	result := ResourceSpec{
+		APIVersion: spec.APIVersion,
+		Kind:       spec.Kind,
+		Metadata: Metadata{
+			Name:        spec.Metadata.Name,
+			Labels:      copyStringMap(spec.Metadata.Labels),
+			Annotations: copyStringMap(spec.Metadata.Annotations),
+		},
+		Spec: spec.Spec,
+	}
+
+	// Step 1: Merge profile under spec (profile provides defaults, spec wins)
+	if profilePath != "" {
+		profile, err := LoadResourceSpec(profilePath)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to load profile: %w", err)
+		}
+		if profile.Kind != KindProfile {
+			return ResourceSpec{}, fmt.Errorf("profile has invalid kind: %s (expected %s)", profile.Kind, KindProfile)
+		}
+
+		// Profile is base, spec overrides: DeepMergeMaps(profile.Spec, spec.Spec)
+		mergedSpec, err := DeepMergeMaps(profile.Spec, result.Spec)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to merge profile into spec: %w", err)
+		}
+		result.Spec = mergedSpec
+
+		// Merge labels: profile first, then spec overrides
+		result.Metadata.Labels = mergeMaps(profile.Metadata.Labels, result.Metadata.Labels)
+		result.Metadata.Annotations = mergeMaps(profile.Metadata.Annotations, result.Metadata.Annotations)
+	}
+
+	// Step 2: Merge overlay on top (overlay wins over everything)
+	if overlayPath != "" {
+		overlay, err := LoadResourceSpec(overlayPath)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to load overlay: %w", err)
+		}
+		if overlay.Kind != KindOverlay {
+			return ResourceSpec{}, fmt.Errorf("overlay has invalid kind: %s (expected %s)", overlay.Kind, KindOverlay)
+		}
+
+		// Overlay overrides current spec
+		mergedSpec, err := DeepMergeMaps(result.Spec, overlay.Spec)
+		if err != nil {
+			return ResourceSpec{}, fmt.Errorf("failed to merge overlay into spec: %w", err)
+		}
+		result.Spec = mergedSpec
+
+		// Merge labels: current first, then overlay overrides
+		result.Metadata.Labels = mergeMaps(result.Metadata.Labels, overlay.Metadata.Labels)
+		result.Metadata.Annotations = mergeMaps(result.Metadata.Annotations, overlay.Metadata.Annotations)
+	}
+
+	return result, nil
+}
+
+// copyStringMap returns a shallow copy of a string map, or nil if input is nil
+func copyStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]string, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
 // MergeYAMLFiles loads two YAML files and merges them
 // This is a convenience function for the CLI
 func MergeYAMLFiles(basePath, overlayPath string, opts MergeOptions) (ResourceSpec, error) {

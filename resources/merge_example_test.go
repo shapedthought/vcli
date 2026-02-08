@@ -153,3 +153,266 @@ func TestMergeExampleFiles(t *testing.T) {
 	mergedYAML, _ := yaml.Marshal(merged)
 	t.Logf("Merged result:\n%s", string(mergedYAML))
 }
+
+// TestApplyGroupMerge tests the 3-way group merge (Profile + Spec + Overlay)
+func TestApplyGroupMerge(t *testing.T) {
+	// Create temp directory for test files
+	tmpDir, err := os.MkdirTemp("", "owlctl-group-merge-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create profile (kind: Profile - base defaults)
+	profile := resources.ResourceSpec{
+		APIVersion: "owlctl.veeam.com/v1",
+		Kind:       "Profile",
+		Metadata: resources.Metadata{
+			Name:   "gold-standard",
+			Labels: map[string]string{"tier": "gold", "managed-by": "owlctl"},
+		},
+		Spec: map[string]interface{}{
+			"type":        "VSphereBackup",
+			"description": "Gold standard backup policy",
+			"storage": map[string]interface{}{
+				"compression": "Optimal",
+				"retention": map[string]interface{}{
+					"type":     "Days",
+					"quantity": 30,
+				},
+			},
+			"schedule": map[string]interface{}{
+				"daily": map[string]interface{}{
+					"isEnabled": true,
+					"localTime": "22:00",
+				},
+			},
+		},
+	}
+
+	// Create spec (kind: VBRJob - identity + exceptions)
+	spec := resources.ResourceSpec{
+		APIVersion: "owlctl.veeam.com/v1",
+		Kind:       "VBRJob",
+		Metadata: resources.Metadata{
+			Name:   "sql-backup",
+			Labels: map[string]string{"app": "database", "managed-by": "spec-override"},
+		},
+		Spec: map[string]interface{}{
+			"description": "SQL Server backup",
+			"virtualMachines": map[string]interface{}{
+				"includes": []interface{}{"sql-vm-01", "sql-vm-02"},
+			},
+			"storage": map[string]interface{}{
+				"retention": map[string]interface{}{
+					"quantity": 14,
+				},
+			},
+		},
+	}
+
+	// Create overlay (kind: Overlay - policy patch)
+	overlay := resources.ResourceSpec{
+		APIVersion: "owlctl.veeam.com/v1",
+		Kind:       "Overlay",
+		Metadata: resources.Metadata{
+			Name:   "compliance-patch",
+			Labels: map[string]string{"compliance": "sox"},
+		},
+		Spec: map[string]interface{}{
+			"storage": map[string]interface{}{
+				"advancedSettings": map[string]interface{}{
+					"storageData": map[string]interface{}{
+						"encryption": map[string]interface{}{
+							"isEnabled": true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Save all files
+	profilePath := filepath.Join(tmpDir, "profile.yaml")
+	specPath := filepath.Join(tmpDir, "spec.yaml")
+	overlayPath := filepath.Join(tmpDir, "overlay.yaml")
+
+	if err := resources.SaveResourceSpec(profile, profilePath); err != nil {
+		t.Fatalf("Failed to save profile: %v", err)
+	}
+	if err := resources.SaveResourceSpec(spec, specPath); err != nil {
+		t.Fatalf("Failed to save spec: %v", err)
+	}
+	if err := resources.SaveResourceSpec(overlay, overlayPath); err != nil {
+		t.Fatalf("Failed to save overlay: %v", err)
+	}
+
+	t.Run("ProfileAndSpec", func(t *testing.T) {
+		merged, err := resources.ApplyGroupMerge(specPath, profilePath, "", resources.DefaultMergeOptions())
+		if err != nil {
+			t.Fatalf("ApplyGroupMerge failed: %v", err)
+		}
+
+		// Spec metadata preserved
+		if merged.Kind != "VBRJob" {
+			t.Errorf("Expected Kind=VBRJob, got %s", merged.Kind)
+		}
+		if merged.Metadata.Name != "sql-backup" {
+			t.Errorf("Expected Name=sql-backup, got %s", merged.Metadata.Name)
+		}
+
+		// Spec description overrides profile
+		if desc, ok := merged.Spec["description"].(string); !ok || desc != "SQL Server backup" {
+			t.Errorf("Expected description from spec, got %v", merged.Spec["description"])
+		}
+
+		// Profile type used (spec didn't set it)
+		if typ, ok := merged.Spec["type"].(string); !ok || typ != "VSphereBackup" {
+			t.Errorf("Expected type from profile, got %v", merged.Spec["type"])
+		}
+
+		// Spec retention overrides profile retention quantity
+		storage, _ := merged.Spec["storage"].(map[string]interface{})
+		retention, _ := storage["retention"].(map[string]interface{})
+		if quantity, ok := retention["quantity"].(int); !ok || quantity != 14 {
+			t.Errorf("Expected retention quantity=14 from spec, got %v", retention["quantity"])
+		}
+		// Profile retention type preserved
+		if retType, ok := retention["type"].(string); !ok || retType != "Days" {
+			t.Errorf("Expected retention type=Days from profile, got %v", retention["type"])
+		}
+
+		// Profile compression preserved
+		if comp, ok := storage["compression"].(string); !ok || comp != "Optimal" {
+			t.Errorf("Expected compression=Optimal from profile, got %v", storage["compression"])
+		}
+
+		// Labels merged additively, spec wins on conflict
+		if merged.Metadata.Labels["tier"] != "gold" {
+			t.Errorf("Expected label tier=gold from profile, got %v", merged.Metadata.Labels["tier"])
+		}
+		if merged.Metadata.Labels["app"] != "database" {
+			t.Errorf("Expected label app=database from spec, got %v", merged.Metadata.Labels["app"])
+		}
+		if merged.Metadata.Labels["managed-by"] != "spec-override" {
+			t.Errorf("Expected label managed-by=spec-override (spec wins), got %v", merged.Metadata.Labels["managed-by"])
+		}
+	})
+
+	t.Run("SpecAndOverlay", func(t *testing.T) {
+		merged, err := resources.ApplyGroupMerge(specPath, "", overlayPath, resources.DefaultMergeOptions())
+		if err != nil {
+			t.Fatalf("ApplyGroupMerge failed: %v", err)
+		}
+
+		// Spec metadata preserved
+		if merged.Metadata.Name != "sql-backup" {
+			t.Errorf("Expected Name=sql-backup, got %s", merged.Metadata.Name)
+		}
+
+		// Overlay encryption added
+		storage, _ := merged.Spec["storage"].(map[string]interface{})
+		advanced, _ := storage["advancedSettings"].(map[string]interface{})
+		storageData, _ := advanced["storageData"].(map[string]interface{})
+		encryption, _ := storageData["encryption"].(map[string]interface{})
+		if isEnabled, ok := encryption["isEnabled"].(bool); !ok || !isEnabled {
+			t.Errorf("Expected encryption.isEnabled=true from overlay, got %v", encryption["isEnabled"])
+		}
+
+		// Spec fields preserved
+		if desc, ok := merged.Spec["description"].(string); !ok || desc != "SQL Server backup" {
+			t.Errorf("Expected description from spec, got %v", merged.Spec["description"])
+		}
+
+		// Labels: spec + overlay combined
+		if merged.Metadata.Labels["compliance"] != "sox" {
+			t.Errorf("Expected label compliance=sox from overlay, got %v", merged.Metadata.Labels["compliance"])
+		}
+		if merged.Metadata.Labels["app"] != "database" {
+			t.Errorf("Expected label app=database from spec, got %v", merged.Metadata.Labels["app"])
+		}
+	})
+
+	t.Run("FullThreeWayMerge", func(t *testing.T) {
+		merged, err := resources.ApplyGroupMerge(specPath, profilePath, overlayPath, resources.DefaultMergeOptions())
+		if err != nil {
+			t.Fatalf("ApplyGroupMerge failed: %v", err)
+		}
+
+		// Identity from spec
+		if merged.Kind != "VBRJob" {
+			t.Errorf("Expected Kind=VBRJob, got %s", merged.Kind)
+		}
+		if merged.Metadata.Name != "sql-backup" {
+			t.Errorf("Expected Name=sql-backup, got %s", merged.Metadata.Name)
+		}
+
+		// Profile type preserved
+		if typ, ok := merged.Spec["type"].(string); !ok || typ != "VSphereBackup" {
+			t.Errorf("Expected type from profile, got %v", merged.Spec["type"])
+		}
+
+		// Spec description preserved
+		if desc, ok := merged.Spec["description"].(string); !ok || desc != "SQL Server backup" {
+			t.Errorf("Expected description from spec, got %v", merged.Spec["description"])
+		}
+
+		// Overlay encryption added
+		storage, _ := merged.Spec["storage"].(map[string]interface{})
+		advanced, _ := storage["advancedSettings"].(map[string]interface{})
+		storageData, _ := advanced["storageData"].(map[string]interface{})
+		encryption, _ := storageData["encryption"].(map[string]interface{})
+		if isEnabled, ok := encryption["isEnabled"].(bool); !ok || !isEnabled {
+			t.Errorf("Expected encryption.isEnabled=true from overlay, got %v", encryption["isEnabled"])
+		}
+
+		// All three label sources combined
+		expectedLabels := map[string]string{
+			"tier":       "gold",
+			"app":        "database",
+			"managed-by": "spec-override",
+			"compliance": "sox",
+		}
+		for k, v := range expectedLabels {
+			if merged.Metadata.Labels[k] != v {
+				t.Errorf("Expected label %s=%s, got %s", k, v, merged.Metadata.Labels[k])
+			}
+		}
+	})
+
+	t.Run("InvalidProfileKind", func(t *testing.T) {
+		// Use a VBRJob file as profile — should fail
+		_, err := resources.ApplyGroupMerge(specPath, specPath, "", resources.DefaultMergeOptions())
+		if err == nil {
+			t.Fatal("Expected error for invalid profile kind")
+		}
+	})
+
+	t.Run("InvalidOverlayKind", func(t *testing.T) {
+		// Use a Profile file as overlay — should fail
+		_, err := resources.ApplyGroupMerge(specPath, "", profilePath, resources.DefaultMergeOptions())
+		if err == nil {
+			t.Fatal("Expected error for invalid overlay kind")
+		}
+	})
+
+	t.Run("SpecMetadataPreservedThroughAllMerges", func(t *testing.T) {
+		merged, err := resources.ApplyGroupMerge(specPath, profilePath, overlayPath, resources.DefaultMergeOptions())
+		if err != nil {
+			t.Fatalf("ApplyGroupMerge failed: %v", err)
+		}
+
+		// metadata.name must ALWAYS come from spec, never profile or overlay
+		if merged.Metadata.Name != "sql-backup" {
+			t.Errorf("Expected metadata.name=sql-backup preserved from spec, got %s", merged.Metadata.Name)
+		}
+
+		// apiVersion and kind from spec
+		if merged.APIVersion != "owlctl.veeam.com/v1" {
+			t.Errorf("Expected apiVersion from spec, got %s", merged.APIVersion)
+		}
+		if merged.Kind != "VBRJob" {
+			t.Errorf("Expected Kind from spec, got %s", merged.Kind)
+		}
+	})
+}

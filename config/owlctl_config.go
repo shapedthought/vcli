@@ -4,12 +4,28 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"gopkg.in/yaml.v3"
 )
 
 // VCLIConfig represents the owlctl.yaml configuration file
 type VCLIConfig struct {
+	// APIVersion is the config schema version
+	APIVersion string `yaml:"apiVersion,omitempty"`
+
+	// Kind is the config document kind
+	Kind string `yaml:"kind,omitempty"`
+
+	// Groups maps group names to their configuration
+	Groups map[string]GroupConfig `yaml:"groups,omitempty"`
+
+	// ConfigDir is the directory containing the owlctl.yaml file.
+	// Populated during load, not serialized.
+	ConfigDir string `yaml:"-"`
+
+	// Legacy fields (still parsed, deprecated)
+
 	// CurrentEnvironment is the active environment (e.g., "production", "dev")
 	CurrentEnvironment string `yaml:"currentEnvironment,omitempty"`
 
@@ -18,6 +34,21 @@ type VCLIConfig struct {
 
 	// DefaultOverlayDir is the directory to search for overlay files
 	DefaultOverlayDir string `yaml:"defaultOverlayDir,omitempty"`
+}
+
+// GroupConfig defines a named group of spec files with optional profile and overlay
+type GroupConfig struct {
+	// Description is a human-readable description of the group
+	Description string `yaml:"description,omitempty"`
+
+	// Profile is the path to a Profile YAML file (base defaults)
+	Profile string `yaml:"profile,omitempty"`
+
+	// Overlay is the path to an Overlay YAML file (policy patch)
+	Overlay string `yaml:"overlay,omitempty"`
+
+	// Specs is the list of spec file paths in this group
+	Specs []string `yaml:"specs"`
 }
 
 // EnvironmentConfig defines settings for a specific environment
@@ -68,6 +99,7 @@ func LoadConfig() (*VCLIConfig, error) {
 	if configPath == "" {
 		return &VCLIConfig{
 			Environments: make(map[string]EnvironmentConfig),
+			Groups:       make(map[string]GroupConfig),
 		}, nil
 	}
 
@@ -89,6 +121,17 @@ func LoadConfigFrom(path string) (*VCLIConfig, error) {
 	// Initialize maps if nil
 	if config.Environments == nil {
 		config.Environments = make(map[string]EnvironmentConfig)
+	}
+	if config.Groups == nil {
+		config.Groups = make(map[string]GroupConfig)
+	}
+
+	// Resolve ConfigDir from the file path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		config.ConfigDir = filepath.Dir(path)
+	} else {
+		config.ConfigDir = filepath.Dir(absPath)
 	}
 
 	return &config, nil
@@ -122,6 +165,51 @@ func SaveConfigTo(config *VCLIConfig, path string) error {
 	}
 
 	return nil
+}
+
+// GetGroup returns the group configuration for the given name
+func (c *VCLIConfig) GetGroup(name string) (GroupConfig, error) {
+	group, exists := c.Groups[name]
+	if !exists {
+		return GroupConfig{}, fmt.Errorf("group %q not found in configuration", name)
+	}
+	return group, nil
+}
+
+// ListGroups returns sorted group names
+func (c *VCLIConfig) ListGroups() []string {
+	names := make([]string, 0, len(c.Groups))
+	for name := range c.Groups {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// ResolvePath resolves a path relative to the owlctl.yaml file's directory.
+// If the path is already absolute, it is returned as-is.
+func (c *VCLIConfig) ResolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if c.ConfigDir == "" {
+		return path
+	}
+	return filepath.Join(c.ConfigDir, path)
+}
+
+// HasDeprecatedFields returns true if the config uses deprecated fields
+func (c *VCLIConfig) HasDeprecatedFields() bool {
+	return c.CurrentEnvironment != "" || len(c.Environments) > 0
+}
+
+// WarnDeprecatedFields prints a deprecation warning to stderr if deprecated fields are in use
+func (c *VCLIConfig) WarnDeprecatedFields() {
+	if !c.HasDeprecatedFields() {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "Warning: 'currentEnvironment' and 'environments' in owlctl.yaml are deprecated.")
+	fmt.Fprintln(os.Stderr, "         Use 'groups' instead. See docs/migration-v0.10-to-v0.11.md for details.")
 }
 
 // GetEnvironmentOverlay returns the overlay file path for the given environment

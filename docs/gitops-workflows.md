@@ -92,10 +92,13 @@ vbr-infrastructure/
 ├── .owlctl/
 │   ├── settings.json              # owlctl settings (commit this)
 │   └── profiles.json              # API profiles (commit this)
+├── profiles/
+│   ├── gold.yaml                  # kind: Profile — high retention, encryption
+│   └── standard.yaml              # kind: Profile — standard defaults
 ├── specs/
 │   ├── jobs/
-│   │   ├── database-backup.yaml
-│   │   ├── web-tier-backup.yaml
+│   │   ├── sql-vm-01.yaml
+│   │   ├── web-frontend.yaml
 │   │   └── fileserver-backup.yaml
 │   ├── repos/
 │   │   ├── production-repo.yaml
@@ -107,18 +110,12 @@ vbr-infrastructure/
 │   └── encryption/
 │       └── backup-encryption.yaml
 ├── overlays/
-│   ├── prod/
-│   │   ├── database-backup-overlay.yaml
-│   │   └── repo-overlay.yaml
-│   ├── staging/
-│   │   └── database-backup-overlay.yaml
-│   └── dev/
-│       └── database-backup-overlay.yaml
+│   └── compliance.yaml            # kind: Overlay — policy overrides
 ├── scripts/
 │   ├── apply-all.sh               # Helper script to apply all configs
 │   └── snapshot-all.sh            # Helper script to snapshot all resources
 ├── .gitignore
-├── owlctl.yaml                      # Environment configuration (optional)
+├── owlctl.yaml                      # Groups and targets configuration
 ├── README.md
 └── CHANGELOG.md
 ```
@@ -247,37 +244,46 @@ variables:
   OWLCTL_URL: $VBR_URL
 ```
 
-### owlctl.yaml for Multi-Environment Configuration
+### owlctl.yaml for Groups and Targets
 
-Optional file for environment-aware deployments:
+Optional file for group-based deployments and multi-server targeting:
 
 ```yaml
-# owlctl.yaml - Environment configuration
-currentEnvironment: production
+# owlctl.yaml - Groups and targets
+apiVersion: v1
+kind: Config
 
-defaultOverlayDir: ./overlays
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
 
-environments:
-  production:
-    overlay: prod/database-backup-overlay.yaml
-    profile: vbr
+  web-tier:
+    description: Web server backups
+    profile: profiles/standard.yaml
+    specs:
+      - specs/jobs/web-frontend.yaml
 
-  staging:
-    overlay: staging/database-backup-overlay.yaml
-    profile: vbr
-
-  development:
-    overlay: dev/database-backup-overlay.yaml
-    profile: vbr
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
+  dr:
+    url: https://vbr-dr.example.com
+    description: DR site
 ```
 
 Then in pipelines:
 ```bash
-# Uses production overlay automatically
-owlctl job apply specs/jobs/database-backup.yaml
+# Apply a group to the production target
+owlctl job apply --group sql-tier --target primary
 
-# Override to use specific environment
-owlctl job apply specs/jobs/database-backup.yaml --env development
+# Apply same group to DR
+owlctl job apply --group sql-tier --target dr
 ```
 
 ## CI/CD Platform Integration
@@ -309,12 +315,13 @@ jobs:
 
       - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Verify owlctl checksum
         run: |
-          echo "$(curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/checksums.txt | grep owlctl-linux-amd64 | awk '{print $1}')  owlctl" | sha256sum -c
+          echo "$(curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/checksums.txt | grep owlctl-linux-amd64.tar.gz | awk '{print $1}')  owlctl.tar.gz" | sha256sum -c
 
       - name: Configure owlctl
         env:
@@ -384,7 +391,8 @@ jobs:
 
       - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Configure owlctl
@@ -483,7 +491,8 @@ jobs:
 
       - name: Download owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Configure owlctl
@@ -584,7 +593,8 @@ variables:
 
 steps:
   - script: |
-      curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+      curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+      tar xzf owlctl.tar.gz
       chmod +x owlctl
       ./owlctl profile --set vbr
       ./owlctl login
@@ -623,7 +633,8 @@ variables:
 .owlctl-setup: &owlctl-setup
   before_script:
     - apt-get update && apt-get install -y curl
-    - curl -sL https://github.com/shapedthought/owlctl/releases/${VCLI_VERSION}/download/owlctl-linux-amd64 -o owlctl
+    - curl -sL https://github.com/shapedthought/owlctl/releases/${VCLI_VERSION}/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+    - tar xzf owlctl.tar.gz
     - chmod +x owlctl
     - ./owlctl profile --set vbr
     - ./owlctl login
@@ -951,7 +962,8 @@ jobs:
 
       - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Configure owlctl
@@ -997,21 +1009,39 @@ jobs:
 - Filter with `--security-only` to reduce noise
 - Separate detection from remediation (manual approval)
 
-### Pattern 3: Multi-Environment Deployment
+### Pattern 3: Multi-Target Deployment with Groups
 
-**Goal:** Deploy same configuration to dev → staging → prod with environment-specific overlays.
+**Goal:** Deploy groups to dev → staging → prod using named targets with progressive rollout.
 
-**Repository structure:**
-```
-specs/jobs/database-backup.yaml       # Base configuration
-overlays/dev/database-backup.yaml     # Dev overrides (3-day retention)
-overlays/staging/database-backup.yaml # Staging overrides (7-day retention)
-overlays/prod/database-backup.yaml    # Prod overrides (30-day retention)
+**owlctl.yaml:**
+```yaml
+apiVersion: v1
+kind: Config
+
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
+
+targets:
+  dev:
+    url: https://vbr-dev.example.com
+    description: Development VBR
+  staging:
+    url: https://vbr-staging.example.com
+    description: Staging VBR
+  prod:
+    url: https://vbr-prod.example.com
+    description: Production VBR
 ```
 
 **GitHub Actions example:**
 ```yaml
-name: Multi-Environment Deploy
+name: Multi-Target Deploy
 
 on:
   push:
@@ -1025,18 +1055,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Deploy to dev
         env:
           OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
           OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
-          OWLCTL_URL: ${{ secrets.VBR_URL_DEV }}
         run: |
           ./owlctl profile --set vbr
           ./owlctl login
-          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/dev/database-backup.yaml
+          ./owlctl job apply --group sql-tier --target dev
 
   deploy-staging:
     runs-on: ubuntu-latest
@@ -1046,18 +1076,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Deploy to staging
         env:
           OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_STAGING }}
           OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_STAGING }}
-          OWLCTL_URL: ${{ secrets.VBR_URL_STAGING }}
         run: |
           ./owlctl profile --set vbr
           ./owlctl login
-          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/staging/database-backup.yaml
+          ./owlctl job apply --group sql-tier --target staging
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -1067,22 +1097,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Deploy to production
         env:
           OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
           OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
-          OWLCTL_URL: ${{ secrets.VBR_URL }}
         run: |
           ./owlctl profile --set vbr
           ./owlctl login
-          ./owlctl job apply specs/jobs/database-backup.yaml -o overlays/prod/database-backup.yaml
+          ./owlctl job apply --group sql-tier --target prod
 
       - name: Verify deployment
         run: |
-          ./owlctl job diff "Database Backup"
+          ./owlctl job diff --group sql-tier --target prod
           if [ $? -ne 0 ]; then
             echo "::error::Drift detected after production deployment"
             exit 1
@@ -1092,7 +1122,8 @@ jobs:
 **Benefits:**
 - Progressive rollout (dev → staging → prod)
 - Approval gates for production
-- Environment-specific configuration via overlays
+- Group-based deployment with profile+overlay merge
+- Named targets keep `owlctl.yaml` as single source of truth
 - Rollback by reverting Git commit
 
 ### Pattern 4: Auto-Remediation with Approval
@@ -1163,7 +1194,8 @@ jobs:
 
       - name: Setup owlctl
         run: |
-          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+          tar xzf owlctl.tar.gz
           chmod +x owlctl
 
       - name: Configure owlctl
@@ -1660,7 +1692,8 @@ jobs:
 # Download and make executable
 - name: Install owlctl
   run: |
-    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+    tar xzf owlctl.tar.gz
     chmod +x owlctl
 
 # Use with explicit path
@@ -1672,7 +1705,8 @@ jobs:
 ```yaml
 - name: Install owlctl to PATH
   run: |
-    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64 -o owlctl
+    curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz -o owlctl.tar.gz
+    tar xzf owlctl.tar.gz
     chmod +x owlctl
     sudo mv owlctl /usr/local/bin/
 

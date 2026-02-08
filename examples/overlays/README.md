@@ -132,47 +132,44 @@ owlctl job plan ../jobs/database-backup.yaml -o prod/database-backup-overlay.yam
 owlctl job apply ../jobs/database-backup.yaml -o prod/database-backup-overlay.yaml --dry-run
 ```
 
-### Using owlctl.yaml for Environments
+### Groups and Overlays
 
-Create `owlctl.yaml` to manage multiple environments:
+Overlays work both standalone (via the `-o` flag) and as part of a group. When using groups, the overlay is automatically applied to every spec in the group.
+
+Define groups in `owlctl.yaml`:
 
 ```yaml
 # owlctl.yaml (in project root)
-currentEnvironment: production
-defaultOverlayDir: ./overlays
+apiVersion: v1
+kind: Config
 
-environments:
-  production:
-    overlay: prod/database-backup-overlay.yaml
-    profile: vbr-prod
-    labels:
-      environment: production
-
-  development:
-    overlay: dev/database-backup-overlay.yaml
-    profile: vbr-dev
-    labels:
-      environment: development
+groups:
+  database-prod:
+    description: Production database backups
+    profile: profiles/gold.yaml           # kind: Profile — base defaults
+    overlay: prod/database-backup-overlay.yaml  # kind: Overlay — policy patch
+    specs:
+      - ../jobs/database-backup.yaml
 ```
 
-Then use `--env` flag:
+Then use `--group`:
 ```bash
-# Apply production (uses prod overlay from owlctl.yaml)
-owlctl job apply database-backup.yaml --env production
-
-# Apply development (uses dev overlay from owlctl.yaml)
-owlctl job apply database-backup.yaml --env development
+# Apply the entire group (profile + spec + overlay merged)
+owlctl job apply --group database-prod
 
 # Preview what would be applied
-owlctl job plan database-backup.yaml --env production
+owlctl job apply --group database-prod --dry-run
+
+# Drift check
+owlctl job diff --group database-prod
 ```
 
-### Overlay Resolution Priority
+For simpler cases without groups, use `-o` directly:
+```bash
+owlctl job apply database-backup.yaml -o prod/database-backup-overlay.yaml
+```
 
-1. **Explicit `-o` flag** (highest priority)
-2. **`--env` flag** (looks up in owlctl.yaml)
-3. **`currentEnvironment`** from owlctl.yaml
-4. **No overlay** (base only)
+See [Declarative Mode Guide — Groups](../../docs/declarative-mode.md#groups) for the full groups reference.
 
 ## Available Overlays
 

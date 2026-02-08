@@ -13,9 +13,10 @@ Declarative mode enables infrastructure-as-code workflows for Veeam Backup & Rep
 - [State Management](#state-management)
 - [Drift Detection](#drift-detection)
 - [Configuration Overlays](#configuration-overlays)
-- [Environment Configuration](#environment-configuration)
+- [Groups](#groups)
+- [Targets](#targets)
 - [Strategic Merge Behavior](#strategic-merge-behavior)
-- [Multi-Environment Workflow](#multi-environment-workflow)
+- [Multi-Target Workflow](#multi-target-workflow)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
@@ -23,15 +24,15 @@ Declarative mode enables infrastructure-as-code workflows for Veeam Backup & Rep
 
 Declarative mode allows you to:
 - Define backup infrastructure as YAML configuration files
-- Apply environment-specific overlays (prod, dev, staging)
+- Organize specs into groups with shared profiles and overlays
+- Target multiple VBR servers from a single configuration
 - Track configurations in version control (Git)
 - Detect configuration drift from desired state
-- Manage multiple environments from a single base template
 - Automate deployments with CI/CD pipelines
 
 **When to use declarative mode:**
 - Infrastructure-as-code workflows
-- Multi-environment deployments (dev/staging/prod)
+- Group-based deployments across multiple VBR servers
 - Drift detection and monitoring
 - GitOps automation
 - Configuration standardization
@@ -88,26 +89,36 @@ owlctl supports declarative management for these VBR resource types:
 
 ## Key Concepts
 
-### 1. Base Configuration
-A base YAML file defines common settings shared across all environments.
+### 1. Specs (Base Configuration)
+A spec YAML file defines the identity and settings of a single resource (job, repository, SOBR, etc.). Specs use resource kinds like `VBRJob`, `VBRRepository`, `VBRSOBR`, or `VBRKmsServer`.
 
 ### 2. Overlays
-Overlay files contain environment-specific changes that merge with the base.
+Overlay files (`kind: Overlay`) contain policy-level changes that merge on top of a spec. They have the highest priority in the merge order.
 
-### 3. Strategic Merge
-owlctl uses strategic merge to combine base + overlay:
-- Maps are merged recursively (nested objects)
-- Arrays are replaced (overlay replaces base)
-- Labels/annotations are combined
-- Base values preserved unless overridden
+### 3. Profiles
+Profile files (`kind: Profile`) define organizational defaults (retention standards, compression settings, schedule patterns). They provide a foundation that specs build upon. Profiles have the lowest priority in the merge order.
 
-### 4. State Management
+### 4. Groups
+A group bundles multiple specs with a shared profile and overlay. Defined in `owlctl.yaml`, groups enable batch apply and drift detection with a single command (`--group`).
+
+### 5. Targets
+Targets define named VBR server connections in `owlctl.yaml`. Use `--target` to apply the same group to different VBR servers (e.g., production and DR).
+
+### 6. Strategic Merge
+owlctl uses strategic merge to combine layers. The merge order is:
+1. **Profile** (defaults) — lowest priority
+2. **Spec** (identity and exceptions)
+3. **Overlay** (policy patch) — highest priority
+
+Maps are merged recursively, arrays are replaced, and labels are combined across all layers.
+
+### 7. State Management
 owlctl maintains state in `state.json` to track:
 - Last known configuration of each resource
 - When snapshots were taken
 - Configuration origin (applied vs adopted)
 
-### 5. Drift Detection
+### 8. Drift Detection
 Compare live VBR configuration against desired state to detect unauthorized changes with security-aware severity classification.
 
 ## Export Resources
@@ -197,11 +208,11 @@ owlctl job apply my-job.yaml
 # Preview changes without applying (recommended)
 owlctl job apply my-job.yaml --dry-run
 
-# Apply with environment overlay
+# Apply with overlay
 owlctl job apply base-job.yaml -o prod-overlay.yaml
 
-# Apply using environment from owlctl.yaml
-owlctl job apply base-job.yaml --env production
+# Apply all specs in a group (profile + spec + overlay merge)
+owlctl job apply --group sql-tier
 ```
 
 **Note:** Jobs support both creation (POST) and updates (PUT).
@@ -539,39 +550,63 @@ owlctl job apply base-backup.yaml -o overlays/prod-overlay.yaml
 owlctl job apply base-backup.yaml -o overlays/dev-overlay.yaml
 ```
 
-## Environment Configuration
+## Groups
 
-The `owlctl.yaml` file manages environment-specific settings and overlay mappings.
+Groups bundle multiple specs with a shared profile and overlay, enabling batch apply and drift detection with a single command. Groups are defined in `owlctl.yaml`.
 
-### Configuration Structure
+### owlctl.yaml Schema
 
 ```yaml
 # owlctl.yaml
-currentEnvironment: production
-defaultOverlayDir: ./overlays
+apiVersion: v1
+kind: Config
 
-environments:
-  production:
-    overlay: prod-overlay.yaml
-    profile: vbr-prod
-    labels:
-      env: production
-      managed-by: owlctl
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml         # kind: Profile — base defaults
+    overlay: overlays/compliance.yaml   # kind: Overlay — policy patch
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
 
-  development:
-    overlay: dev-overlay.yaml
-    profile: vbr-dev
-    labels:
-      env: development
-      managed-by: owlctl
+  web-tier:
+    description: Web server backups
+    profile: profiles/standard.yaml
+    specs:
+      - specs/jobs/web-frontend.yaml
+      - specs/jobs/web-api.yaml
 
-  staging:
-    overlay: staging-overlay.yaml
-    profile: vbr-staging
-    labels:
-      env: staging
-      managed-by: owlctl
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR server
+  dr:
+    url: https://vbr-dr.example.com
+    description: Disaster recovery site
 ```
+
+### Profile vs Overlay
+
+| | Profile (`kind: Profile`) | Overlay (`kind: Overlay`) |
+|---|---|---|
+| **Purpose** | Organizational defaults | Policy patch / customization |
+| **Merge priority** | Lowest (foundation) | Highest (wins over all) |
+| **Use case** | Retention standards, compression, schedule patterns | Environment-specific overrides, compliance tweaks |
+
+### 3-Way Merge Order
+
+When a group is applied, owlctl merges three layers:
+
+1. **Profile** — provides base defaults (lowest priority)
+2. **Spec** — defines resource identity and exceptions
+3. **Overlay** — applies policy patches (highest priority)
+
+```
+Profile (defaults)  →  Spec (identity)  →  Overlay (policy)  =  Final Config
+```
+
+Maps are deep-merged at each step. Arrays are replaced. Labels are combined across all layers. `metadata.name` always comes from the spec.
 
 ### Configuration File Locations
 
@@ -580,27 +615,100 @@ owlctl searches for `owlctl.yaml` in this order:
 2. Current directory (`./owlctl.yaml`)
 3. Home directory (`~/.owlctl/owlctl.yaml`)
 
-### Using Environment Configuration
+File paths within `owlctl.yaml` (specs, profiles, overlays) are resolved relative to the directory containing `owlctl.yaml`.
+
+### Group Commands
 
 ```bash
-# Apply using currentEnvironment (production)
-owlctl job plan base-backup.yaml
-owlctl job apply base-backup.yaml
+# List all groups
+owlctl group list
 
-# Override with specific environment
-owlctl job plan base-backup.yaml --env development
-owlctl job apply base-backup.yaml --env development
-
-# Explicit overlay takes precedence
-owlctl job plan base-backup.yaml -o custom-overlay.yaml
+# Show group details (resolved paths, spec count)
+owlctl group show sql-tier
 ```
 
-### Overlay Resolution Priority
+### Apply with --group
 
-1. `-o/--overlay` flag (highest priority)
-2. `--env` flag (looks up in owlctl.yaml)
-3. `currentEnvironment` from owlctl.yaml
-4. No overlay (base config only)
+Apply all specs in a group in one command. Each spec is merged with the group's profile and overlay before being sent to VBR.
+
+```bash
+# Dry-run first (recommended)
+owlctl job apply --group sql-tier --dry-run
+
+# Apply
+owlctl job apply --group sql-tier
+```
+
+`--group` is available on `job apply` and `job diff`. The apply command dispatches by `kind`, so a group can contain specs of any resource type (VBRJob, VBRRepository, VBRSOBR, VBRKmsServer).
+
+### Diff with --group
+
+Check drift for all specs in a group against live VBR state. Group diff does **not** require `state.json` — the group definition (profile + spec + overlay) is the source of truth.
+
+```bash
+owlctl job diff --group sql-tier
+```
+
+### Mutual Exclusivity
+
+`--group` cannot be combined with:
+- Positional file arguments
+- `-o/--overlay`
+- `--env`
+- `--all`
+
+### Overlay-Only Apply (No Group)
+
+You can still apply a single file with an overlay, without using groups:
+
+```bash
+owlctl job apply base-job.yaml -o prod-overlay.yaml
+```
+
+This is useful for one-off operations or simple setups that don't need the full group model.
+
+## Targets
+
+Targets define named VBR server connections, enabling multi-server workflows from a single `owlctl.yaml`.
+
+### Target Schema
+
+```yaml
+# In owlctl.yaml
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR server
+  dr:
+    url: https://vbr-dr.example.com
+    description: Disaster recovery site
+```
+
+### Target Commands
+
+```bash
+# List all targets
+owlctl target list
+
+# List as JSON (for scripting)
+owlctl target list --json
+```
+
+### Using --target
+
+The `--target` flag is a persistent flag available on all commands. It overrides the `OWLCTL_URL` environment variable for the duration of that command.
+
+```bash
+# Apply group to production
+owlctl job apply --group sql-tier --target primary
+
+# Apply same group to DR site
+owlctl job apply --group sql-tier --target dr
+
+# Drift check on both targets
+owlctl job diff --group sql-tier --target primary
+owlctl job diff --group sql-tier --target dr
+```
 
 ## Strategic Merge Behavior
 
@@ -688,69 +796,90 @@ labels:
   env: production         # From overlay
 ```
 
-## Multi-Environment Workflow
+## Multi-Target Workflow
 
 ### Project Structure
 
 ```
-my-backups/
-├── owlctl.yaml
-├── base-backup.yaml
+vbr-infrastructure/
+├── owlctl.yaml                    # Groups and targets
+├── profiles/
+│   ├── gold.yaml                  # kind: Profile — high retention, encryption
+│   └── standard.yaml              # kind: Profile — standard defaults
+├── specs/
+│   ├── sql-vm-01.yaml             # kind: VBRJob
+│   ├── sql-vm-02.yaml
+│   ├── web-frontend.yaml
+│   └── repos/
+│       └── production-repo.yaml   # kind: VBRRepository
 ├── overlays/
-│   ├── prod-overlay.yaml
-│   ├── dev-overlay.yaml
-│   └── staging-overlay.yaml
-└── specs/
-    ├── jobs/
-    ├── repos/
-    ├── sobrs/
-    └── kms/
+│   └── compliance.yaml            # kind: Overlay — policy patch
+└── state.json
 ```
 
 ### Complete Workflow Example
 
 ```bash
-# 1. Export existing job as base template
-owlctl export <job-id> -o base-backup.yaml
+# 1. Export existing jobs as specs
+owlctl export --all -d specs/
 
-# 2. Create overlays directory
-mkdir overlays
+# 2. Create a profile with organizational defaults
+# profiles/gold.yaml (kind: Profile)
 
-# 3. Create environment overlays
-# Edit overlays/prod-overlay.yaml, dev-overlay.yaml, etc.
+# 3. Create an overlay for policy overrides
+# overlays/compliance.yaml (kind: Overlay)
 
-# 4. Create owlctl.yaml configuration
-cat > owlctl.yaml <<EOF
-currentEnvironment: production
-defaultOverlayDir: ./overlays
-environments:
-  production:
-    overlay: prod-overlay.yaml
-  development:
-    overlay: dev-overlay.yaml
-  staging:
-    overlay: staging-overlay.yaml
+# 4. Define groups and targets in owlctl.yaml
+cat > owlctl.yaml <<'EOF'
+apiVersion: v1
+kind: Config
+
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/sql-vm-01.yaml
+      - specs/sql-vm-02.yaml
+
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
+  dr:
+    url: https://vbr-dr.example.com
+    description: DR site
 EOF
 
-# 5. Preview configurations
-owlctl job plan base-backup.yaml              # Uses production (currentEnvironment)
-owlctl job plan base-backup.yaml --env dev    # Preview development
-owlctl job plan base-backup.yaml --env staging # Preview staging
+# 5. Preview the group
+owlctl group show sql-tier
 
-# 6. Show full merged YAML
-owlctl job plan base-backup.yaml --show-yaml
+# 6. Dry-run apply
+owlctl job apply --group sql-tier --dry-run
 
-# 7. Apply configurations with dry-run first
-owlctl job apply base-backup.yaml --env production --dry-run
-owlctl job apply base-backup.yaml --env production
+# 7. Apply to production
+owlctl job apply --group sql-tier --target primary
 
-owlctl job apply base-backup.yaml --env development --dry-run
-owlctl job apply base-backup.yaml --env development
+# 8. Apply same group to DR
+owlctl job apply --group sql-tier --target dr
 
-# 8. Commit to version control
+# 9. Drift check
+owlctl job diff --group sql-tier --target primary
+
+# 10. Commit to version control
 git add .
-git commit -m "Add multi-environment backup configuration"
+git commit -m "Add group-based backup configuration"
 git push
+```
+
+### Simpler Alternative: Single-File Overlay
+
+For simpler setups that don't need groups, use the `-o` flag directly:
+
+```bash
+owlctl job apply base-backup.yaml -o overlays/prod.yaml --dry-run
+owlctl job apply base-backup.yaml -o overlays/prod.yaml
 ```
 
 ### Bootstrap Declarative Management
@@ -885,19 +1014,19 @@ git commit -m "Increase production retention to 30 days to meet compliance requi
 ```
 
 ### 8. Test in Dev First
-Apply to development environment before production.
+Apply to a dev target before production.
 
 ```bash
 # 1. Test in development
-owlctl job apply base-backup.yaml --env development --dry-run
-owlctl job apply base-backup.yaml --env development
+owlctl job apply --group sql-tier --target dev --dry-run
+owlctl job apply --group sql-tier --target dev
 
 # 2. Verify in development
 # Run test backup, verify results
 
 # 3. Apply to production
-owlctl job apply base-backup.yaml --env production --dry-run
-owlctl job apply base-backup.yaml --env production
+owlctl job apply --group sql-tier --target primary --dry-run
+owlctl job apply --group sql-tier --target primary
 ```
 
 ### 9. Regular Drift Scans
@@ -935,15 +1064,15 @@ owlctl repo sobr-diff --all
 **Problem:** Overlay seems to be ignored.
 
 **Solutions:**
-1. Check overlay resolution priority:
-   - Explicit `-o` flag has highest priority
-   - `--env` flag looks up environment in owlctl.yaml
-   - `currentEnvironment` in owlctl.yaml is used if no flags
-2. Verify owlctl.yaml exists and is in search path:
+1. When using `--group`, verify the group's overlay path in `owlctl.yaml`:
+   ```bash
+   owlctl group show <name>  # Shows resolved overlay path
+   ```
+2. When using `-o` directly, verify the overlay file path exists
+3. Verify owlctl.yaml is in the search path:
    - Check `OWLCTL_CONFIG` environment variable
    - Check current directory (`./owlctl.yaml`)
    - Check home directory (`~/.owlctl/owlctl.yaml`)
-3. Confirm environment exists in owlctl.yaml
 4. Use `--show-yaml` to see the actual merged result:
    ```bash
    owlctl job plan base.yaml -o overlay.yaml --show-yaml

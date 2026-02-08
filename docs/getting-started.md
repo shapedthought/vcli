@@ -14,56 +14,36 @@ This guide walks you through installing owlctl, setting up authentication, and c
 
 1. Go to the [Releases page](https://github.com/shapedthought/owlctl/releases)
 2. Download the appropriate binary for your platform:
-   - `owlctl-windows-amd64.exe` - Windows
-   - `owlctl-linux-amd64` - Linux
-   - `owlctl-darwin-amd64` - macOS (Intel)
-   - `owlctl-darwin-arm64` - macOS (Apple Silicon)
+   - `owlctl-windows-amd64.tar.gz` - Windows
+   - `owlctl-linux-amd64.tar.gz` - Linux
+   - `owlctl-darwin-amd64.tar.gz` - macOS (Intel)
+   - `owlctl-darwin-arm64.tar.gz` - macOS (Apple Silicon)
 
-### Verify Checksum
-
-**Windows (PowerShell):**
-```powershell
-Get-FileHash -Path owlctl-windows-amd64.exe -Algorithm SHA256
-```
-
-**macOS:**
-```bash
-shasum -a 256 owlctl-darwin-amd64
-```
-
-**Linux:**
-```bash
-sha256sum owlctl-linux-amd64
-```
-
-Compare the output with the checksum in the release notes.
-
-### Make Executable (macOS/Linux)
-
-```bash
-chmod +x owlctl-darwin-amd64
-# Optional: rename for convenience
-mv owlctl-darwin-amd64 owlctl
-```
-
-### Add to PATH (Optional)
+### Extract and Install
 
 **macOS/Linux:**
 ```bash
-# Move to a directory in your PATH
-sudo mv owlctl /usr/local/bin/
+tar xzf owlctl-linux-amd64.tar.gz
+chmod +x owlctl
 
-# Or add current directory to PATH
-export PATH=$PATH:$(pwd)
+# Optional: move to a directory in your PATH
+sudo mv owlctl /usr/local/bin/
 ```
 
-**Windows:**
+**Windows (PowerShell):**
 ```powershell
-# Add current directory to PATH (temporary)
-$env:Path += ";$PWD"
+tar xzf owlctl-windows-amd64.tar.gz
 
-# Or move to an existing PATH directory
-Move-Item owlctl-windows-amd64.exe C:\Windows\System32\owlctl.exe
+# Optional: move to an existing PATH directory
+Move-Item owlctl.exe C:\Windows\System32\owlctl.exe
+```
+
+### Verify Checksum
+
+Compare the archive checksum with the `.sha256` file in the release:
+
+```bash
+sha256sum owlctl-linux-amd64.tar.gz
 ```
 
 ## First-Time Setup
@@ -314,84 +294,71 @@ Summary:
 
 See [Drift Detection Guide](drift-detection.md) for complete documentation.
 
-## Multi-Environment Workflow (Declarative)
+## Group-Based Workflow (Declarative)
 
-Manage dev/staging/prod environments with configuration overlays.
+Groups are the recommended way to manage multiple specs with shared defaults and policy overrides. Define groups and targets in `owlctl.yaml`.
 
-### 1. Create Base Configuration
-
-**base-backup.yaml:**
-```yaml
-apiVersion: owlctl.veeam.com/v1
-kind: VBRJob
-metadata:
-  name: database-backup
-spec:
-  type: VSphereBackup
-  repository: default-repo
-  storage:
-    compression: Optimal
-    retentionPolicy:
-      type: Days
-      quantity: 7
-  schedule:
-    daily:
-      localTime: "22:00"
-  objects:
-    - type: VirtualMachine
-      name: db-server
-```
-
-### 2. Create Environment Overlays
-
-**overlays/prod.yaml:**
-```yaml
-apiVersion: owlctl.veeam.com/v1
-kind: VBRJob
-spec:
-  repository: prod-repo
-  storage:
-    retentionPolicy:
-      quantity: 30
-  schedule:
-    daily:
-      localTime: "02:00"
-```
-
-**overlays/dev.yaml:**
-```yaml
-apiVersion: owlctl.veeam.com/v1
-kind: VBRJob
-spec:
-  repository: dev-repo
-  storage:
-    retentionPolicy:
-      quantity: 3
-  schedule:
-    daily:
-      localTime: "23:00"
-```
-
-### 3. Apply with Overlays
+### 1. Export Specs and Create owlctl.yaml
 
 ```bash
-# Apply production configuration
-./owlctl job apply base-backup.yaml -o overlays/prod.yaml
+# Export existing jobs
+./owlctl export --all -d specs/jobs/
 
-# Apply development configuration
-./owlctl job apply base-backup.yaml -o overlays/dev.yaml
+# Create owlctl.yaml
+cat > owlctl.yaml <<'EOF'
+apiVersion: v1
+kind: Config
 
-# Preview merged result
-./owlctl job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
+groups:
+  sql-tier:
+    description: SQL Server backups
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
+
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
+EOF
 ```
 
-### 4. Track in Git
+### 2. Apply the Group
 
 ```bash
-git add base-backup.yaml overlays/
-git commit -m "Add multi-environment backup configuration"
+# List groups
+./owlctl group list
+
+# Dry-run first
+./owlctl job apply --group sql-tier --dry-run
+
+# Apply
+./owlctl job apply --group sql-tier --target primary
+
+# Drift check
+./owlctl job diff --group sql-tier --target primary
+```
+
+### 3. Track in Git
+
+```bash
+git add owlctl.yaml profiles/ specs/ overlays/
+git commit -m "Add group-based backup configuration"
 git push
 ```
+
+### Simpler Alternative: Single-File Overlay
+
+For simpler setups without groups, use the `-o` flag directly:
+
+```bash
+./owlctl job apply base-backup.yaml -o overlays/prod.yaml
+./owlctl job apply base-backup.yaml -o overlays/dev.yaml
+```
+
+See [Declarative Mode Guide](declarative-mode.md#groups) for the full groups reference.
 
 ## Next Steps
 

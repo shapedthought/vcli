@@ -222,9 +222,74 @@ spec:
 
 ---
 
-## Complete Multi-Environment Workflow
+## Groups, Profiles, and Targets
 
-Here's a complete example managing all resource types across environments:
+Groups are the recommended way to organize and deploy specs. A group bundles multiple specs with a shared profile (defaults) and overlay (policy patch).
+
+### Example `owlctl.yaml`
+
+```yaml
+apiVersion: v1
+kind: Config
+
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
+
+  web-tier:
+    description: Web server backups
+    profile: profiles/standard.yaml
+    specs:
+      - specs/jobs/web-frontend.yaml
+
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
+  dr:
+    url: https://vbr-dr.example.com
+    description: DR site
+```
+
+### Group Commands
+
+```bash
+# List all groups
+owlctl group list
+
+# Show group details
+owlctl group show sql-tier
+
+# List targets
+owlctl target list
+```
+
+### Apply a Group
+
+```bash
+# Dry-run
+owlctl job apply --group sql-tier --dry-run
+
+# Apply to production VBR
+owlctl job apply --group sql-tier --target primary
+
+# Apply to DR site
+owlctl job apply --group sql-tier --target dr
+
+# Drift check
+owlctl job diff --group sql-tier --target primary
+```
+
+---
+
+## Complete Multi-Target Workflow
+
+### Group-Based Approach (Recommended for Jobs)
 
 ```bash
 # 1. Export all resources from VBR
@@ -233,30 +298,50 @@ owlctl repo export --all -d ./specs/repos/
 owlctl repo sobr-export --all -d ./specs/sobrs/
 owlctl encryption kms-export --all -d ./specs/kms/
 
-# 2. Create environment overlays in ./overlays/prod/ and ./overlays/dev/
+# 2. Create profiles and overlays
+# profiles/gold.yaml (kind: Profile) — retention, compression defaults
+# overlays/compliance.yaml (kind: Overlay) — policy overrides
 
-# 3. Apply production configuration
+# 3. Define groups in owlctl.yaml (see example above)
+
+# 4. Apply job groups
+owlctl job apply --group sql-tier --target primary --dry-run
+owlctl job apply --group sql-tier --target primary
+
+owlctl job apply --group web-tier --target primary --dry-run
+owlctl job apply --group web-tier --target primary
+
+# 5. Apply non-job resources individually
+for repo in specs/repos/*.yaml; do
+  owlctl repo apply "$repo"
+done
+
+for sobr in specs/sobrs/*.yaml; do
+  owlctl repo sobr-apply "$sobr"
+done
+
+for kms in specs/kms/*.yaml; do
+  owlctl encryption kms-apply "$kms"
+done
+
+# 6. Verify no drift after applying
+owlctl job diff --group sql-tier --target primary
+owlctl job diff --group web-tier --target primary
+owlctl repo diff --all
+owlctl repo sobr-diff --all
+owlctl encryption kms-diff --all
+```
+
+### Simpler Alternative: Single-File Overlay
+
+For setups that don't need groups, apply individual files with `-o`:
+
+```bash
 for job in specs/jobs/*.yaml; do
   owlctl job apply "$job" -o overlays/prod/$(basename "$job")
 done
 
-for repo in specs/repos/*.yaml; do
-  owlctl repo apply "$repo" -o overlays/prod/$(basename "$repo")
-done
-
-for sobr in specs/sobrs/*.yaml; do
-  owlctl repo sobr-apply "$sobr" -o overlays/prod/$(basename "$sobr")
-done
-
-for kms in specs/kms/*.yaml; do
-  owlctl encryption kms-apply "$kms" -o overlays/prod/$(basename "$kms")
-done
-
-# 4. Verify no drift after applying
 owlctl job diff --all
-owlctl repo diff --all
-owlctl repo sobr-diff --all
-owlctl encryption kms-diff --all
 ```
 
 ---

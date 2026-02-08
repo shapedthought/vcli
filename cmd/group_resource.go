@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/shapedthought/owlctl/config"
 	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/remediation"
 	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/utils"
 )
@@ -110,6 +112,12 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 		overlaySpec = &o
 	}
 
+	// Pre-load remediation config once to avoid repeated disk I/O per spec
+	remediationCfg, remediationErr := remediation.LoadConfig()
+	if remediationErr != nil {
+		fmt.Printf("Warning: Failed to load remediation config: %v (using defaults)\n", remediationErr)
+	}
+
 	var results []GroupApplyResult
 
 	for _, specRelPath := range groupCfg.Specs {
@@ -141,8 +149,8 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 			continue
 		}
 
-		// Apply via generic resource apply
-		applyResult := applyResourceSpec(mergedSpec, applyCfg, profile, dryRun)
+		// Apply via generic resource apply (pass cached remediation config)
+		applyResult := applyResourceSpec(mergedSpec, applyCfg, profile, dryRun, remediationCfg)
 		if applyResult.Error != nil {
 			result.Error = applyResult.Error
 		} else {
@@ -342,10 +350,28 @@ func printGroupApplySummary(group string, results []GroupApplyResult) {
 	fmt.Printf("%-40s %-20s %-10s\n", "SPEC", "RESOURCE", "STATUS")
 	fmt.Printf("%-40s %-20s %-10s\n", "----", "--------", "------")
 
+	// Collect errors for detailed output below the table
+	var errorDetails []struct {
+		spec string
+		err  error
+	}
+
 	for _, r := range results {
 		status := r.Action
 		if r.Error != nil {
-			status = fmt.Sprintf("FAILED: %v", r.Error)
+			// Truncate to first line for table readability
+			errMsg := r.Error.Error()
+			if idx := strings.IndexAny(errMsg, "\n\r"); idx != -1 {
+				errMsg = errMsg[:idx] + "..."
+			}
+			if len(errMsg) > 60 {
+				errMsg = errMsg[:57] + "..."
+			}
+			status = "FAILED: " + errMsg
+			errorDetails = append(errorDetails, struct {
+				spec string
+				err  error
+			}{r.SpecPath, r.Error})
 		}
 		name := r.ResourceName
 		if name == "" {
@@ -366,4 +392,12 @@ func printGroupApplySummary(group string, results []GroupApplyResult) {
 	}
 
 	fmt.Printf("\nTotal: %d specs, %d succeeded, %d failed\n", len(results), successCount, failCount)
+
+	// Print full error details below the table
+	if len(errorDetails) > 0 {
+		fmt.Printf("\nError details:\n")
+		for _, e := range errorDetails {
+			fmt.Printf("  %s: %v\n", e.spec, e.err)
+		}
+	}
 }

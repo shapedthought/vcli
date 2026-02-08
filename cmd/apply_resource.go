@@ -76,14 +76,15 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 	if err != nil {
 		return ApplyResult{Error: fmt.Errorf("failed to load spec file: %w", err), DryRun: dryRun}
 	}
-	return applyResourceSpec(spec, cfg, profile, dryRun)
+	return applyResourceSpec(spec, cfg, profile, dryRun, nil)
 }
 
 // applyResourceSpec applies a pre-loaded ResourceSpec to VBR using the provided config.
 // It handles fetching existing resources, merging, and state updates.
 // If dryRun is true, it fetches current state (read-only) and displays what would change,
 // but makes no modifications to VBR and does not update state.
-func applyResourceSpec(spec resources.ResourceSpec, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
+// If cachedRemCfg is non-nil, it is used instead of loading remediation config from disk.
+func applyResourceSpec(spec resources.ResourceSpec, cfg ResourceApplyConfig, profile models.Profile, dryRun bool, cachedRemCfg *remediation.Config) ApplyResult {
 	result := ApplyResult{DryRun: dryRun}
 
 	result.ResourceName = spec.Metadata.Name
@@ -103,10 +104,14 @@ func applyResourceSpec(spec resources.ResourceSpec, cfg ResourceApplyConfig, pro
 
 	resourceExists := existingRaw != nil && existingID != ""
 
-	// Load remediation config for filtering
-	remediationCfg, remediationErr := remediation.LoadConfig()
-	if remediationErr != nil {
-		fmt.Printf("Warning: Failed to load remediation config: %v (using defaults)\n", remediationErr)
+	// Use cached remediation config if provided, otherwise load from disk
+	remediationCfg := cachedRemCfg
+	if remediationCfg == nil {
+		var remediationErr error
+		remediationCfg, remediationErr = remediation.LoadConfig()
+		if remediationErr != nil {
+			fmt.Printf("Warning: Failed to load remediation config: %v (using defaults)\n", remediationErr)
+		}
 	}
 
 	if !resourceExists {

@@ -187,35 +187,43 @@ owlctl job apply base-backup.yaml -o prod-overlay.yaml --dry-run
 owlctl job apply base-backup.yaml -o prod-overlay.yaml
 ```
 
-**5. Configure environments (optional):**
+**5. Configure groups (optional):**
 ```yaml
-# owlctl.yaml - Environment configuration
-currentEnvironment: production
-defaultOverlayDir: ./overlays
-environments:
-  production:
-    overlay: prod-overlay.yaml
-    profile: vbr-prod
-  development:
-    overlay: dev-overlay.yaml
-    profile: vbr-dev
+# owlctl.yaml - Groups and targets
+apiVersion: v1
+kind: Config
+
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/sql-vm-01.yaml
+      - specs/sql-vm-02.yaml
+
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
 ```
 
 Then simply:
 ```bash
-owlctl job plan base-backup.yaml  # Uses production overlay automatically
-owlctl job apply base-backup.yaml --env development  # Use specific environment
+owlctl job apply --group sql-tier --dry-run   # Preview group apply
+owlctl job apply --group sql-tier             # Apply all specs in group
+owlctl job diff --group sql-tier              # Drift check the group
 ```
 
 #### Key Benefits
 
-- **Multi-Environment Support**: Single base config with environment-specific overlays
+- **Group-Based Deployments**: Bundle specs with shared profiles and overlays
+- **Multi-Target Support**: Named VBR server connections for prod/DR workflows
 - **DRY Configuration**: Define common settings once, override only what differs
-- **Strategic Merge**: Deep merge preserves base values while applying overrides
+- **3-Way Merge**: Profile (defaults) + Spec (identity) + Overlay (policy) merge
 - **Version Control**: Track job configurations in Git
 - **GitOps Ready**: Automated deployments via CI/CD
 - **Rich Previews**: See merged configurations before applying
-- **Environment Awareness**: owlctl.yaml manages environment-specific settings
 - **Full API Fidelity**: Export captures all 300+ VBR API fields
 
 #### Workflow Examples
@@ -240,54 +248,51 @@ git commit -m "Update backup schedule"
 git push
 ```
 
-**Multi-Environment Workflow:**
+**Group-Based Workflow:**
 ```bash
-# 1. Create base template and overlays
-mkdir -p configs/overlays
-owlctl export <job-id> -o configs/base-backup.yaml
+# 1. Export specs and create directory structure
+mkdir -p specs profiles overlays
+owlctl export --all -d specs/
 
-# 2. Create environment overlays
-cat > configs/overlays/prod.yaml <<EOF
-spec:
-  storage:
-    retention:
-      quantity: 30
-  schedule:
-    daily: "02:00"
-EOF
+# 2. Create a profile (kind: Profile) with organizational defaults
+# and an overlay (kind: Overlay) for policy overrides
 
-cat > configs/overlays/dev.yaml <<EOF
-spec:
-  storage:
-    retention:
-      quantity: 3
-  schedule:
-    daily: "23:00"
-EOF
+# 3. Configure groups and targets
+cat > owlctl.yaml <<'EOF'
+apiVersion: v1
+kind: Config
 
-# 3. Configure environments
-cat > owlctl.yaml <<EOF
-currentEnvironment: production
-defaultOverlayDir: ./configs/overlays
-environments:
-  production:
-    overlay: prod.yaml
-  development:
-    overlay: dev.yaml
+groups:
+  sql-tier:
+    description: SQL Server backup group
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/sql-vm-01.yaml
+      - specs/sql-vm-02.yaml
+
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR
+  dr:
+    url: https://vbr-dr.example.com
+    description: DR site
 EOF
 
 # 4. Preview and apply
-owlctl job plan configs/base-backup.yaml  # Uses prod overlay (currentEnvironment)
-owlctl job plan configs/base-backup.yaml --env development  # Preview dev
+owlctl group show sql-tier                          # Inspect group
+owlctl job apply --group sql-tier --dry-run         # Preview
+owlctl job apply --group sql-tier --target primary  # Apply to prod
+owlctl job apply --group sql-tier --target dr       # Apply to DR
 
 # 5. Commit everything
-git add configs/ owlctl.yaml
-git commit -m "Add multi-environment backup configuration"
+git add specs/ profiles/ overlays/ owlctl.yaml
+git commit -m "Add group-based backup configuration"
 git push
 
-# 6. Deploy to different environments
-owlctl job apply configs/base-backup.yaml --env production
-owlctl job apply configs/base-backup.yaml --env development
+# 6. Drift check
+owlctl job diff --group sql-tier --target primary
 ```
 
 #### Commands Reference
@@ -299,7 +304,7 @@ owlctl job apply configs/base-backup.yaml --env development
 | `export --as-overlay` | Export minimal overlay patch | `owlctl export abc-123 --as-overlay --base base.yaml -o overlay.yaml` |
 | `export --simplified` | Export minimal format (legacy) | `owlctl export abc-123 -o job.yaml --simplified` |
 | `job apply` | Apply configuration with overlay | `owlctl job apply base.yaml -o prod.yaml --dry-run` |
-| `job apply --env` | Apply using environment overlay | `owlctl job apply base.yaml --env production` |
+| `job apply --group` | Apply all specs in a group | `owlctl job apply --group sql-tier` |
 | `job plan` | Preview merged configuration | `owlctl job plan base.yaml -o prod.yaml` |
 | `job plan --show-yaml` | Show full merged YAML | `owlctl job plan base.yaml -o prod.yaml --show-yaml` |
 | `job diff <name>` | Check single job for drift | `owlctl job diff "SQL-Backup-Job"` |
@@ -314,12 +319,10 @@ owlctl job apply configs/base-backup.yaml --env development
 | `encryption diff` | Detect encryption drift | `owlctl encryption diff --all` |
 | `encryption kms-snapshot` | Snapshot KMS servers | `owlctl encryption kms-snapshot --all` |
 | `encryption kms-diff` | Detect KMS server drift | `owlctl encryption kms-diff --all` |
-
-**Overlay Resolution Priority:**
-1. Explicit `-o/--overlay` flag (highest)
-2. `--env` flag (looks up in owlctl.yaml)
-3. `currentEnvironment` from owlctl.yaml
-4. No overlay (base config only)
+| `group list` | List all groups | `owlctl group list` |
+| `group show` | Show group details | `owlctl group show sql-tier` |
+| `target list` | List all targets | `owlctl target list` |
+| `job diff --group` | Drift check all specs in group | `owlctl job diff --group sql-tier` |
 
 ### State Management & Drift Detection
 

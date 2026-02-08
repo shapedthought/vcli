@@ -1,51 +1,64 @@
 # owlctl Configuration File
 # Place this file in your project root or ~/.owlctl/owlctl.yaml
 
-# Current active environment
-currentEnvironment: production
+apiVersion: v1
+kind: Config
 
-# Default directory for overlay files (relative paths will be resolved from here)
-defaultOverlayDir: ./overlays
+# Groups bundle specs with a shared profile and overlay for batch operations.
+# Apply a group: owlctl job apply --group sql-tier
+# Diff a group:  owlctl job diff --group sql-tier
+groups:
+  sql-tier:
+    description: SQL Server backup group — gold-tier retention
+    profile: profiles/gold.yaml           # kind: Profile — base defaults
+    overlay: overlays/compliance.yaml     # kind: Overlay — policy patch
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
 
-# Environment-specific configurations
-environments:
-  production:
-    # Overlay file to apply for this environment
-    overlay: prod-overlay.yaml
-    # VBR profile to use
-    profile: vbr-prod
-    # Labels applied to all resources in this environment
-    labels:
-      env: production
-      managed-by: owlctl
+  web-tier:
+    description: Web server backups — standard retention
+    profile: profiles/standard.yaml
+    specs:
+      - specs/jobs/web-frontend.yaml
+      - specs/jobs/web-api.yaml
 
-  development:
-    overlay: dev-overlay.yaml
-    profile: vbr-dev
-    labels:
-      env: development
-      managed-by: owlctl
+  repos:
+    description: Repository configurations
+    specs:
+      - specs/repos/production-repo.yaml
+      - specs/repos/archive-repo.yaml
 
-  staging:
-    overlay: staging-overlay.yaml
-    profile: vbr-staging
-    labels:
-      env: staging
-      managed-by: owlctl
+# Targets define named VBR server connections.
+# Use --target to switch: owlctl job apply --group sql-tier --target primary
+targets:
+  primary:
+    url: https://vbr-prod.example.com
+    description: Production VBR server
+
+  dr:
+    url: https://vbr-dr.example.com
+    description: Disaster recovery site
 
 # Usage Examples:
 #
-# 1. Apply job with environment overlay (uses currentEnvironment)
-#    owlctl job apply base-job.yaml
+# 1. List groups and targets
+#    owlctl group list
+#    owlctl target list
 #
-# 2. Apply job with specific environment
-#    owlctl job apply base-job.yaml --env development
+# 2. Show group details (resolved paths, spec count)
+#    owlctl group show sql-tier
 #
-# 3. Override with custom overlay
-#    owlctl job apply base-job.yaml -o custom-overlay.yaml
+# 3. Apply a group (dry-run first)
+#    owlctl job apply --group sql-tier --dry-run
+#    owlctl job apply --group sql-tier
 #
-# 4. Change current environment
-#    owlctl config set-env staging
+# 4. Apply a group to a specific target
+#    owlctl job apply --group sql-tier --target primary
+#    owlctl job apply --group sql-tier --target dr
 #
-# 5. View current configuration
-#    owlctl config show
+# 5. Drift check a group
+#    owlctl job diff --group sql-tier --target primary
+#
+# 6. Single-file overlay (no group needed)
+#    owlctl job apply base-job.yaml -o overlay.yaml

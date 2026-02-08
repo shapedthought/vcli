@@ -7,6 +7,8 @@ Fast reference for common owlctl commands. See full documentation in [User Guide
 - [Setup & Authentication](#setup--authentication)
 - [Imperative Commands (All Products)](#imperative-commands-all-products)
 - [Declarative Commands (VBR Only)](#declarative-commands-vbr-only)
+- [Group Commands](#group-commands)
+- [Target Commands](#target-commands)
 - [Common Flags](#common-flags)
 - [Exit Codes](#exit-codes)
 
@@ -207,6 +209,65 @@ owlctl job plan base.yaml -o prod.yaml --show-yaml
 
 ---
 
+## Group Commands
+
+Groups bundle specs with a shared profile and overlay for batch operations. Defined in `owlctl.yaml`.
+
+```bash
+# List all groups
+owlctl group list
+
+# Show group details (resolved paths, spec count)
+owlctl group show sql-tier
+```
+
+### Apply with Group
+
+```bash
+# Apply all specs in a group (profile + spec + overlay merge)
+owlctl job apply --group sql-tier
+
+# Dry-run first
+owlctl job apply --group sql-tier --dry-run
+```
+
+### Diff with Group
+
+```bash
+# Drift-check all specs in a group against live VBR
+owlctl job diff --group sql-tier
+
+# Group diff does NOT require state.json — the group definition is the source of truth
+```
+
+**Note:** `--group` is mutually exclusive with positional file args, `-o/--overlay`, `--env`, and `--all`.
+
+---
+
+## Target Commands
+
+Targets define named VBR server connections in `owlctl.yaml`. Use `--target` to switch between servers.
+
+```bash
+# List all targets
+owlctl target list
+
+# List as JSON (for scripting)
+owlctl target list --json
+```
+
+### Multi-Target Workflow
+
+```bash
+# Apply to production VBR
+owlctl job apply --group sql-tier --target primary
+
+# Apply same group to DR site
+owlctl job apply --group sql-tier --target dr
+```
+
+---
+
 ## Common Flags
 
 ### Apply Commands
@@ -215,13 +276,15 @@ owlctl job plan base.yaml -o prod.yaml --show-yaml
 |------|-------------|
 | `--dry-run` | Preview changes without applying |
 | `-o, --overlay <file>` | Apply with configuration overlay |
-| `--env <name>` | Use environment from owlctl.yaml (planned) |
+| `--group <name>` | Apply all specs in named group (from `owlctl.yaml`) |
+| `--env <name>` | **Deprecated.** Use `--group` instead |
 
 ### Diff Commands
 
 | Flag | Description |
 |------|-------------|
 | `--all` | Check all resources |
+| `--group <name>` | Check drift for all specs in named group |
 | `--severity <level>` | Filter by severity: `critical`, `warning`, or `info` |
 | `--security-only` | Show only WARNING and CRITICAL drifts |
 
@@ -241,6 +304,7 @@ owlctl job plan base.yaml -o prod.yaml --show-yaml
 | Flag | Description |
 |------|-------------|
 | `--yaml` | Output in YAML format (default: JSON) |
+| `--target <name>` | Use named VBR target from `owlctl.yaml` |
 | `-h, --help` | Show help |
 
 ---
@@ -319,7 +383,38 @@ git commit -m "Snapshot VBR configuration"
 git push
 ```
 
-### Multi-Environment Deployment
+### Group-Based Deployment
+
+```bash
+# List available groups
+owlctl group list
+
+# Preview a group's configuration
+owlctl group show sql-tier
+
+# Dry-run, then apply
+owlctl job apply --group sql-tier --dry-run
+owlctl job apply --group sql-tier
+
+# Check drift for the group
+owlctl job diff --group sql-tier
+```
+
+### Multi-Target Deployment
+
+```bash
+# Apply group to production VBR
+owlctl job apply --group sql-tier --target primary
+
+# Apply same group to DR site
+owlctl job apply --group sql-tier --target dr
+
+# Drift check across both targets
+owlctl job diff --group sql-tier --target primary
+owlctl job diff --group sql-tier --target dr
+```
+
+### Single-File Overlay (Simpler Alternative)
 
 ```bash
 # Preview production changes
@@ -328,9 +423,6 @@ owlctl job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
 # Apply production (dry-run first)
 owlctl job apply base-backup.yaml -o overlays/prod.yaml --dry-run
 owlctl job apply base-backup.yaml -o overlays/prod.yaml
-
-# Apply development
-owlctl job apply base-backup.yaml -o overlays/dev.yaml
 ```
 
 ### Drift Detection Scan

@@ -176,6 +176,7 @@ func needsPlanConfigOverlay() bool {
 	}
 
 	if cfg.CurrentEnvironment != "" {
+		cfg.WarnDeprecatedFields()
 		_, err := cfg.GetEnvironmentOverlay("")
 		return err == nil
 	}
@@ -189,6 +190,8 @@ func getPlanConfiguredOverlay() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load owlctl.yaml: %w", err)
 	}
+
+	cfg.WarnDeprecatedFields()
 
 	env := planEnvironment
 	if env == "" {

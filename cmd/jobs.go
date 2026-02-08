@@ -11,7 +11,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/shapedthought/owlctl/config"
 	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/state"
 	"github.com/shapedthought/owlctl/utils"
 	"github.com/shapedthought/owlctl/vhttp"
@@ -302,8 +304,9 @@ func createJob(args []string, folder string, customTemplate string) {
 }
 
 var (
-	diffAll     bool
-	snapshotAll bool
+	diffAll       bool
+	diffGroupName string
+	snapshotAll   bool
 )
 
 var diffCmd = &cobra.Command{
@@ -333,12 +336,21 @@ Exit Codes:
   4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if diffAll {
+		if diffGroupName != "" {
+			// Validate mutual exclusivity
+			if diffAll {
+				log.Fatal("Cannot use --group with --all")
+			}
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional job name argument")
+			}
+			diffGroup(diffGroupName)
+		} else if diffAll {
 			diffAllJobs()
 		} else if len(args) > 0 {
 			diffSingleJob(args[0])
 		} else {
-			log.Fatal("Provide job name or use --all")
+			log.Fatal("Provide job name, use --all, or use --group")
 		}
 	},
 }
@@ -536,6 +548,167 @@ func diffAllJobs() {
 	os.Exit(0)
 }
 
+// diffGroup compares merged group specs (profile+spec+overlay) against live VBR state.
+// Unlike state-based diff, group diff does NOT require state.json — the group definition
+// IS the source of truth.
+func diffGroup(group string) {
+	loadSeverityOverrides()
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
+
+	if settings.SelectedProfile != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load owlctl.yaml: %v", err)
+	}
+	cfg.WarnDeprecatedFields()
+
+	groupCfg, err := cfg.GetGroup(group)
+	if err != nil {
+		log.Fatalf("Group error: %v", err)
+	}
+
+	if len(groupCfg.Specs) == 0 {
+		log.Fatalf("Group %q has no specs defined", group)
+	}
+
+	// Resolve paths
+	profilePath := ""
+	if groupCfg.Profile != "" {
+		profilePath = cfg.ResolvePath(groupCfg.Profile)
+	}
+	overlayPath := ""
+	if groupCfg.Overlay != "" {
+		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
+	}
+
+	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	if profilePath != "" {
+		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
+	}
+	if overlayPath != "" {
+		fmt.Printf("  Overlay: %s\n", groupCfg.Overlay)
+	}
+	fmt.Println()
+
+	// Pre-load profile and overlay once to avoid repeated disk I/O
+	var profileSpec, overlaySpec *resources.ResourceSpec
+	opts := resources.DefaultMergeOptions()
+
+	if profilePath != "" {
+		p, err := resources.LoadResourceSpec(profilePath)
+		if err != nil {
+			log.Fatalf("Failed to load profile %s: %v", profilePath, err)
+		}
+		profileSpec = &p
+	}
+	if overlayPath != "" {
+		o, err := resources.LoadResourceSpec(overlayPath)
+		if err != nil {
+			log.Fatalf("Failed to load overlay %s: %v", overlayPath, err)
+		}
+		overlaySpec = &o
+	}
+
+	minSev := parseSeverityFlag()
+	cleanCount := 0
+	driftedCount := 0
+	notFoundCount := 0
+	errorCount := 0
+	var allDrifts []Drift
+
+	for _, specRelPath := range groupCfg.Specs {
+		specPath := cfg.ResolvePath(specRelPath)
+
+		// Load spec
+		spec, err := resources.LoadResourceSpec(specPath)
+		if err != nil {
+			fmt.Printf("  %s: Failed to load spec: %v\n", specRelPath, err)
+			errorCount++
+			continue
+		}
+
+		// Compute desired state from group merge using cached profile/overlay
+		desiredSpec, err := resources.ApplyGroupMergeFromSpecs(spec, profileSpec, overlaySpec, opts)
+		if err != nil {
+			fmt.Printf("  %s: Failed to merge: %v\n", specRelPath, err)
+			errorCount++
+			continue
+		}
+
+		jobName := desiredSpec.Metadata.Name
+
+		// Fetch current from VBR
+		currentJob, exists := findJobByName(jobName, profile)
+		if !exists {
+			fmt.Printf("  %s: Not found in VBR (would be created by apply)\n", jobName)
+			notFoundCount++
+			continue
+		}
+
+		// Convert current job to map for comparison
+		currentBytes, err := json.Marshal(currentJob)
+		if err != nil {
+			fmt.Printf("  %s: Failed to marshal current job: %v\n", jobName, err)
+			errorCount++
+			continue
+		}
+
+		var currentMap map[string]interface{}
+		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+			fmt.Printf("  %s: Failed to unmarshal current job: %v\n", jobName, err)
+			errorCount++
+			continue
+		}
+
+		// Compare merged desired spec against live VBR
+		drifts := detectDrift(desiredSpec.Spec, currentMap, jobIgnoreFields)
+		drifts = classifyDrifts(drifts, jobSeverityMap)
+		drifts = enhanceJobDriftSeverity(drifts)
+		drifts = checkRepoHardeningDrift(drifts, desiredSpec.Spec)
+		drifts = filterDriftsBySeverity(drifts, minSev)
+
+		if len(drifts) > 0 {
+			maxSev := getMaxSeverity(drifts)
+			fmt.Printf("  %s %s: %d drifts detected\n", maxSev, jobName, len(drifts))
+			allDrifts = append(allDrifts, drifts...)
+			driftedCount++
+		} else {
+			fmt.Printf("  %s: No drift\n", jobName)
+			cleanCount++
+		}
+	}
+
+	// Summary
+	if driftedCount > 0 {
+		fmt.Println()
+		printSecuritySummary(allDrifts)
+	}
+
+	fmt.Printf("\nSummary:\n")
+	fmt.Printf("  - %d jobs clean\n", cleanCount)
+	if driftedCount > 0 {
+		fmt.Printf("  - %d jobs drifted — remediate with: owlctl job apply --group %s\n", driftedCount, group)
+	}
+	if notFoundCount > 0 {
+		fmt.Printf("  - %d jobs not found in VBR (would be created by apply)\n", notFoundCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf("  - %d specs failed to evaluate (see errors above)\n", errorCount)
+	}
+
+	if errorCount > 0 {
+		os.Exit(ExitError)
+	}
+	if driftedCount > 0 {
+		os.Exit(exitCodeForDrifts(allDrifts))
+	}
+	os.Exit(0)
+}
+
 // snapshotSingleJob captures a single job's current configuration into state
 func snapshotSingleJob(jobName string) {
 	settings := utils.ReadSettings()
@@ -613,6 +786,7 @@ func saveJobToState(name, id string, rawData json.RawMessage) error {
 
 func init() {
 	diffCmd.Flags().BoolVar(&diffAll, "all", false, "Check drift for all jobs in state")
+	diffCmd.Flags().StringVar(&diffGroupName, "group", "", "Check drift for all specs in named group (from owlctl.yaml)")
 	addSeverityFlags(diffCmd)
 	jobsCmd.AddCommand(diffCmd)
 

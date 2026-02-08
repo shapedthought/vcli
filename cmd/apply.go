@@ -18,7 +18,16 @@ var (
 	overlayFile string
 	environment string
 	dryRun      bool
+	groupName   string
 )
+
+// GroupApplyResult tracks the outcome of applying a single spec within a group
+type GroupApplyResult struct {
+	SpecPath string
+	JobName  string
+	Action   string // "created", "updated", "would-create", "would-update"
+	Error    error
+}
 
 var applyCmd = &cobra.Command{
 	Use:   "apply [config-file]",
@@ -41,15 +50,37 @@ Examples:
   # Dry run to preview changes
   owlctl job apply base-job.yaml -o prod-overlay.yaml --dry-run
 
+  # Apply all specs in a group (from owlctl.yaml)
+  owlctl job apply --group sql-tier
+
+  # Dry run a group
+  owlctl job apply --group sql-tier --dry-run
+
 Overlay Resolution:
   1. If -o/--overlay is specified, use that overlay file
   2. If --env is specified, use overlay from owlctl.yaml for that environment
   3. If owlctl.yaml exists and has currentEnvironment set, use that overlay
   4. Otherwise, apply base configuration without overlay
 `,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		applyJob(args[0])
+		if groupName != "" {
+			// Validate mutual exclusivity
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional config file argument")
+			}
+			if overlayFile != "" {
+				log.Fatal("Cannot use --group with --overlay (group defines its own overlay)")
+			}
+			if environment != "" {
+				log.Fatal("Cannot use --group with --env (group defines its own overlay)")
+			}
+			applyGroup(groupName)
+		} else if len(args) > 0 {
+			applyJob(args[0])
+		} else {
+			log.Fatal("Provide a config file or use --group")
+		}
 	},
 }
 
@@ -141,6 +172,181 @@ func applyJob(configFile string) {
 	fmt.Printf("\n✓ Successfully applied job: %s\n", finalSpec.Metadata.Name)
 }
 
+// applyGroup applies all specs in a named group from owlctl.yaml
+func applyGroup(group string) {
+	settings := utils.ReadSettings()
+	profile := utils.GetCurrentProfile()
+
+	if settings.SelectedProfile != "vbr" {
+		log.Fatal("This command only works with VBR at the moment.")
+	}
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load owlctl.yaml: %v", err)
+	}
+	cfg.WarnDeprecatedFields()
+
+	groupCfg, err := cfg.GetGroup(group)
+	if err != nil {
+		log.Fatalf("Group error: %v", err)
+	}
+
+	if len(groupCfg.Specs) == 0 {
+		log.Fatalf("Group %q has no specs defined", group)
+	}
+
+	// Resolve paths relative to owlctl.yaml
+	profilePath := ""
+	if groupCfg.Profile != "" {
+		profilePath = cfg.ResolvePath(groupCfg.Profile)
+	}
+	overlayPath := ""
+	if groupCfg.Overlay != "" {
+		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
+	}
+
+	fmt.Printf("Applying group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	if profilePath != "" {
+		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
+	}
+	if overlayPath != "" {
+		fmt.Printf("  Overlay: %s\n", groupCfg.Overlay)
+	}
+	fmt.Println()
+
+	// Pre-load profile and overlay once to avoid repeated disk I/O
+	var profileSpec, overlaySpec *resources.ResourceSpec
+	opts := resources.DefaultMergeOptions()
+
+	if profilePath != "" {
+		p, err := resources.LoadResourceSpec(profilePath)
+		if err != nil {
+			log.Fatalf("Failed to load profile %s: %v", profilePath, err)
+		}
+		profileSpec = &p
+	}
+	if overlayPath != "" {
+		o, err := resources.LoadResourceSpec(overlayPath)
+		if err != nil {
+			log.Fatalf("Failed to load overlay %s: %v", overlayPath, err)
+		}
+		overlaySpec = &o
+	}
+
+	var results []GroupApplyResult
+
+	for _, specRelPath := range groupCfg.Specs {
+		specPath := cfg.ResolvePath(specRelPath)
+		result := GroupApplyResult{SpecPath: specRelPath}
+
+		// Load spec
+		spec, err := resources.LoadResourceSpec(specPath)
+		if err != nil {
+			result.Error = fmt.Errorf("failed to load spec: %w", err)
+			results = append(results, result)
+			continue
+		}
+
+		// Merge with cached profile/overlay
+		mergedSpec, err := resources.ApplyGroupMergeFromSpecs(spec, profileSpec, overlaySpec, opts)
+		if err != nil {
+			result.Error = fmt.Errorf("merge failed: %w", err)
+			results = append(results, result)
+			continue
+		}
+
+		result.JobName = mergedSpec.Metadata.Name
+
+		// Validate kind
+		if mergedSpec.Kind != resources.KindVBRJob {
+			result.Error = fmt.Errorf("unsupported kind: %s (expected VBRJob)", mergedSpec.Kind)
+			results = append(results, result)
+			continue
+		}
+
+		// Check existence BEFORE apply to correctly determine created vs updated
+		_, existedBefore := findJobByName(mergedSpec.Metadata.Name, profile)
+
+		if dryRun {
+			// Show dry-run preview for this spec
+			fmt.Printf("--- %s ---\n", specRelPath)
+			fmt.Printf("Resource: %s (%s)\n", mergedSpec.Metadata.Name, mergedSpec.Kind)
+
+			if !existedBefore {
+				fmt.Println("  Would be created (not found in VBR)")
+				result.Action = "would-create"
+			} else {
+				fmt.Printf("  Found in VBR — would be updated\n")
+				result.Action = "would-update"
+			}
+			fmt.Println()
+		} else {
+			// Apply the job
+			if err := applyVBRJob(mergedSpec, profile); err != nil {
+				result.Error = err
+			} else {
+				if existedBefore {
+					result.Action = "updated"
+				} else {
+					result.Action = "created"
+				}
+			}
+		}
+
+		results = append(results, result)
+	}
+
+	printGroupApplySummary(group, results)
+
+	// Determine exit code
+	successCount := 0
+	for _, r := range results {
+		if r.Error == nil {
+			successCount++
+		}
+	}
+
+	if successCount == 0 {
+		os.Exit(ExitError)
+	} else if successCount < len(results) {
+		os.Exit(ExitPartialApply)
+	}
+	// All succeeded — exit 0 (default)
+}
+
+// printGroupApplySummary prints a summary table after group apply
+func printGroupApplySummary(group string, results []GroupApplyResult) {
+	fmt.Printf("\n=== Group Apply Summary: %s ===\n", group)
+	fmt.Printf("%-40s %-20s %-10s\n", "SPEC", "JOB NAME", "STATUS")
+	fmt.Printf("%-40s %-20s %-10s\n", "----", "--------", "------")
+
+	for _, r := range results {
+		status := r.Action
+		if r.Error != nil {
+			status = fmt.Sprintf("FAILED: %v", r.Error)
+		}
+		jobName := r.JobName
+		if jobName == "" {
+			jobName = "(unknown)"
+		}
+		fmt.Printf("%-40s %-20s %s\n", r.SpecPath, jobName, status)
+	}
+
+	// Count results
+	successCount := 0
+	failCount := 0
+	for _, r := range results {
+		if r.Error == nil {
+			successCount++
+		} else {
+			failCount++
+		}
+	}
+
+	fmt.Printf("\nTotal: %d specs, %d succeeded, %d failed\n", len(results), successCount, failCount)
+}
+
 // needsConfigOverlay checks if we should try to use owlctl.yaml overlay
 func needsConfigOverlay() bool {
 	// Try to load config
@@ -151,6 +357,7 @@ func needsConfigOverlay() bool {
 
 	// Check if there's a current environment with an overlay
 	if cfg.CurrentEnvironment != "" {
+		cfg.WarnDeprecatedFields()
 		_, err := cfg.GetEnvironmentOverlay("")
 		return err == nil
 	}
@@ -164,6 +371,8 @@ func getConfiguredOverlay() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load owlctl.yaml: %w", err)
 	}
+
+	cfg.WarnDeprecatedFields()
 
 	// Use explicit environment if specified
 	env := environment
@@ -384,6 +593,7 @@ func init() {
 	applyCmd.Flags().StringVarP(&overlayFile, "overlay", "o", "", "Overlay file to merge with base configuration")
 	applyCmd.Flags().StringVar(&environment, "env", "", "Environment to use (looks up overlay from owlctl.yaml)")
 	applyCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without applying them")
+	applyCmd.Flags().StringVar(&groupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
 	jobsCmd.AddCommand(applyCmd)
 }

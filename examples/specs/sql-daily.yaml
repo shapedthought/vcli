@@ -1,0 +1,27 @@
+# SQL Daily Backup — Thin Spec
+# Identity and exceptions only. Merge with a profile for full configuration:
+#   owlctl job apply specs/sql-daily.yaml   (uses profile from owlctl.yaml group)
+#   owlctl job plan specs/sql-daily.yaml --show-yaml   (preview merged result)
+#
+# Schedule overrides the profile default (22:00 -> 02:00).
+
+apiVersion: owlctl.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: SQL Daily Backup
+  labels:
+    app: sql
+    managed-by: owlctl
+spec:
+  objects:
+    - type: VirtualMachine
+      name: sql-server-01
+      hostName: esxi-host-01.company.local
+
+    - type: VirtualMachine
+      name: sql-server-02
+      hostName: esxi-host-02.company.local
+
+  # Override profile schedule — run at 02:00 instead of 22:00
+  schedule:
+    daily: "02:00"

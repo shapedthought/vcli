@@ -1,0 +1,48 @@
+# Standard Database Backup Profile
+# Provides sensible defaults for database-tier workloads.
+# Used as a profile in owlctl.yaml groups — individual specs only need
+# to declare identity (name, objects) and any overrides.
+
+apiVersion: owlctl.veeam.com/v1
+kind: Profile
+metadata:
+  name: standard-db-backup
+  labels:
+    tier: database
+    managed-by: owlctl
+spec:
+  type: VSphereBackup
+  description: Database backup — 14-day retention with guest processing
+
+  repository: Default Backup Repository
+
+  storage:
+    compression: Optimal
+    deduplication: true
+    encryption:
+      enabled: true
+      key: Default Encryption Key
+    retention:
+      type: Days
+      quantity: 14
+
+  schedule:
+    enabled: true
+    type: Daily
+    daily: "22:00"
+    retry:
+      enabled: true
+      times: 3
+      wait: 10
+
+  guestProcessing:
+    enabled: true
+    appAwareProcessing:
+      enabled: true
+      vssOptions:
+        enabled: true
+        ignoreBadBackupState: false
+    sqlSettings:
+      enabled: true
+      backupLogs: true
+      truncateLogs: true

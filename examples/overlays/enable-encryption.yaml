@@ -1,0 +1,15 @@
+# Enable Encryption Overlay
+# Enforces encryption on any job this overlay is applied to.
+# Use in a group or with: owlctl job apply spec.yaml -o enable-encryption.yaml
+
+apiVersion: owlctl.veeam.com/v1
+kind: Overlay
+metadata:
+  name: enable-encryption
+  labels:
+    policy: encryption
+spec:
+  storage:
+    encryption:
+      enabled: true
+      key: Default Encryption Key

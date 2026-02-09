@@ -1,0 +1,15 @@
+# 30-Day Retention Overlay
+# Extends retention to 30 days for compliance or long-term storage.
+# Use in a group or with: owlctl job apply spec.yaml -o retention-30d.yaml
+
+apiVersion: owlctl.veeam.com/v1
+kind: Overlay
+metadata:
+  name: retention-30d
+  labels:
+    policy: retention
+spec:
+  storage:
+    retention:
+      type: Days
+      quantity: 30

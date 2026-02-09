@@ -5,26 +5,24 @@ apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 # Groups bundle specs with a shared profile and overlay for batch operations.
-# Apply a group: owlctl job apply --group sql-tier
-# Diff a group:  owlctl job diff --group sql-tier
+# Apply a group: owlctl job apply --group db-tier
+# Diff a group:  owlctl job diff --group db-tier
 groups:
-  sql-tier:
-    description: SQL Server backup group — gold-tier retention
-    profile: profiles/gold.yaml           # kind: Profile — base defaults
-    overlay: overlays/compliance.yaml     # kind: Overlay — policy patch
+  db-tier:
+    description: Database backups — encrypted, 14-day retention, SQL guest processing
+    profile: profiles/standard-db-backup.yaml      # kind: Profile — base defaults
+    overlay: overlays/enable-encryption.yaml        # kind: Overlay — policy patch
     specs:
-      - specs/jobs/sql-vm-01.yaml
-      - specs/jobs/sql-vm-02.yaml
+      - specs/sql-daily.yaml
 
-  web-tier:
-    description: Web server backups — standard retention
-    profile: profiles/standard.yaml
+  file-tier:
+    description: File server backups — 7-day retention, image-level only
+    profile: profiles/standard-file-backup.yaml
     specs:
-      - specs/jobs/web-frontend.yaml
-      - specs/jobs/web-api.yaml
+      - specs/file-backup.yaml
 
 # Targets define named VBR server connections.
-# Use --target to switch: owlctl job apply --group sql-tier --target primary
+# Use --target to switch: owlctl job apply --group db-tier --target primary
 targets:
   primary:
     url: https://vbr-prod.example.com
@@ -41,18 +39,18 @@ targets:
 #    owlctl target list
 #
 # 2. Show group details (resolved paths, spec count)
-#    owlctl group show sql-tier
+#    owlctl group show db-tier
 #
 # 3. Apply a group (dry-run first)
-#    owlctl job apply --group sql-tier --dry-run
-#    owlctl job apply --group sql-tier
+#    owlctl job apply --group db-tier --dry-run
+#    owlctl job apply --group db-tier
 #
 # 4. Apply a group to a specific target
-#    owlctl job apply --group sql-tier --target primary
-#    owlctl job apply --group sql-tier --target dr
+#    owlctl job apply --group db-tier --target primary
+#    owlctl job apply --group db-tier --target dr
 #
 # 5. Drift check a group
-#    owlctl job diff --group sql-tier --target primary
+#    owlctl job diff --group db-tier --target primary
 #
 # 6. Single-file overlay (no group needed)
-#    owlctl job apply base-job.yaml -o overlay.yaml
+#    owlctl job apply jobs/database-backup.yaml -o overlays/retention-30d.yaml

@@ -9,7 +9,7 @@ examples/
 ├── owlctl.yaml                  # Groups, targets — main config
 ├── profiles/
 │   ├── standard-db-backup.yaml  # kind: Profile — database defaults
-│   └── standard-file-backup.yaml# kind: Profile — file server defaults
+│   └── standard-file-backup.yaml  # kind: Profile — file server defaults
 ├── overlays/
 │   ├── enable-encryption.yaml   # kind: Overlay — enforce encryption
 │   ├── retention-30d.yaml       # kind: Overlay — 30-day retention

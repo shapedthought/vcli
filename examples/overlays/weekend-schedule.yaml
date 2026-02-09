@@ -1,0 +1,17 @@
+# Weekend Schedule Overlay
+# Shifts backup schedule to Saturday at 04:00.
+# Useful for non-critical workloads that can wait for weekend windows.
+
+apiVersion: owlctl.veeam.com/v1
+kind: Overlay
+metadata:
+  name: weekend-schedule
+  labels:
+    policy: schedule
+spec:
+  schedule:
+    type: Weekly
+    weekly:
+      days:
+        - Saturday
+      time: "04:00"

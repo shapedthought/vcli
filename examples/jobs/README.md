@@ -1,23 +1,26 @@
-# Job Configuration Examples
+# Standalone Job Configuration Examples
 
-This directory contains example VBR backup job configurations demonstrating common use cases and best practices.
+These are **full, self-contained** job specs that can be applied directly without a profile or group. Every field is specified in the file itself.
+
+For the recommended groups workflow with thin specs and profiles, see the [examples README](../README.md) and the [`specs/`](../specs/) directory.
 
 ## Available Examples
 
 ### database-backup.yaml
+
 Production database server backup with:
-- Application-aware processing (SQL transaction logs)
-- 30-day retention policy
-- Encryption optional
-- Nightly schedule with retry logic
+- Application-aware processing (VSS + SQL transaction logs)
+- 30-day retention
+- Nightly schedule at 02:00 with retry logic
 - Email notifications
 
 **Use case:** Database servers requiring transaction log handling and longer retention.
 
 ### web-tier-backup.yaml
+
 Web server tier backup with:
-- Image-level backup only (no app-aware processing)
-- 14-day retention policy
+- Image-level backup only (no guest processing)
+- 14-day retention
 - Multiple web servers
 - Simplified processing for stateless servers
 
@@ -25,79 +28,43 @@ Web server tier backup with:
 
 ## Usage
 
-### Apply a Job Configuration
-
 ```bash
-# Apply directly
+# Apply directly (standalone — no profile or group needed)
 owlctl job apply database-backup.yaml
 
-# Preview changes first (dry-run)
+# Preview changes first
 owlctl job apply database-backup.yaml --dry-run
 
-# Apply with environment overlay
-owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+# Apply with a policy overlay
+owlctl job apply database-backup.yaml -o ../overlays/retention-30d.yaml
+
+# Preview merged result
+owlctl job plan database-backup.yaml -o ../overlays/enable-encryption.yaml --show-yaml
 ```
 
-### Export Existing Job
+## Exporting Existing Jobs
 
 ```bash
 # Export by job ID
 owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
 
-# Export by job name
-owlctl export "My Backup Job" -o my-job.yaml
-
 # Export all jobs
 owlctl export --all -d ./all-jobs/
 ```
 
-### Create Environment-Specific Jobs
-
-```bash
-# Production
-owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
-
-# Development
-owlctl job apply database-backup.yaml -o ../overlays/dev/database-backup-overlay.yaml
-
-# Preview merged configuration
-owlctl job plan database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml --show-yaml
-```
-
-## Customization
-
-### Modifying Examples for Your Environment
-
-1. **Update VM names and hosts** in the `objects` section
-2. **Set repository name** to match your VBR repositories
-3. **Adjust retention** based on your requirements
-4. **Configure encryption** if needed
-5. **Update notification recipients**
-6. **Modify schedule** to fit your backup windows
-
-### Required Fields
+## Required Fields
 
 All job configurations must include:
 - `apiVersion: owlctl.veeam.com/v1`
 - `kind: VBRJob`
-- `metadata.name` - Unique job name
-- `spec.type` - Job type (VSphereBackup, HyperVBackup, etc.)
-- `spec.repository` - Target repository name
-- `spec.storage.retention` - Retention policy
-- `spec.objects` - VMs or objects to backup
-
-## Best Practices
-
-1. **Use overlays** for environment-specific settings
-2. **Version control** all job configurations in Git
-3. **Test with --dry-run** before applying
-4. **Use meaningful labels** for organization
-5. **Document customizations** in YAML comments
-6. **Export existing jobs** as templates for new jobs
-7. **Regular drift detection** to catch unauthorized changes
+- `metadata.name` — unique job name
+- `spec.type` — job type (`VSphereBackup`, `HyperVBackup`, etc.)
+- `spec.repository` — target repository name
+- `spec.storage.retention` — retention policy
+- `spec.objects` — VMs or objects to back up
 
 ## See Also
 
-- [Declarative Mode Guide](../../docs/declarative-mode.md) - Complete guide to job management
-- [Overlay Examples](../overlays/) - Environment-specific overlays
-- [Command Reference](../../docs/command-reference.md) - Quick command lookup
+- [Groups Workflow](../README.md) — recommended approach using profiles and thin specs
+- [Overlay Examples](../overlays/) — policy-focused overlays
+- [Drift Detection Guide](../../docs/drift-detection.md)

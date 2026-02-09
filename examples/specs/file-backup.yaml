@@ -1,0 +1,20 @@
+# File Server Backup — Thin Spec
+# Identity only. All other settings come from the profile.
+#   owlctl job apply specs/file-backup.yaml   (uses profile from owlctl.yaml group)
+
+apiVersion: owlctl.veeam.com/v1
+kind: VBRJob
+metadata:
+  name: File Server Backup
+  labels:
+    app: fileserver
+    managed-by: owlctl
+spec:
+  objects:
+    - type: VirtualMachine
+      name: file-server-01
+      hostName: esxi-host-01.company.local
+
+    - type: VirtualMachine
+      name: file-server-02
+      hostName: esxi-host-02.company.local

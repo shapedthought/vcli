@@ -1,0 +1,39 @@
+# Standard File Server Backup Profile
+# Provides sensible defaults for file-server workloads.
+# Image-level only — no guest processing needed.
+
+apiVersion: owlctl.veeam.com/v1
+kind: Profile
+metadata:
+  name: standard-file-backup
+  labels:
+    tier: fileserver
+    managed-by: owlctl
+spec:
+  type: VSphereBackup
+  description: File server backup — 7-day retention, image-level only
+
+  repository: Default Backup Repository
+
+  storage:
+    compression: Optimal
+    deduplication: true
+    encryption:
+      enabled: false
+    retention:
+      type: Days
+      quantity: 7
+
+  schedule:
+    enabled: true
+    type: Daily
+    daily: "23:00"
+    retry:
+      enabled: true
+      times: 2
+      wait: 5
+
+  guestProcessing:
+    enabled: false
+    appAwareProcessing:
+      enabled: false

@@ -250,7 +250,7 @@ Optional file for group-based deployments and multi-server targeting:
 
 ```yaml
 # owlctl.yaml - Groups and targets
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:
@@ -321,7 +321,8 @@ jobs:
 
       - name: Verify owlctl checksum
         run: |
-          echo "$(curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/checksums.txt | grep owlctl-linux-amd64.tar.gz | awk '{print $1}')  owlctl.tar.gz" | sha256sum -c
+          curl -sL https://github.com/shapedthought/owlctl/releases/latest/download/owlctl-linux-amd64.tar.gz.sha256 -o owlctl.tar.gz.sha256
+          sha256sum -c owlctl.tar.gz.sha256
 
       - name: Configure owlctl
         env:
@@ -1015,7 +1016,7 @@ jobs:
 
 **owlctl.yaml:**
 ```yaml
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

@@ -558,7 +558,7 @@ Groups bundle multiple specs with a shared profile and overlay, enabling batch a
 
 ```yaml
 # owlctl.yaml
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:
@@ -639,7 +639,7 @@ owlctl job apply --group sql-tier --dry-run
 owlctl job apply --group sql-tier
 ```
 
-`--group` is available on `job apply` and `job diff`. The apply command dispatches by `kind`, so a group can contain specs of any resource type (VBRJob, VBRRepository, VBRSOBR, VBRKmsServer).
+`--group` is available on `job apply` and `job diff`. Under `owlctl job`, group operations currently support only `VBRJob` specs; groups containing other resource kinds will fail validation.
 
 ### Diff with --group
 
@@ -831,7 +831,7 @@ owlctl export --all -d specs/
 
 # 4. Define groups and targets in owlctl.yaml
 cat > owlctl.yaml <<'EOF'
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

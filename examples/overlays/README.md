@@ -140,7 +140,7 @@ Define groups in `owlctl.yaml`:
 
 ```yaml
 # owlctl.yaml (in project root)
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

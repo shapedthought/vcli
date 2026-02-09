@@ -229,7 +229,7 @@ Groups are the recommended way to organize and deploy specs. A group bundles mul
 ### Example `owlctl.yaml`
 
 ```yaml
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

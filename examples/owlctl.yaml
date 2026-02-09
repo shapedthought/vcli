@@ -1,7 +1,7 @@
 # owlctl Configuration File
 # Place this file in your project root or ~/.owlctl/owlctl.yaml
 
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 # Groups bundle specs with a shared profile and overlay for batch operations.

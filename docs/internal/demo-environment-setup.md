@@ -138,7 +138,7 @@ EOF
 
 ```bash
 cat > owlctl.yaml << 'EOF'
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 # Groups bundle specs with a shared profile and overlay for batch operations.
@@ -510,7 +510,9 @@ stages:
                     fi
                   displayName: 'Post-deploy drift check'
                   env:
+                    OWLCTL_USERNAME: $(OWLCTL_USERNAME)
                     OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+                    OWLCTL_URL: $(OWLCTL_URL)
 
   - stage: DeployDR
     displayName: 'Deploy to DR VBR'

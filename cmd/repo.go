@@ -16,12 +16,16 @@ import (
 )
 
 var (
-	repoSnapshotAll bool
-	repoDiffAll     bool
-	repoApplyDryRun bool
-	sobrSnapshotAll bool
-	sobrDiffAll     bool
-	sobrApplyDryRun bool
+	repoSnapshotAll    bool
+	repoDiffAll        bool
+	repoApplyDryRun    bool
+	repoApplyGroupName string
+	repoDiffGroupName  string
+	sobrSnapshotAll    bool
+	sobrDiffAll        bool
+	sobrApplyDryRun    bool
+	sobrApplyGroupName string
+	sobrDiffGroupName  string
 )
 
 var repoCmd = &cobra.Command{
@@ -95,12 +99,28 @@ Exit Codes:
   4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if repoDiffAll {
+		if repoDiffGroupName != "" {
+			if repoDiffAll {
+				log.Fatal("Cannot use --group with --all")
+			}
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional repository name argument")
+			}
+			diffGroupResource(repoDiffGroupName, GroupDiffConfig{
+				Kind:         "VBRRepository",
+				DisplayName:  "repository",
+				PluralName:   "repositories",
+				FetchCurrent: fetchCurrentRepo,
+				IgnoreFields: repoIgnoreFields,
+				SeverityMap:  repoSeverityMap,
+				RemediateCmd: "owlctl repo apply --group %s",
+			})
+		} else if repoDiffAll {
 			diffAllRepos()
 		} else if len(args) > 0 {
 			diffSingleRepo(args[0])
 		} else {
-			log.Fatal("Provide repository name or use --all")
+			log.Fatal("Provide repository name, use --all, or use --group")
 		}
 	},
 }
@@ -379,27 +399,36 @@ Exit Codes:
   1 - Error (API failure, invalid spec)
   6 - Resource not found (repository doesn't exist in VBR)
 `,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		settings := utils.ReadSettings()
-		profile := utils.GetCurrentProfile()
+		if repoApplyGroupName != "" {
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional spec file argument")
+			}
+			applyGroupResource(repoApplyGroupName, repoApplyConfig, repoApplyDryRun)
+		} else if len(args) > 0 {
+			settings := utils.ReadSettings()
+			profile := utils.GetCurrentProfile()
 
-		if settings.SelectedProfile != "vbr" {
-			log.Fatal("This command only works with VBR at the moment.")
+			if settings.SelectedProfile != "vbr" {
+				log.Fatal("This command only works with VBR at the moment.")
+			}
+
+			result := applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
+			if result.Error != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
+				outcome := DetermineApplyOutcome([]ApplyResult{result})
+				os.Exit(ExitCodeForOutcome(outcome))
+			}
+
+			if result.DryRun {
+				return // Dry-run output already printed
+			}
+
+			fmt.Printf("\nSuccessfully %s repository: %s\n", result.Action, result.ResourceName)
+		} else {
+			log.Fatal("Provide a spec file or use --group")
 		}
-
-		result := applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
-		if result.Error != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
-			outcome := DetermineApplyOutcome([]ApplyResult{result})
-			os.Exit(ExitCodeForOutcome(outcome))
-		}
-
-		if result.DryRun {
-			return // Dry-run output already printed
-		}
-
-		fmt.Printf("\nSuccessfully %s repository: %s\n", result.Action, result.ResourceName)
 	},
 }
 
@@ -450,27 +479,36 @@ Exit Codes:
   1 - Error (API failure, invalid spec)
   6 - Resource not found (SOBR doesn't exist in VBR)
 `,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		settings := utils.ReadSettings()
-		profile := utils.GetCurrentProfile()
+		if sobrApplyGroupName != "" {
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional spec file argument")
+			}
+			applyGroupResource(sobrApplyGroupName, sobrApplyConfig, sobrApplyDryRun)
+		} else if len(args) > 0 {
+			settings := utils.ReadSettings()
+			profile := utils.GetCurrentProfile()
 
-		if settings.SelectedProfile != "vbr" {
-			log.Fatal("This command only works with VBR at the moment.")
+			if settings.SelectedProfile != "vbr" {
+				log.Fatal("This command only works with VBR at the moment.")
+			}
+
+			result := applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
+			if result.Error != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
+				outcome := DetermineApplyOutcome([]ApplyResult{result})
+				os.Exit(ExitCodeForOutcome(outcome))
+			}
+
+			if result.DryRun {
+				return // Dry-run output already printed
+			}
+
+			fmt.Printf("\nSuccessfully %s scale-out repository: %s\n", result.Action, result.ResourceName)
+		} else {
+			log.Fatal("Provide a spec file or use --group")
 		}
-
-		result := applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
-		if result.Error != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
-			outcome := DetermineApplyOutcome([]ApplyResult{result})
-			os.Exit(ExitCodeForOutcome(outcome))
-		}
-
-		if result.DryRun {
-			return // Dry-run output already printed
-		}
-
-		fmt.Printf("\nSuccessfully %s scale-out repository: %s\n", result.Action, result.ResourceName)
 	},
 }
 
@@ -516,12 +554,28 @@ Exit Codes:
   4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if sobrDiffAll {
+		if sobrDiffGroupName != "" {
+			if sobrDiffAll {
+				log.Fatal("Cannot use --group with --all")
+			}
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional SOBR name argument")
+			}
+			diffGroupResource(sobrDiffGroupName, GroupDiffConfig{
+				Kind:         "VBRScaleOutRepository",
+				DisplayName:  "scale-out repository",
+				PluralName:   "scale-out repositories",
+				FetchCurrent: fetchCurrentSobr,
+				IgnoreFields: sobrIgnoreFields,
+				SeverityMap:  sobrSeverityMap,
+				RemediateCmd: "owlctl repo sobr-apply --group %s",
+			})
+		} else if sobrDiffAll {
 			diffAllSobrs()
 		} else if len(args) > 0 {
 			diffSingleSobr(args[0])
 		} else {
-			log.Fatal("Provide SOBR name or use --all")
+			log.Fatal("Provide SOBR name, use --all, or use --group")
 		}
 	},
 }
@@ -786,13 +840,17 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 func init() {
 	repoSnapshotCmd.Flags().BoolVar(&repoSnapshotAll, "all", false, "Snapshot all repositories")
 	repoDiffCmd.Flags().BoolVar(&repoDiffAll, "all", false, "Check drift for all repositories in state")
+	repoDiffCmd.Flags().StringVar(&repoDiffGroupName, "group", "", "Check drift for all specs in named group (from owlctl.yaml)")
 	addSeverityFlags(repoDiffCmd)
 	repoApplyCmd.Flags().BoolVar(&repoApplyDryRun, "dry-run", false, "Preview changes without applying them")
+	repoApplyCmd.Flags().StringVar(&repoApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
 	sobrSnapshotCmd.Flags().BoolVar(&sobrSnapshotAll, "all", false, "Snapshot all scale-out repositories")
 	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
+	sobrDiffCmd.Flags().StringVar(&sobrDiffGroupName, "group", "", "Check drift for all specs in named group (from owlctl.yaml)")
 	addSeverityFlags(sobrDiffCmd)
 	sobrApplyCmd.Flags().BoolVar(&sobrApplyDryRun, "dry-run", false, "Preview changes without applying them")
+	sobrApplyCmd.Flags().StringVar(&sobrApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)

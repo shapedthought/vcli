@@ -14,11 +14,13 @@ import (
 )
 
 var (
-	encSnapshotAll  bool
-	encDiffAll      bool
-	kmsSnapshotAll  bool
-	kmsDiffAll      bool
-	kmsApplyDryRun  bool
+	encSnapshotAll     bool
+	encDiffAll         bool
+	kmsSnapshotAll     bool
+	kmsDiffAll         bool
+	kmsApplyDryRun     bool
+	kmsApplyGroupName  string
+	kmsDiffGroupName   string
 )
 
 var encryptionCmd = &cobra.Command{
@@ -470,27 +472,36 @@ Exit Codes:
   1 - Error (API failure, invalid spec)
   6 - Resource not found (KMS server doesn't exist in VBR)
 `,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		settings := utils.ReadSettings()
-		profile := utils.GetCurrentProfile()
+		if kmsApplyGroupName != "" {
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional spec file argument")
+			}
+			applyGroupResource(kmsApplyGroupName, kmsApplyConfig, kmsApplyDryRun)
+		} else if len(args) > 0 {
+			settings := utils.ReadSettings()
+			profile := utils.GetCurrentProfile()
 
-		if settings.SelectedProfile != "vbr" {
-			log.Fatal("This command only works with VBR at the moment.")
+			if settings.SelectedProfile != "vbr" {
+				log.Fatal("This command only works with VBR at the moment.")
+			}
+
+			result := applyResource(args[0], kmsApplyConfig, profile, kmsApplyDryRun)
+			if result.Error != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
+				outcome := DetermineApplyOutcome([]ApplyResult{result})
+				os.Exit(ExitCodeForOutcome(outcome))
+			}
+
+			if result.DryRun {
+				return // Dry-run output already printed
+			}
+
+			fmt.Printf("\nSuccessfully %s KMS server: %s\n", result.Action, result.ResourceName)
+		} else {
+			log.Fatal("Provide a spec file or use --group")
 		}
-
-		result := applyResource(args[0], kmsApplyConfig, profile, kmsApplyDryRun)
-		if result.Error != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
-			outcome := DetermineApplyOutcome([]ApplyResult{result})
-			os.Exit(ExitCodeForOutcome(outcome))
-		}
-
-		if result.DryRun {
-			return // Dry-run output already printed
-		}
-
-		fmt.Printf("\nSuccessfully %s KMS server: %s\n", result.Action, result.ResourceName)
 	},
 }
 
@@ -536,12 +547,27 @@ Exit Codes:
   4 - Critical security drift detected
   1 - Error occurred`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if kmsDiffAll {
+		if kmsDiffGroupName != "" {
+			if kmsDiffAll {
+				log.Fatal("Cannot use --group with --all")
+			}
+			if len(args) > 0 {
+				log.Fatal("Cannot use --group with a positional KMS server name argument")
+			}
+			diffGroupResource(kmsDiffGroupName, GroupDiffConfig{
+				Kind:         "VBRKmsServer",
+				DisplayName:  "KMS server",
+				FetchCurrent: fetchCurrentKmsServer,
+				IgnoreFields: kmsIgnoreFields,
+				SeverityMap:  kmsSeverityMap,
+				RemediateCmd: "owlctl encryption kms-apply --group %s",
+			})
+		} else if kmsDiffAll {
 			diffAllKmsServers()
 		} else if len(args) > 0 {
 			diffSingleKmsServer(args[0])
 		} else {
-			log.Fatal("Provide KMS server name or use --all")
+			log.Fatal("Provide KMS server name, use --all, or use --group")
 		}
 	},
 }
@@ -852,8 +878,10 @@ func init() {
 	addSeverityFlags(encDiffCmd)
 	kmsSnapshotCmd.Flags().BoolVar(&kmsSnapshotAll, "all", false, "Snapshot all KMS servers")
 	kmsDiffCmd.Flags().BoolVar(&kmsDiffAll, "all", false, "Check drift for all KMS servers in state")
+	kmsDiffCmd.Flags().StringVar(&kmsDiffGroupName, "group", "", "Check drift for all specs in named group (from owlctl.yaml)")
 	addSeverityFlags(kmsDiffCmd)
 	kmsApplyCmd.Flags().BoolVar(&kmsApplyDryRun, "dry-run", false, "Preview changes without applying them")
+	kmsApplyCmd.Flags().StringVar(&kmsApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)

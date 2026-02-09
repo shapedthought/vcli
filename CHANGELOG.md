@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-02-09
+
+### Epic #96: Groups, Targets & Profile/Overlay System
+
+This release introduces group-based batch operations, named VBR targets, and profile/overlay support for standardised backup policy management across all declarative resource types.
+
+### Added
+
+#### Groups, Profiles & Overlays (Phase 1)
+- `--group <name>` flag on `job apply` and `job diff` — batch-apply or drift-check all specs in a group
+- `group list` and `group show <name>` commands for inspecting configured groups
+- `kind: Profile` and `kind: Overlay` YAML types for standardisation and policy patches
+- 3-way strategic merge: profile (base defaults) → spec (identity + exceptions) → overlay (policy patch)
+- `groups` section in owlctl.yaml with `profile`, `overlay`, and `specs` references
+- `Kind` constants and `IsMixinKind()`/`IsResourceKind()` helpers in resources package
+
+#### Named VBR Targets (Phase 2)
+- `targets` section in owlctl.yaml for named VBR server connections
+- `--target <name>` persistent flag on all commands — overrides `OWLCTL_URL` for the session
+- `target list` command with table and `--json` output
+
+#### Extended Resource Group Support (Phase 3)
+- `--group <name>` flag on `repo apply` / `repo diff`
+- `--group <name>` flag on `repo sobr-apply` / `repo sobr-diff`
+- `--group <name>` flag on `encryption kms-apply` / `encryption kms-diff`
+
+### Changed
+- Deprecated `currentEnvironment` and `environments` fields in owlctl.yaml (deprecation warning emitted when present)
+- Restructured examples directory for groups/profiles/overlays model
+- Updated all documentation for groups/targets/profiles model
+
 ## [1.0.0] - 2026-02-07
 
 ### Rebrand: vcli is now owlctl

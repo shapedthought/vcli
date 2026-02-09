@@ -277,7 +277,7 @@ owlctl job apply --group sql-tier --target dr
 | `--dry-run` | Preview changes without applying |
 | `-o, --overlay <file>` | Apply with configuration overlay |
 | `--group <name>` | Apply all specs in named group (from `owlctl.yaml`) |
-| `--env <name>` | **Deprecated.** Use `--group` instead |
+| `--env <name>` | Legacy flag; supported for backwards compatibility. Prefer `--group`. |
 
 ### Diff Commands
 

@@ -306,7 +306,7 @@ Groups are the recommended way to manage multiple specs with shared defaults and
 
 # Create owlctl.yaml
 cat > owlctl.yaml <<'EOF'
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

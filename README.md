@@ -190,7 +190,7 @@ owlctl job apply base-backup.yaml -o prod-overlay.yaml
 **5. Configure groups (optional):**
 ```yaml
 # owlctl.yaml - Groups and targets
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:
@@ -259,7 +259,7 @@ owlctl export --all -d specs/
 
 # 3. Configure groups and targets
 cat > owlctl.yaml <<'EOF'
-apiVersion: v1
+apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 groups:

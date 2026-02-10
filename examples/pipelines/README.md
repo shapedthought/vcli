@@ -231,7 +231,7 @@ variables:
   - name: specsPath
     value: 'my-custom-path'  # Change infrastructure path
   - name: owlctlVersion
-    value: 'v1.0.0'  # Pin to specific version
+    value: 'v1.1.0'  # Pin to specific version
 ```
 
 ### pr-validation.yml

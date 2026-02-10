@@ -8,7 +8,7 @@ This document walks through setting up an Azure DevOps environment that demonstr
 - VBR server accessible from your machine (or Docker host)
 - Docker and Docker Compose installed (for self-hosted agent)
 - Go installed locally (for initial bootstrap)
-- owlctl v1.0.0+ binary (or built from source)
+- owlctl v1.1.0+ binary (or built from source)
 
 ## Step 1: Create the Azure DevOps Project
 

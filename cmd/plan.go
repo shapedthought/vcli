@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/shapedthought/owlctl/config"
-	"github.com/shapedthought/owlctl/models"
 	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
@@ -127,18 +126,26 @@ func planJob(configFile string) {
 
 	// Fetch current job from VBR to show diff
 	profile := utils.GetCurrentProfile()
-	currentJob, exists := findJobByName(finalSpec.Metadata.Name, profile)
+	currentRaw, currentID, err := fetchCurrentJob(finalSpec.Metadata.Name, profile)
+	if err != nil {
+		log.Fatalf("Failed to fetch current job: %v", err)
+	}
 
-	if !exists {
+	if currentRaw == nil {
 		// Job doesn't exist - will be created
 		fmt.Println("⚠ Job not found in VBR - will be created")
 		fmt.Println()
 		showNewJobSummary(finalSpec)
 	} else {
 		// Job exists - show diff
-		fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentJob.ID)
+		fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentID)
 		fmt.Println()
-		showJobDiff(finalSpec, currentJob)
+
+		var currentMap map[string]interface{}
+		if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
+			log.Fatalf("Failed to unmarshal current job: %v", err)
+		}
+		showJobDiff(finalSpec, currentMap)
 	}
 
 	// Show full YAML if requested
@@ -268,21 +275,10 @@ func showNewJobSummary(spec resources.ResourceSpec) {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
-// showJobDiff compares desired spec with current VBR job and displays differences
-func showJobDiff(desiredSpec resources.ResourceSpec, currentJob models.VbrJobGet) {
+// showJobDiff compares desired spec with current VBR job (as map) and displays differences
+func showJobDiff(desiredSpec resources.ResourceSpec, currentMap map[string]interface{}) {
 	// Convert both to comparable maps
 	desiredMap := desiredSpec.Spec
-
-	// Convert currentJob to map
-	currentBytes, err := json.Marshal(currentJob)
-	if err != nil {
-		log.Fatalf("Failed to marshal current job: %v", err)
-	}
-
-	var currentMap map[string]interface{}
-	if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
-		log.Fatalf("Failed to unmarshal current job: %v", err)
-	}
 
 	// Detect drifts (desired is "state", current is "VBR")
 	drifts := detectDrift(desiredMap, currentMap, jobIgnoreFields)

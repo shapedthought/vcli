@@ -1,14 +1,19 @@
 package cmd
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/shapedthought/owlctl/state"
 )
 
 // --- enhanceJobDriftSeverity tests ---
 
 func TestEnhanceJobDriftSeverity_IsDisabled_True(t *testing.T) {
 	drifts := []Drift{
-		{Path: "isDisabled", Action: "modified", State: false, VBR: true, Severity: SeverityCritical},
+		{Path: "isDisabled", Action: "modified", State: false, VBR: true, Severity: SeverityInfo},
 	}
 
 	result := enhanceJobDriftSeverity(drifts)
@@ -273,5 +278,148 @@ func TestToString(t *testing.T) {
 	}
 	if got := toString(42); got != "42" {
 		t.Errorf("toString(42) = %q, want \"42\"", got)
+	}
+}
+
+// --- checkRepoHardeningDrift tests ---
+
+// setupStateWithRepos creates a temp dir with a state.json containing the given repos,
+// sets OWLCTL_SETTINGS_PATH, and returns a cleanup function.
+func setupStateWithRepos(t *testing.T, repos map[string]*state.Resource) func() {
+	t.Helper()
+
+	tempDir, err := os.MkdirTemp("", "owlctl-repo-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	s := state.NewState()
+	for name, r := range repos {
+		s.Resources[name] = r
+	}
+
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal state: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, "state.json"), data, 0644); err != nil {
+		t.Fatalf("Failed to write state.json: %v", err)
+	}
+
+	origPath := os.Getenv("OWLCTL_SETTINGS_PATH")
+	os.Setenv("OWLCTL_SETTINGS_PATH", tempDir)
+
+	return func() {
+		os.Setenv("OWLCTL_SETTINGS_PATH", origPath)
+		os.RemoveAll(tempDir)
+	}
+}
+
+func TestCheckRepoHardeningDrift_MovedOffHardened(t *testing.T) {
+	cleanup := setupStateWithRepos(t, map[string]*state.Resource{
+		"Hardened Repo": {
+			Type: "VBRRepository",
+			ID:   "repo-hardened-id",
+			Name: "Hardened Repo",
+			Spec: map[string]interface{}{"type": "LinuxHardened"},
+		},
+		"Normal Repo": {
+			Type: "VBRRepository",
+			ID:   "repo-normal-id",
+			Name: "Normal Repo",
+			Spec: map[string]interface{}{"type": "WinLocal"},
+		},
+	})
+	defer cleanup()
+
+	stateSpec := map[string]interface{}{
+		"storage": map[string]interface{}{
+			"backupRepositoryId": "repo-hardened-id",
+		},
+	}
+
+	drifts := []Drift{
+		{
+			Path:     "storage.backupRepositoryId",
+			Action:   "modified",
+			State:    "repo-hardened-id",
+			VBR:      "repo-normal-id",
+			Severity: SeverityWarning,
+		},
+	}
+
+	result := checkRepoHardeningDrift(drifts, stateSpec)
+
+	// Original drift should be upgraded to CRITICAL
+	if result[0].Severity != SeverityCritical {
+		t.Errorf("Repo drift should be CRITICAL when moving off hardened, got %s", result[0].Severity)
+	}
+
+	// Synthetic drift should be appended
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 drifts (original + synthetic), got %d", len(result))
+	}
+	if result[1].Severity != SeverityCritical {
+		t.Errorf("Synthetic drift should be CRITICAL, got %s", result[1].Severity)
+	}
+}
+
+func TestCheckRepoHardeningDrift_MovedBetweenNonHardened(t *testing.T) {
+	cleanup := setupStateWithRepos(t, map[string]*state.Resource{
+		"Repo A": {
+			Type: "VBRRepository",
+			ID:   "repo-a-id",
+			Name: "Repo A",
+			Spec: map[string]interface{}{"type": "WinLocal"},
+		},
+		"Repo B": {
+			Type: "VBRRepository",
+			ID:   "repo-b-id",
+			Name: "Repo B",
+			Spec: map[string]interface{}{"type": "WinLocal"},
+		},
+	})
+	defer cleanup()
+
+	stateSpec := map[string]interface{}{
+		"storage": map[string]interface{}{
+			"backupRepositoryId": "repo-a-id",
+		},
+	}
+
+	drifts := []Drift{
+		{
+			Path:     "storage.backupRepositoryId",
+			Action:   "modified",
+			State:    "repo-a-id",
+			VBR:      "repo-b-id",
+			Severity: SeverityWarning,
+		},
+	}
+
+	result := checkRepoHardeningDrift(drifts, stateSpec)
+
+	// Should NOT be upgraded — neither repo is hardened
+	if result[0].Severity != SeverityWarning {
+		t.Errorf("Expected WARNING (non-hardened to non-hardened), got %s", result[0].Severity)
+	}
+	if len(result) != 1 {
+		t.Errorf("Expected 1 drift (no synthetic), got %d", len(result))
+	}
+}
+
+func TestCheckRepoHardeningDrift_NoRepoDrift(t *testing.T) {
+	drifts := []Drift{
+		{Path: "description", Action: "modified", Severity: SeverityInfo},
+	}
+
+	// Should return drifts unchanged when no repo drift exists
+	result := checkRepoHardeningDrift(drifts, map[string]interface{}{})
+	if len(result) != 1 {
+		t.Errorf("Expected 1 drift unchanged, got %d", len(result))
+	}
+	if result[0].Severity != SeverityInfo {
+		t.Errorf("Expected INFO unchanged, got %s", result[0].Severity)
 	}
 }

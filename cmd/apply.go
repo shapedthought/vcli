@@ -266,7 +266,12 @@ func applyGroup(group string) {
 		}
 
 		// Check existence BEFORE apply to correctly determine created vs updated
-		existingRaw, _, _ := fetchCurrentJob(mergedSpec.Metadata.Name, profile)
+		existingRaw, _, err := fetchCurrentJob(mergedSpec.Metadata.Name, profile)
+		if err != nil {
+			result.Error = fmt.Errorf("failed to fetch current job: %w", err)
+			results = append(results, result)
+			continue
+		}
 		existedBefore := existingRaw != nil
 
 		if dryRun {
@@ -439,7 +444,7 @@ func prepareJobPayload(spec, existing map[string]interface{}) (map[string]interf
 					}
 				}
 				if !hasValidExcludes {
-					excludes["disks"] = nil
+					delete(excludes, "disks")
 				}
 			}
 		}
@@ -451,6 +456,15 @@ func prepareJobPayload(spec, existing map[string]interface{}) (map[string]interf
 // applyVBRJob creates or updates a VBR job based on the specification.
 // Delegates to the generic applyResourceSpec infrastructure.
 func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
+	// Ensure the payload name matches metadata.name so the API lookup key
+	// and the body sent to VBR stay consistent (e.g. after overlay changes).
+	if spec.Spec == nil {
+		spec.Spec = make(map[string]interface{})
+	}
+	if spec.Metadata.Name != "" {
+		spec.Spec["name"] = spec.Metadata.Name
+	}
+
 	result := applyResourceSpec(spec, jobApplyConfig, profile, false, nil)
 	if result.Error != nil {
 		return result.Error

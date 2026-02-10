@@ -452,8 +452,15 @@ func extractCommonFields(job map[string]interface{}) map[string]interface{} {
 	return overlay
 }
 
-// deepEqual compares two values for deep equality
+// deepEqual compares two values for equality with numeric type normalization.
+// JSON unmarshals numbers as float64, while YAML unmarshals them as int.
+// This prevents false diffs like 1 (int) != 1.0 (float64).
 func deepEqual(a, b interface{}) bool {
+	aNum, aIsNum := tryParseFloat64(a)
+	bNum, bIsNum := tryParseFloat64(b)
+	if aIsNum && bIsNum {
+		return aNum == bNum
+	}
 	return reflect.DeepEqual(a, b)
 }
 

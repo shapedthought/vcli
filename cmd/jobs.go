@@ -642,23 +642,20 @@ func diffGroup(group string) {
 		jobName := desiredSpec.Metadata.Name
 
 		// Fetch current from VBR
-		currentJob, exists := findJobByName(jobName, profile)
-		if !exists {
+		currentRaw, _, fetchErr := fetchCurrentJob(jobName, profile)
+		if fetchErr != nil {
+			fmt.Printf("  %s: Failed to fetch current job: %v\n", jobName, fetchErr)
+			errorCount++
+			continue
+		}
+		if currentRaw == nil {
 			fmt.Printf("  %s: Not found in VBR (would be created by apply)\n", jobName)
 			notFoundCount++
 			continue
 		}
 
-		// Convert current job to map for comparison
-		currentBytes, err := json.Marshal(currentJob)
-		if err != nil {
-			fmt.Printf("  %s: Failed to marshal current job: %v\n", jobName, err)
-			errorCount++
-			continue
-		}
-
 		var currentMap map[string]interface{}
-		if err := json.Unmarshal(currentBytes, &currentMap); err != nil {
+		if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
 			fmt.Printf("  %s: Failed to unmarshal current job: %v\n", jobName, err)
 			errorCount++
 			continue
@@ -718,26 +715,15 @@ func snapshotSingleJob(jobName string) {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	// Fetch all jobs and find by name
-	jobList := vhttp.GetData[models.VbrJobList]("jobs", profile)
-
-	var found *models.VbrJobGet
-	for i := range jobList.Data {
-		if jobList.Data[i].Name == jobName {
-			found = &jobList.Data[i]
-			break
-		}
+	// Fetch job by name using generic fetch
+	jobData, jobID, fetchErr := fetchCurrentJob(jobName, profile)
+	if fetchErr != nil {
+		log.Fatalf("Failed to fetch job '%s': %v", jobName, fetchErr)
 	}
-
-	if found == nil {
+	if jobData == nil {
 		log.Fatalf("Job '%s' not found in VBR.", jobName)
 	}
-
-	// Fetch the individual job for full details
-	endpoint := fmt.Sprintf("jobs/%s", found.ID)
-	jobData := vhttp.GetData[json.RawMessage](endpoint, profile)
-
-	if err := saveJobToState(jobName, found.ID, jobData); err != nil {
+	if err := saveJobToState(jobName, jobID, jobData); err != nil {
 		log.Fatalf("Failed to save job state: %v", err)
 	}
 
@@ -753,7 +739,15 @@ func snapshotAllJobs() {
 		log.Fatal("This command only works with VBR at the moment.")
 	}
 
-	jobList := vhttp.GetData[models.VbrJobList]("jobs", profile)
+	type JobListItem struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	type JobListResponse struct {
+		Data []JobListItem `json:"data"`
+	}
+
+	jobList := vhttp.GetData[JobListResponse]("jobs", profile)
 
 	if len(jobList.Data) == 0 {
 		fmt.Println("No jobs found.")

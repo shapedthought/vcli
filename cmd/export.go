@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -70,12 +71,21 @@ Examples:
 }
 
 func exportSingleJob(jobID string, profile models.Profile) {
-	// Fetch job from VBR
+	// Fetch job from VBR as raw JSON (preserves all fields regardless of job type)
 	endpoint := fmt.Sprintf("jobs/%s", jobID)
-	vbrJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+	rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
+
+	// Extract name and ID from raw JSON
+	var meta struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(rawData, &meta); err != nil {
+		log.Fatalf("Failed to parse job response: %v", err)
+	}
 
 	// Convert to declarative YAML
-	yamlContent, err := convertJobToYAML(&vbrJob)
+	yamlContent, err := convertJobToYAML(meta.Name, meta.ID, rawData)
 	if err != nil {
 		log.Fatalf("Failed to convert job to YAML: %v", err)
 	}
@@ -92,9 +102,13 @@ func exportSingleJob(jobID string, profile models.Profile) {
 }
 
 func exportAllJobs(profile models.Profile) {
-	// Fetch all jobs
+	// Fetch all jobs using generic list response
+	type JobListItem struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
 	type JobList struct {
-		Data []models.VbrJobGet `json:"data"`
+		Data []JobListItem `json:"data"`
 	}
 
 	jobs := vhttp.GetData[JobList]("jobs", profile)
@@ -121,12 +135,12 @@ func exportAllJobs(profile models.Profile) {
 	fmt.Printf("Exporting %d jobs...\n", len(jobs.Data))
 
 	for i, job := range jobs.Data {
-		// Fetch full job details
+		// Fetch full job details as raw JSON
 		endpoint := fmt.Sprintf("jobs/%s", job.ID)
-		fullJob := vhttp.GetData[models.VbrJobGet](endpoint, profile)
+		rawData := vhttp.GetData[json.RawMessage](endpoint, profile)
 
 		// Convert to YAML
-		yamlContent, err := convertJobToYAML(&fullJob)
+		yamlContent, err := convertJobToYAML(job.Name, job.ID, rawData)
 		if err != nil {
 			fmt.Printf("Warning: Failed to convert job %s: %v\n", job.Name, err)
 			failedCount++
@@ -151,41 +165,35 @@ func exportAllJobs(profile models.Profile) {
 	fmt.Printf("\nExport complete: %d successful, %d failed\n", successCount, failedCount)
 }
 
-func convertJobToYAML(vbrJob *models.VbrJobGet) ([]byte, error) {
+func convertJobToYAML(name, id string, rawData json.RawMessage) ([]byte, error) {
 	if exportAsOverlay {
-		return convertJobToYAMLOverlay(vbrJob, exportBasePath)
+		return convertJobToYAMLOverlay(name, id, rawData, exportBasePath)
 	}
 	if exportSimplified {
-		return convertJobToYAMLSimplified(vbrJob)
+		return convertJobToYAMLSimplified(name, id, rawData)
 	}
-	return convertJobToYAMLFull(vbrJob)
+	return convertJobToYAMLFull(name, id, rawData)
 }
 
-func convertJobToYAMLFull(vbrJob *models.VbrJobGet) ([]byte, error) {
+func convertJobToYAMLFull(name, id string, rawData json.RawMessage) ([]byte, error) {
+	// Unmarshal raw JSON directly to map (preserves all fields from any job type)
+	var jobMap map[string]interface{}
+	if err := json.Unmarshal(rawData, &jobMap); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job data: %w", err)
+	}
+
 	// Create full resource spec with complete job object
 	resourceSpec := resources.ResourceSpec{
 		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
-			Name: vbrJob.Name,
+			Name: name,
 		},
-		Spec: make(map[string]interface{}),
+		Spec: jobMap,
 	}
-
-	// Marshal the entire job to preserve all fields
-	jobBytes, err := yaml.Marshal(vbrJob)
-	if err != nil {
-		return nil, err
-	}
-
-	var jobMap map[string]interface{}
-	if err := yaml.Unmarshal(jobBytes, &jobMap); err != nil {
-		return nil, err
-	}
-	resourceSpec.Spec = jobMap
 
 	// Add header comment
-	header := fmt.Sprintf("# VBR Job Configuration (Full Export)\n# Exported from VBR\n# Job ID: %s\n# API Version: 1.3-rev1\n#\n# This export contains the complete job configuration.\n# All ~300 fields from the VBR API are preserved.\n\n", vbrJob.ID)
+	header := fmt.Sprintf("# VBR Job Configuration (Full Export)\n# Exported from VBR\n# Job ID: %s\n# API Version: 1.3-rev1\n#\n# This export contains the complete job configuration.\n# All fields from the VBR API are preserved.\n\n", id)
 
 	// Marshal to YAML
 	yamlBytes, err := yaml.Marshal(resourceSpec)
@@ -200,7 +208,13 @@ func convertJobToYAMLFull(vbrJob *models.VbrJobGet) ([]byte, error) {
 	return result, nil
 }
 
-func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
+func convertJobToYAMLSimplified(name, id string, rawData json.RawMessage) ([]byte, error) {
+	// Simplified export is VM-specific — unmarshal to typed struct internally
+	var vbrJob models.VbrJobGet
+	if err := json.Unmarshal(rawData, &vbrJob); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job for simplified export: %w", err)
+	}
+
 	// Create resolver for name resolution
 	resolver := resources.NewResolver()
 
@@ -267,7 +281,7 @@ func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
-			Name: vbrJob.Name,
+			Name: name,
 		},
 		Spec: make(map[string]interface{}),
 	}
@@ -285,7 +299,7 @@ func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 	resourceSpec.Spec = specMap
 
 	// Add header comment
-	header := fmt.Sprintf("# VBR Job Configuration\n# Exported from VBR\n# Job ID: %s\n\n", vbrJob.ID)
+	header := fmt.Sprintf("# VBR Job Configuration\n# Exported from VBR\n# Job ID: %s\n\n", id)
 
 	// Marshal to YAML
 	yamlBytes, err := yaml.Marshal(resourceSpec)
@@ -300,7 +314,7 @@ func convertJobToYAMLSimplified(vbrJob *models.VbrJobGet) ([]byte, error) {
 	return result, nil
 }
 
-func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte, error) {
+func convertJobToYAMLOverlay(name, id string, rawData json.RawMessage, basePath string) ([]byte, error) {
 	var baseSpec map[string]interface{}
 
 	// Load base if provided
@@ -317,15 +331,10 @@ func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte,
 		baseSpec = baseResource.Spec
 	}
 
-	// Convert job to map
-	jobBytes, err := yaml.Marshal(vbrJob)
-	if err != nil {
-		return nil, err
-	}
-
+	// Unmarshal raw JSON directly to map
 	var jobMap map[string]interface{}
-	if err := yaml.Unmarshal(jobBytes, &jobMap); err != nil {
-		return nil, err
+	if err := json.Unmarshal(rawData, &jobMap); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job data: %w", err)
 	}
 
 	// Calculate overlay (differences from base)
@@ -343,7 +352,7 @@ func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte,
 		APIVersion: "owlctl.veeam.com/v1",
 		Kind:       "VBRJob",
 		Metadata: resources.Metadata{
-			Name: vbrJob.Name,
+			Name: name,
 		},
 		Spec: overlaySpec,
 	}
@@ -353,7 +362,7 @@ func convertJobToYAMLOverlay(vbrJob *models.VbrJobGet, basePath string) ([]byte,
 	if basePath != "" {
 		header += fmt.Sprintf("# Base: %s\n", basePath)
 	}
-	header += fmt.Sprintf("# Job ID: %s\n", vbrJob.ID)
+	header += fmt.Sprintf("# Job ID: %s\n", id)
 	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: owlctl job apply base.yaml -o this-file.yaml\n\n"
 
 	// Marshal to YAML

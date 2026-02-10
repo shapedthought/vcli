@@ -136,18 +136,26 @@ func applyJob(configFile string) {
 		fmt.Println()
 
 		// Fetch current job from VBR to show diff
-		currentJob, exists := findJobByName(finalSpec.Metadata.Name, profile)
+		currentRaw, currentID, err := fetchCurrentJob(finalSpec.Metadata.Name, profile)
+		if err != nil {
+			log.Fatalf("Failed to fetch current job: %v", err)
+		}
 
-		if !exists {
+		if currentRaw == nil {
 			// Job doesn't exist - will be created
 			fmt.Println("⚠ Job not found in VBR - will be created")
 			fmt.Println()
 			showNewJobSummary(finalSpec)
 		} else {
 			// Job exists - show diff
-			fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentJob.ID)
+			fmt.Printf("✓ Current job found in VBR (ID: %s)\n", currentID)
 			fmt.Println()
-			showJobDiff(finalSpec, currentJob)
+
+			var currentMap map[string]interface{}
+			if err := json.Unmarshal(currentRaw, &currentMap); err != nil {
+				log.Fatalf("Failed to unmarshal current job: %v", err)
+			}
+			showJobDiff(finalSpec, currentMap)
 		}
 
 		fmt.Println("\n=== End Dry Run ===")
@@ -258,7 +266,8 @@ func applyGroup(group string) {
 		}
 
 		// Check existence BEFORE apply to correctly determine created vs updated
-		_, existedBefore := findJobByName(mergedSpec.Metadata.Name, profile)
+		existingRaw, _, _ := fetchCurrentJob(mergedSpec.Metadata.Name, profile)
+		existedBefore := existingRaw != nil
 
 		if dryRun {
 			// Show dry-run preview for this spec
@@ -352,201 +361,101 @@ func getConfiguredOverlay() (string, error) {
 	return overlayPath, nil
 }
 
-// applyVBRJob creates or updates a VBR job based on the specification
-func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
-	// Convert spec to VbrJobPost model
-	jobPost, err := specToVBRJob(spec)
-	if err != nil {
-		return fmt.Errorf("failed to convert spec to VBR job: %w", err)
-	}
-
-	// Check if job already exists
-	existingJob, exists := findJobByName(jobPost.Name, profile)
-
-	var jobID string
-	if exists {
-		// Update existing job
-		fmt.Printf("Job '%s' already exists (ID: %s), updating...\n", jobPost.Name, existingJob.ID)
-
-		// For PUT, we need to merge our changes with the existing job
-		// Convert existing job to VbrJobPost
-		mergedJob := mergeJobUpdates(existingJob, jobPost)
-
-		// IMPORTANT: VBR requires the ID in the request body for PUT (as well as in URL)
-		// Convert to VbrJobGet which has the ID field for the PUT request
-		jobForPut := models.VbrJobGet{
-			ID:              existingJob.ID, // Include ID in body for PUT
-			Type:            mergedJob.Type,
-			Name:            mergedJob.Name,
-			Description:     mergedJob.Description,
-			IsDisabled:      mergedJob.IsDisabled,
-			IsHighPriority:  mergedJob.IsHighPriority,
-			VirtualMachines: mergedJob.VirtualMachines,
-			Storage:         mergedJob.Storage,
-			GuestProcessing: mergedJob.GuestProcessing,
-			Schedule:        mergedJob.Schedule,
-		}
-
-		// Debug: Print what we're sending (only when OWLCTL_DEBUG is set)
-		if os.Getenv("OWLCTL_DEBUG") != "" {
-			debugBytes, _ := json.MarshalIndent(jobForPut, "", "  ")
-			_ = os.WriteFile("/tmp/owlctl-debug-request.json", debugBytes, 0600)
-			fmt.Fprintf(os.Stderr, "\nDEBUG: Full request saved to /tmp/owlctl-debug-request.json\n")
-			fmt.Fprintf(os.Stderr, "Job ID in body: %s\n", jobForPut.ID)
-		}
-
-		endpoint := fmt.Sprintf("jobs/%s", existingJob.ID)
-		vhttp.PutData(endpoint, jobForPut, profile)
-		fmt.Printf("Updated job: %s\n", jobPost.Name)
-		jobID = existingJob.ID
-	} else {
-		// Create new job
-		fmt.Printf("Creating new job: %s\n", jobPost.Name)
-		result := vhttp.PostData[models.VbrJobGet]("jobs", jobPost, profile)
-		fmt.Printf("Created job with ID: %s\n", result.ID)
-		jobID = result.ID
-	}
-
-	// Update state after successful apply (using shared helper)
-	// Note: Legacy job apply doesn't track field changes like generic applyResource
-	if err := updateResourceState(spec, jobID, "VBRJob", nil); err != nil {
-		// Log warning but don't fail the apply
-		fmt.Printf("Warning: Failed to update state: %v\n", err)
-	}
-
-	return nil
+// jobApplyConfig defines how to apply job configurations via the generic infrastructure
+var jobApplyConfig = ResourceApplyConfig{
+	Kind:           "VBRJob",
+	Endpoint:       "jobs",
+	IgnoreFields:   jobIgnoreFields,
+	Mode:           ApplyCreateOrUpdate,
+	FetchCurrent:   fetchCurrentJob,
+	PreparePayload: prepareJobPayload,
 }
 
-// mergeJobUpdates merges the desired changes into the existing job
-func mergeJobUpdates(existing models.VbrJobGet, desired models.VbrJobPost) models.VbrJobPost {
-	// Start with the existing job (convert to VbrJobPost)
-	merged := models.VbrJobPost{
-		Type:            existing.Type,
-		Name:            existing.Name,
-		Description:     existing.Description,
-		IsDisabled:      existing.IsDisabled,
-		IsHighPriority:  existing.IsHighPriority,
-		VirtualMachines: existing.VirtualMachines,
-		Storage:         existing.Storage,
-		GuestProcessing: existing.GuestProcessing,
-		Schedule:        existing.Schedule,
-	}
-
-	// Apply desired changes on top
-	if desired.Description != "" {
-		merged.Description = desired.Description
-	}
-	if desired.Type != "" {
-		merged.Type = desired.Type
-	}
-	// Merge storage settings if provided
-	if desired.Storage.RetentionPolicy.Quantity > 0 {
-		merged.Storage.RetentionPolicy.Quantity = desired.Storage.RetentionPolicy.Quantity
-	}
-	// Merge schedule if provided
-	if desired.Schedule.Daily.LocalTime != "" {
-		merged.Schedule.Daily.LocalTime = desired.Schedule.Daily.LocalTime
-	}
-
-	// Apply same data cleaning to merged job
-	// For credentials, if both old and new formats are empty, use agent management credentials
-	hasOldCreds := merged.GuestProcessing.GuestCredentials.CredsType != ""
-	hasNewCreds := merged.GuestProcessing.GuestCredentials.Credentials != nil
-	if !hasOldCreds && !hasNewCreds {
-		merged.GuestProcessing.GuestCredentials.UseAgentManagementCredentials = true
-	}
-	// If credentials exist but useAgentManagementCredentials is not set, explicitly set it to false
-	if (hasOldCreds || hasNewCreds) && !merged.GuestProcessing.GuestCredentials.UseAgentManagementCredentials {
-		// Keep it as false (default value)
-	}
-	cleanVMExcludes(&merged.VirtualMachines)
-
-	return merged
-}
-
-// specToVBRJob converts a ResourceSpec to VbrJobPost model
-func specToVBRJob(spec resources.ResourceSpec) (models.VbrJobPost, error) {
-	// Remove read-only fields that shouldn't be in POST/PUT requests
-	cleanedSpec := make(map[string]interface{})
-	for k, v := range spec.Spec {
-		// Filter out read-only fields
-		if k == "id" {
-			continue // ID should not be in request body
-		}
-		cleanedSpec[k] = v
-	}
-
-	// Marshal cleaned spec to JSON then unmarshal to VbrJobPost
-	specBytes, err := json.Marshal(cleanedSpec)
-	if err != nil {
-		return models.VbrJobPost{}, fmt.Errorf("failed to marshal spec: %w", err)
-	}
-
-	var jobPost models.VbrJobPost
-	if err := json.Unmarshal(specBytes, &jobPost); err != nil {
-		return models.VbrJobPost{}, fmt.Errorf("failed to unmarshal to VbrJobPost: %w", err)
-	}
-
-	// Always use name from metadata (authoritative source)
-	// Metadata.name overrides spec.name
-	jobPost.Name = spec.Metadata.Name
-
-	// Apply defaults for fields required by API v1.3+
-	// If no credentials specified, use agent management credentials
-	if jobPost.GuestProcessing.GuestCredentials.CredsType == "" && jobPost.GuestProcessing.GuestCredentials.Credentials == nil {
-		jobPost.GuestProcessing.GuestCredentials.UseAgentManagementCredentials = true
-	}
-
-	// Clean up VirtualMachines.Excludes to remove invalid entries
-	// VBR API v1.3 requires Platform field in vmObject, but exports don't always include it
-	// If excludes.disks is empty or has no actual disk exclusions, clear it
-	cleanVMExcludes(&jobPost.VirtualMachines)
-
-	// Debug: Check if we're accidentally including the ID
-	debugBytes, _ := json.MarshalIndent(jobPost, "", "  ")
-	if contains := string(debugBytes); len(contains) > 0 {
-		// Check for ID field (should not be present in POST/PUT body)
-		fmt.Printf("DEBUG: Checking for ID field in request body...\n")
-	}
-
-	return jobPost, nil
-}
-
-// cleanVMExcludes removes invalid or empty exclude entries
-func cleanVMExcludes(vms *models.VirtualMachines) {
-	// Clear excludes.disks if empty or contains only default entries
-	if len(vms.Excludes.Disks) > 0 {
-		hasValidExcludes := false
-		for _, disk := range vms.Excludes.Disks {
-			if len(disk.Disks) > 0 {
-				hasValidExcludes = true
-				break
-			}
-		}
-		// If no actual disk exclusions, clear the array
-		if !hasValidExcludes {
-			vms.Excludes.Disks = nil
-		}
-	}
-}
-
-// findJobByName searches for an existing job by name
-func findJobByName(name string, profile models.Profile) (models.VbrJobGet, bool) {
-	// Get all jobs
+// fetchCurrentJob retrieves a job by name from VBR.
+// Returns (rawJSON, id, nil) if found, (nil, "", nil) if not found.
+func fetchCurrentJob(name string, profile models.Profile) (json.RawMessage, string, error) {
+	// List all jobs (summary only)
 	type JobsResponse struct {
-		Data []models.VbrJobGet `json:"data"`
+		Data []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"data"`
 	}
 
 	response := vhttp.GetData[JobsResponse]("jobs", profile)
 
-	// Search for job with matching name
 	for _, job := range response.Data {
 		if job.Name == name {
-			return job, true
+			// Fetch full details by ID (list returns summary only)
+			endpoint := fmt.Sprintf("jobs/%s", job.ID)
+			jobData := vhttp.GetData[json.RawMessage](endpoint, profile)
+			return jobData, job.ID, nil
 		}
 	}
 
-	return models.VbrJobGet{}, false
+	return nil, "", nil // Not found (not an error)
+}
+
+// prepareJobPayload applies job-specific business logic to the merged spec before sending.
+// This handles guest credential defaults and VM exclude cleanup using map-based operations,
+// making it safe for all job types (VM, file, NAS, etc.).
+func prepareJobPayload(spec, existing map[string]interface{}) (map[string]interface{}, error) {
+	// VBR jobs API requires the ID in PUT body. cleanSpec strips it (it's in jobIgnoreFields
+	// for drift detection), so we restore it from the existing resource when updating.
+	if existing != nil {
+		if id, ok := existing["id"]; ok {
+			spec["id"] = id
+		}
+	}
+
+	// Guest credential defaults: if no credsType and no credentials, set useAgentManagementCredentials
+	if gp, ok := spec["guestProcessing"].(map[string]interface{}); ok {
+		if gc, ok := gp["guestCredentials"].(map[string]interface{}); ok {
+			_, hasCredsType := gc["credsType"]
+			_, hasCreds := gc["credentials"]
+
+			// If credsType is empty string, treat as absent
+			if ct, ok := gc["credsType"].(string); ok && ct == "" {
+				hasCredsType = false
+			}
+
+			if !hasCredsType && !hasCreds {
+				gc["useAgentManagementCredentials"] = true
+			}
+		}
+	}
+
+	// Clean VM excludes: if excludes.disks has no valid entries, clear it
+	if vms, ok := spec["virtualMachines"].(map[string]interface{}); ok {
+		if excludes, ok := vms["excludes"].(map[string]interface{}); ok {
+			if disks, ok := excludes["disks"].([]interface{}); ok && len(disks) > 0 {
+				hasValidExcludes := false
+				for _, diskEntry := range disks {
+					if de, ok := diskEntry.(map[string]interface{}); ok {
+						if d, ok := de["disks"].([]interface{}); ok && len(d) > 0 {
+							hasValidExcludes = true
+							break
+						}
+					}
+				}
+				if !hasValidExcludes {
+					excludes["disks"] = nil
+				}
+			}
+		}
+	}
+
+	return spec, nil
+}
+
+// applyVBRJob creates or updates a VBR job based on the specification.
+// Delegates to the generic applyResourceSpec infrastructure.
+func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
+	result := applyResourceSpec(spec, jobApplyConfig, profile, false, nil)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
 }
 
 func init() {

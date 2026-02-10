@@ -6,6 +6,28 @@ import (
 	"testing"
 )
 
+// assertMap extracts a map[string]interface{} from a parent map by key, failing the test if missing or wrong type.
+func assertMap(t *testing.T, parent map[string]interface{}, key string) map[string]interface{} {
+	t.Helper()
+	val, ok := parent[key]
+	if !ok {
+		t.Fatalf("%q missing from map; got keys: %v", key, mapKeys(parent))
+	}
+	m, ok := val.(map[string]interface{})
+	if !ok {
+		t.Fatalf("%q has unexpected type %T; value: %#v", key, val, val)
+	}
+	return m
+}
+
+func mapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // --- ApplyGroupMergeFromSpecs tests ---
 
 func TestApplyGroupMergeFromSpecs_NoProfileNoOverlay(t *testing.T) {
@@ -113,8 +135,8 @@ func TestApplyGroupMergeFromSpecs_OverlayOnly(t *testing.T) {
 	}
 
 	// Overlay wins for retention quantity
-	storage := result.Spec["storage"].(map[string]interface{})
-	retention := storage["retentionPolicy"].(map[string]interface{})
+	storage := assertMap(t, result.Spec, "storage")
+	retention := assertMap(t, storage, "retentionPolicy")
 	if retention["quantity"] != 90 {
 		t.Errorf("retention quantity = %v, want 90 (overlay should override spec)", retention["quantity"])
 	}
@@ -174,8 +196,8 @@ func TestApplyGroupMergeFromSpecs_ProfileAndOverlay(t *testing.T) {
 	}
 
 	// Overlay wins for retention quantity
-	storage := result.Spec["storage"].(map[string]interface{})
-	retention := storage["retentionPolicy"].(map[string]interface{})
+	storage := assertMap(t, result.Spec, "storage")
+	retention := assertMap(t, storage, "retentionPolicy")
 	if retention["quantity"] != 90 {
 		t.Errorf("retention quantity = %v, want 90 (overlay wins)", retention["quantity"])
 	}
@@ -439,6 +461,22 @@ func TestApplyGroupMergeFromSpecs_DoesNotMutateInput(t *testing.T) {
 	if _, ok := spec.Metadata.Labels["team"]; ok {
 		t.Error("spec labels were mutated — 'team' key should not exist")
 	}
+
+	// Spec's Spec map should not have been mutated
+	if _, ok := spec.Spec["storage"]; ok {
+		t.Error("spec.Spec was mutated — 'storage' key should not exist")
+	}
+	if len(spec.Spec) != 1 {
+		t.Errorf("spec.Spec length = %d, want 1 (only 'description')", len(spec.Spec))
+	}
+
+	// Profile's Spec and Labels should not have been mutated
+	if _, ok := profile.Spec["description"]; ok {
+		t.Error("profile.Spec was mutated — 'description' key should not exist")
+	}
+	if _, ok := profile.Metadata.Labels["app"]; ok {
+		t.Error("profile.Metadata.Labels was mutated — 'app' key should not exist")
+	}
 }
 
 // --- ApplyGroupMergeFromSpec (file-path based) tests ---
@@ -513,8 +551,8 @@ spec:
 	}
 
 	// Retention quantity from overlay (90), type from profile (Days)
-	storage := result.Spec["storage"].(map[string]interface{})
-	retention := storage["retentionPolicy"].(map[string]interface{})
+	storage := assertMap(t, result.Spec, "storage")
+	retention := assertMap(t, storage, "retentionPolicy")
 	if retention["quantity"] != 90 {
 		t.Errorf("retention quantity = %v, want 90", retention["quantity"])
 	}
@@ -523,10 +561,7 @@ spec:
 	}
 
 	// Schedule from profile
-	schedule, ok := result.Spec["schedule"].(map[string]interface{})
-	if !ok {
-		t.Fatal("schedule should be present from profile")
-	}
+	schedule := assertMap(t, result.Spec, "schedule")
 	if schedule["runAutomatically"] != true {
 		t.Errorf("runAutomatically = %v, want true", schedule["runAutomatically"])
 	}
@@ -706,8 +741,8 @@ spec:
 	}
 
 	// Retention: overlay wins quantity, profile provides type
-	storage := result.Spec["storage"].(map[string]interface{})
-	retention := storage["retentionPolicy"].(map[string]interface{})
+	storage := assertMap(t, result.Spec, "storage")
+	retention := assertMap(t, storage, "retentionPolicy")
 	if retention["quantity"] != 90 {
 		t.Errorf("retention quantity = %v, want 90", retention["quantity"])
 	}
@@ -722,7 +757,8 @@ spec:
 }
 
 func TestApplyGroupMerge_NonExistentSpec(t *testing.T) {
-	_, err := ApplyGroupMerge("/nonexistent/spec.yaml", "", "", DefaultMergeOptions())
+	missingPath := filepath.Join(t.TempDir(), "spec.yaml")
+	_, err := ApplyGroupMerge(missingPath, "", "", DefaultMergeOptions())
 	if err == nil {
 		t.Fatal("expected error for non-existent spec file, got nil")
 	}

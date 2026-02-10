@@ -26,6 +26,18 @@ var (
 	sobrApplyDryRun    bool
 	sobrApplyGroupName string
 	sobrDiffGroupName  string
+
+	// Export flags
+	repoExportOutput    string
+	repoExportDirectory string
+	repoExportAll       bool
+	repoExportAsOverlay bool
+	repoExportBasePath  string
+	sobrExportOutput    string
+	sobrExportDirectory string
+	sobrExportAll       bool
+	sobrExportAsOverlay bool
+	sobrExportBasePath  string
 )
 
 var repoCmd = &cobra.Command{
@@ -36,6 +48,10 @@ var repoCmd = &cobra.Command{
 ONLY WORKS WITH VBR AT THE MOMENT.
 
 Subcommands:
+
+Export repository configuration to YAML
+  owlctl repo export "Default Backup Repository"
+  owlctl repo export --all -d specs/repos/
 
 Snapshot repository configuration
   owlctl repo snapshot "Default Backup Repository"
@@ -49,6 +65,8 @@ Apply repository configuration
   owlctl repo apply repos/default-repo.yaml
 
 Scale-out backup repositories
+  owlctl repo sobr-export "Scale-out Backup Repository 1"
+  owlctl repo sobr-export --all -d specs/sobrs/
   owlctl repo sobr-snapshot "Scale-out Backup Repository 1"
   owlctl repo sobr-snapshot --all
   owlctl repo sobr-diff "Scale-out Backup Repository 1"
@@ -837,7 +855,135 @@ func saveResourceToState(resourceType, name, id string, rawData json.RawMessage)
 	return nil
 }
 
+// --- Repository Export commands ---
+
+var repoExportCmd = &cobra.Command{
+	Use:   "export [repo-name]",
+	Short: "Export repository configuration to declarative YAML",
+	Long: `Export existing VBR backup repositories to declarative YAML configuration files.
+
+Examples:
+  # Export single repository to stdout
+  owlctl repo export "Default Backup Repository"
+
+  # Export single repository to file
+  owlctl repo export "Default Backup Repository" -o repo.yaml
+
+  # Export all repositories to a directory
+  owlctl repo export --all -d specs/repos/
+
+  # Export as overlay (diff against a base file)
+  owlctl repo export "Default Backup Repository" --as-overlay --base base-repo.yaml -o overlay.yaml
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
+
+		if settings.SelectedProfile != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		cfg := ResourceExportConfig{
+			Kind:            "VBRRepository",
+			DisplayName:     "repository",
+			PluralName:      "repositories",
+			IgnoreFields:    repoIgnoreFields,
+			FetchSingle:     fetchCurrentRepo,
+			ListAll:         listAllRepos,
+			SupportsOverlay: true,
+		}
+
+		if repoExportAll {
+			exportAllResources(cfg, profile, repoExportDirectory, repoExportAsOverlay, repoExportBasePath)
+		} else if len(args) > 0 {
+			exportSingleResource(args[0], cfg, profile, repoExportOutput, repoExportAsOverlay, repoExportBasePath)
+		} else {
+			log.Fatal("Provide repository name or use --all")
+		}
+	},
+}
+
+var sobrExportCmd = &cobra.Command{
+	Use:   "sobr-export [sobr-name]",
+	Short: "Export scale-out repository configuration to declarative YAML",
+	Long: `Export existing VBR scale-out backup repositories to declarative YAML configuration files.
+
+Examples:
+  # Export single SOBR to stdout
+  owlctl repo sobr-export "Scale-out Backup Repository 1"
+
+  # Export single SOBR to file
+  owlctl repo sobr-export "Scale-out Backup Repository 1" -o sobr.yaml
+
+  # Export all SOBRs to a directory
+  owlctl repo sobr-export --all -d specs/sobrs/
+
+  # Export as overlay (diff against a base file)
+  owlctl repo sobr-export "Scale-out Backup Repository 1" --as-overlay --base base-sobr.yaml -o overlay.yaml
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
+
+		if settings.SelectedProfile != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		cfg := ResourceExportConfig{
+			Kind:            "VBRScaleOutRepository",
+			DisplayName:     "scale-out repository",
+			PluralName:      "scale-out repositories",
+			IgnoreFields:    sobrIgnoreFields,
+			FetchSingle:     fetchCurrentSobr,
+			ListAll:         listAllSobrs,
+			SupportsOverlay: true,
+		}
+
+		if sobrExportAll {
+			exportAllResources(cfg, profile, sobrExportDirectory, sobrExportAsOverlay, sobrExportBasePath)
+		} else if len(args) > 0 {
+			exportSingleResource(args[0], cfg, profile, sobrExportOutput, sobrExportAsOverlay, sobrExportBasePath)
+		} else {
+			log.Fatal("Provide SOBR name or use --all")
+		}
+	},
+}
+
+// listAllRepos returns all repositories as ResourceListItems
+func listAllRepos(profile models.Profile) ([]ResourceListItem, error) {
+	repoList := vhttp.GetData[models.VbrRepoList]("backupInfrastructure/repositories", profile)
+	items := make([]ResourceListItem, len(repoList.Data))
+	for i, repo := range repoList.Data {
+		items[i] = ResourceListItem{ID: repo.ID, Name: repo.Name}
+	}
+	return items, nil
+}
+
+// listAllSobrs returns all SOBRs as ResourceListItems
+func listAllSobrs(profile models.Profile) ([]ResourceListItem, error) {
+	sobrList := vhttp.GetData[models.VbrSobrList]("backupInfrastructure/scaleOutRepositories", profile)
+	items := make([]ResourceListItem, len(sobrList.Data))
+	for i, sobr := range sobrList.Data {
+		items[i] = ResourceListItem{ID: sobr.ID, Name: sobr.Name}
+	}
+	return items, nil
+}
+
 func init() {
+	// Repo export flags
+	repoExportCmd.Flags().StringVarP(&repoExportOutput, "output", "o", "", "Output file (default: stdout)")
+	repoExportCmd.Flags().StringVarP(&repoExportDirectory, "directory", "d", "", "Output directory for bulk export")
+	repoExportCmd.Flags().BoolVar(&repoExportAll, "all", false, "Export all repositories")
+	repoExportCmd.Flags().BoolVar(&repoExportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
+	repoExportCmd.Flags().StringVar(&repoExportBasePath, "base", "", "Base template to diff against (for overlay export)")
+
+	// SOBR export flags
+	sobrExportCmd.Flags().StringVarP(&sobrExportOutput, "output", "o", "", "Output file (default: stdout)")
+	sobrExportCmd.Flags().StringVarP(&sobrExportDirectory, "directory", "d", "", "Output directory for bulk export")
+	sobrExportCmd.Flags().BoolVar(&sobrExportAll, "all", false, "Export all scale-out repositories")
+	sobrExportCmd.Flags().BoolVar(&sobrExportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
+	sobrExportCmd.Flags().StringVar(&sobrExportBasePath, "base", "", "Base template to diff against (for overlay export)")
+
 	repoSnapshotCmd.Flags().BoolVar(&repoSnapshotAll, "all", false, "Snapshot all repositories")
 	repoDiffCmd.Flags().BoolVar(&repoDiffAll, "all", false, "Check drift for all repositories in state")
 	repoDiffCmd.Flags().StringVar(&repoDiffGroupName, "group", "", "Check drift for all specs in named group (from owlctl.yaml)")
@@ -852,9 +998,11 @@ func init() {
 	sobrApplyCmd.Flags().BoolVar(&sobrApplyDryRun, "dry-run", false, "Preview changes without applying them")
 	sobrApplyCmd.Flags().StringVar(&sobrApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
+	repoCmd.AddCommand(repoExportCmd)
 	repoCmd.AddCommand(repoSnapshotCmd)
 	repoCmd.AddCommand(repoDiffCmd)
 	repoCmd.AddCommand(repoApplyCmd)
+	repoCmd.AddCommand(sobrExportCmd)
 	repoCmd.AddCommand(sobrSnapshotCmd)
 	repoCmd.AddCommand(sobrDiffCmd)
 	repoCmd.AddCommand(sobrApplyCmd)

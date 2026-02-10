@@ -21,6 +21,16 @@ var (
 	kmsApplyDryRun     bool
 	kmsApplyGroupName  string
 	kmsDiffGroupName   string
+
+	// Export flags
+	encExportOutput    string
+	encExportDirectory string
+	encExportAll       bool
+	kmsExportOutput    string
+	kmsExportDirectory string
+	kmsExportAll       bool
+	kmsExportAsOverlay bool
+	kmsExportBasePath  string
 )
 
 var encryptionCmd = &cobra.Command{
@@ -34,6 +44,10 @@ Note: Only password metadata (IDs, hints) is tracked — never actual password v
 
 Subcommands:
 
+Export encryption password metadata to YAML
+  owlctl encryption export "My backup password"
+  owlctl encryption export --all -d specs/encryption/
+
 Snapshot encryption password inventory
   owlctl encryption snapshot "My backup password"
   owlctl encryption snapshot --all
@@ -43,6 +57,8 @@ Detect encryption password drift
   owlctl encryption diff --all
 
 KMS server management
+  owlctl encryption kms-export "My KMS Server"
+  owlctl encryption kms-export --all -d specs/kms/
   owlctl encryption kms-snapshot "My KMS Server"
   owlctl encryption kms-snapshot --all
   owlctl encryption kms-diff "My KMS Server"
@@ -872,7 +888,172 @@ func diffAllKmsServers() {
 	os.Exit(0)
 }
 
+// --- Encryption Password Export command ---
+
+var encExportCmd = &cobra.Command{
+	Use:   "export [password-hint]",
+	Short: "Export encryption password metadata to declarative YAML",
+	Long: `Export existing VBR encryption password metadata to declarative YAML configuration files.
+
+Only metadata (ID, hint, import status) is exported — never actual password values.
+
+Examples:
+  # Export single encryption password to stdout
+  owlctl encryption export "My backup password"
+
+  # Export single encryption password to file
+  owlctl encryption export "My backup password" -o password.yaml
+
+  # Export all encryption passwords to a directory
+  owlctl encryption export --all -d specs/encryption/
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
+
+		if settings.SelectedProfile != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		cfg := ResourceExportConfig{
+			Kind:            "VBREncryptionPassword",
+			DisplayName:     "encryption password",
+			PluralName:      "encryption passwords",
+			IgnoreFields:    encryptionIgnoreFields,
+			FetchSingle:     fetchEncryptionPasswordRaw,
+			ListAll:         listAllEncryptionPasswords,
+			SanitizeSpec:    sanitizeEncryptionPassword,
+			SupportsOverlay: false,
+		}
+
+		if encExportAll {
+			exportAllResources(cfg, profile, encExportDirectory, false, "")
+		} else if len(args) > 0 {
+			exportSingleResource(args[0], cfg, profile, encExportOutput, false, "")
+		} else {
+			log.Fatal("Provide password hint or use --all")
+		}
+	},
+}
+
+// --- KMS Server Export command ---
+
+var kmsExportCmd = &cobra.Command{
+	Use:   "kms-export [kms-name]",
+	Short: "Export KMS server configuration to declarative YAML",
+	Long: `Export existing VBR KMS server configurations to declarative YAML configuration files.
+
+Examples:
+  # Export single KMS server to stdout
+  owlctl encryption kms-export "My KMS Server"
+
+  # Export single KMS server to file
+  owlctl encryption kms-export "My KMS Server" -o kms.yaml
+
+  # Export all KMS servers to a directory
+  owlctl encryption kms-export --all -d specs/kms/
+
+  # Export as overlay (diff against a base file)
+  owlctl encryption kms-export "My KMS Server" --as-overlay --base base-kms.yaml -o overlay.yaml
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		profile := utils.GetCurrentProfile()
+
+		if settings.SelectedProfile != "vbr" {
+			log.Fatal("This command only works with VBR at the moment.")
+		}
+
+		cfg := ResourceExportConfig{
+			Kind:            "VBRKmsServer",
+			DisplayName:     "KMS server",
+			PluralName:      "KMS servers",
+			IgnoreFields:    kmsIgnoreFields,
+			FetchSingle:     fetchCurrentKmsServer,
+			ListAll:         listAllKmsServers,
+			SupportsOverlay: true,
+		}
+
+		if kmsExportAll {
+			exportAllResources(cfg, profile, kmsExportDirectory, kmsExportAsOverlay, kmsExportBasePath)
+		} else if len(args) > 0 {
+			exportSingleResource(args[0], cfg, profile, kmsExportOutput, kmsExportAsOverlay, kmsExportBasePath)
+		} else {
+			log.Fatal("Provide KMS server name or use --all")
+		}
+	},
+}
+
+// fetchEncryptionPasswordRaw fetches an encryption password by hint and returns raw JSON
+func fetchEncryptionPasswordRaw(hint string, profile models.Profile) (json.RawMessage, string, error) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	for _, p := range passwordList.Data {
+		if p.Hint == hint {
+			pBytes, err := json.Marshal(p)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to marshal password data: %w", err)
+			}
+			return json.RawMessage(pBytes), p.ID, nil
+		}
+	}
+
+	return nil, "", nil // Not found
+}
+
+// listAllEncryptionPasswords returns all encryption passwords as ResourceListItems.
+// Duplicate hints are disambiguated by appending the ID.
+func listAllEncryptionPasswords(profile models.Profile) ([]ResourceListItem, error) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	// Count hints to detect duplicates
+	hintCounts := make(map[string]int, len(passwordList.Data))
+	for _, p := range passwordList.Data {
+		hintCounts[p.Hint]++
+	}
+
+	items := make([]ResourceListItem, len(passwordList.Data))
+	for i, p := range passwordList.Data {
+		name := p.Hint
+		if name == "" {
+			name = p.ID
+		} else if hintCounts[p.Hint] > 1 {
+			name = fmt.Sprintf("%s-%s", name, p.ID)
+		}
+		items[i] = ResourceListItem{ID: p.ID, Name: name}
+	}
+	return items, nil
+}
+
+// sanitizeEncryptionPassword defensively strips any sensitive fields from the spec
+func sanitizeEncryptionPassword(spec map[string]interface{}) {
+	delete(spec, "password")
+	delete(spec, "secret")
+}
+
+// listAllKmsServers returns all KMS servers as ResourceListItems
+func listAllKmsServers(profile models.Profile) ([]ResourceListItem, error) {
+	kmsList := vhttp.GetData[models.VbrKmsServerList]("kmsServers", profile)
+	items := make([]ResourceListItem, len(kmsList.Data))
+	for i, k := range kmsList.Data {
+		items[i] = ResourceListItem{ID: k.ID, Name: k.Name}
+	}
+	return items, nil
+}
+
 func init() {
+	// Encryption export flags
+	encExportCmd.Flags().StringVarP(&encExportOutput, "output", "o", "", "Output file (default: stdout)")
+	encExportCmd.Flags().StringVarP(&encExportDirectory, "directory", "d", "", "Output directory for bulk export")
+	encExportCmd.Flags().BoolVar(&encExportAll, "all", false, "Export all encryption passwords")
+
+	// KMS export flags
+	kmsExportCmd.Flags().StringVarP(&kmsExportOutput, "output", "o", "", "Output file (default: stdout)")
+	kmsExportCmd.Flags().StringVarP(&kmsExportDirectory, "directory", "d", "", "Output directory for bulk export")
+	kmsExportCmd.Flags().BoolVar(&kmsExportAll, "all", false, "Export all KMS servers")
+	kmsExportCmd.Flags().BoolVar(&kmsExportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
+	kmsExportCmd.Flags().StringVar(&kmsExportBasePath, "base", "", "Base template to diff against (for overlay export)")
+
 	encSnapshotCmd.Flags().BoolVar(&encSnapshotAll, "all", false, "Snapshot all encryption passwords")
 	encDiffCmd.Flags().BoolVar(&encDiffAll, "all", false, "Check drift for all encryption passwords in state")
 	addSeverityFlags(encDiffCmd)
@@ -883,8 +1064,10 @@ func init() {
 	kmsApplyCmd.Flags().BoolVar(&kmsApplyDryRun, "dry-run", false, "Preview changes without applying them")
 	kmsApplyCmd.Flags().StringVar(&kmsApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
 
+	encryptionCmd.AddCommand(encExportCmd)
 	encryptionCmd.AddCommand(encSnapshotCmd)
 	encryptionCmd.AddCommand(encDiffCmd)
+	encryptionCmd.AddCommand(kmsExportCmd)
 	encryptionCmd.AddCommand(kmsSnapshotCmd)
 	encryptionCmd.AddCommand(kmsDiffCmd)
 	encryptionCmd.AddCommand(kmsApplyCmd)

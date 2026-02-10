@@ -499,22 +499,20 @@ func TestKmsIgnoreFields_StripsCorrectFields(t *testing.T) {
 
 // --- ResourceExportConfig.SupportsOverlay tests ---
 
-func TestExportSingleResource_OverlayBlockedWhenNotSupported(t *testing.T) {
+func TestConvertResourceToYAML_OverlayWithBasePath_ReturnsErrorForBadPath(t *testing.T) {
 	cfg := ResourceExportConfig{
 		Kind:            "VBREncryptionPassword",
 		DisplayName:     "encryption password",
+		IgnoreFields:    map[string]bool{},
 		SupportsOverlay: false,
 	}
 
 	rawJSON := `{"hint": "test"}`
-	_, err := convertResourceToYAML("test", "id-1", cfg, json.RawMessage(rawJSON), true, "/some/base.yaml")
-	// When overlay is not supported but asOverlay=true, the function itself doesn't check —
-	// it's the caller (exportSingleResource) that calls log.Fatal. But we can at least
-	// verify the base-required error path still fires for supported types.
-	// For unsupported types, the check happens at the command level.
-	// So test that supported types with overlay but no base give the right error.
+	// convertResourceToYAML checks for missing base path (returns error),
+	// while the SupportsOverlay check happens at the command level (log.Fatal).
+	_, err := convertResourceToYAML("test", "id-1", cfg, json.RawMessage(rawJSON), true, "/nonexistent/base.yaml")
 	if err == nil {
-		t.Fatal("Expected error for overlay without base")
+		t.Fatal("Expected error for nonexistent base path")
 	}
 }
 

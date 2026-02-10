@@ -921,6 +921,7 @@ Examples:
 			PluralName:      "encryption passwords",
 			IgnoreFields:    encryptionIgnoreFields,
 			FetchSingle:     fetchEncryptionPasswordRaw,
+			FetchByID:       fetchEncryptionPasswordByID,
 			ListAll:         listAllEncryptionPasswords,
 			SanitizeSpec:    sanitizeEncryptionPassword,
 			SupportsOverlay: false,
@@ -999,6 +1000,24 @@ func fetchEncryptionPasswordRaw(hint string, profile models.Profile) (json.RawMe
 	}
 
 	return nil, "", nil // Not found
+}
+
+// fetchEncryptionPasswordByID fetches an encryption password by ID (used for bulk export
+// where disambiguated names like "<hint>-<id>" don't match the raw hint field)
+func fetchEncryptionPasswordByID(id string, profile models.Profile) (json.RawMessage, error) {
+	passwordList := vhttp.GetData[models.VbrEncryptionPasswordList]("encryptionPasswords", profile)
+
+	for _, p := range passwordList.Data {
+		if p.ID == id {
+			pBytes, err := json.Marshal(p)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal password data: %w", err)
+			}
+			return json.RawMessage(pBytes), nil
+		}
+	}
+
+	return nil, nil // Not found
 }
 
 // listAllEncryptionPasswords returns all encryption passwords as ResourceListItems.

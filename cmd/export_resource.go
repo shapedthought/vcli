@@ -26,9 +26,14 @@ type ResourceExportConfig struct {
 	// IgnoreFields are fields to strip from the exported spec (id, uniqueId, etc.)
 	IgnoreFields map[string]bool
 
-	// FetchSingle retrieves a single resource by name.
+	// FetchSingle retrieves a single resource by name (used for single-resource export).
 	// Returns (rawJSON, resourceID, error). If not found, returns (nil, "", nil).
 	FetchSingle func(name string, profile models.Profile) (json.RawMessage, string, error)
+
+	// FetchByID retrieves a single resource by ID (used for bulk export).
+	// If nil, bulk export falls back to FetchSingle(item.Name).
+	// Returns (rawJSON, error). If not found, returns (nil, nil).
+	FetchByID func(id string, profile models.Profile) (json.RawMessage, error)
 
 	// ListAll lists all resources of this type.
 	ListAll func(profile models.Profile) ([]ResourceListItem, error)
@@ -107,7 +112,17 @@ func exportAllResources(cfg ResourceExportConfig, profile models.Profile, direct
 	fmt.Printf("Exporting %d %s...\n", len(items), cfg.PluralName)
 
 	for i, item := range items {
-		rawData, id, err := cfg.FetchSingle(item.Name, profile)
+		var rawData json.RawMessage
+		var id string
+		var err error
+
+		if cfg.FetchByID != nil {
+			// Use ID-based fetch for bulk export (handles disambiguated names)
+			rawData, err = cfg.FetchByID(item.ID, profile)
+			id = item.ID
+		} else {
+			rawData, id, err = cfg.FetchSingle(item.Name, profile)
+		}
 		if err != nil {
 			fmt.Printf("Warning: Failed to fetch %s '%s': %v\n", cfg.DisplayName, item.Name, err)
 			failedCount++

@@ -889,6 +889,7 @@ Examples:
 			PluralName:      "repositories",
 			IgnoreFields:    repoIgnoreFields,
 			FetchSingle:     fetchCurrentRepo,
+			FetchByID:       fetchRepoByID,
 			ListAll:         listAllRepos,
 			SupportsOverlay: true,
 		}
@@ -935,6 +936,7 @@ Examples:
 			PluralName:      "scale-out repositories",
 			IgnoreFields:    sobrIgnoreFields,
 			FetchSingle:     fetchCurrentSobr,
+			FetchByID:       fetchSobrByID,
 			ListAll:         listAllSobrs,
 			SupportsOverlay: true,
 		}
@@ -947,6 +949,20 @@ Examples:
 			log.Fatal("Provide SOBR name or use --all")
 		}
 	},
+}
+
+// fetchRepoByID retrieves a repository by ID (used for bulk export)
+func fetchRepoByID(id string, profile models.Profile) (json.RawMessage, error) {
+	endpoint := fmt.Sprintf("backupInfrastructure/repositories/%s", id)
+	repoData := vhttp.GetData[json.RawMessage](endpoint, profile)
+	return repoData, nil
+}
+
+// fetchSobrByID retrieves a SOBR by ID (used for bulk export)
+func fetchSobrByID(id string, profile models.Profile) (json.RawMessage, error) {
+	endpoint := fmt.Sprintf("backupInfrastructure/scaleOutRepositories/%s", id)
+	sobrData := vhttp.GetData[json.RawMessage](endpoint, profile)
+	return sobrData, nil
 }
 
 // listAllRepos returns all repositories as ResourceListItems

@@ -4,6 +4,15 @@
   <p><strong>vcli is now owlctl</strong> — same tool, new name. If you're upgrading, see the <a href="docs/migration-vcli-to-owlctl.md">migration guide</a>.</p>
 </div>
 
+<p align="center">
+  <a href="https://github.com/shapedthought/owlctl/actions/workflows/ci.yml"><img src="https://github.com/shapedthought/owlctl/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/shapedthought/owlctl/releases/latest"><img src="https://img.shields.io/github/v/release/shapedthought/owlctl" alt="GitHub Release"></a>
+  <a href="https://github.com/shapedthought/owlctl/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/shapedthought/owlctl" alt="Go Version"></a>
+  <a href="https://goreportcard.com/report/github.com/shapedthought/owlctl"><img src="https://goreportcard.com/badge/github.com/shapedthought/owlctl" alt="Go Report Card"></a>
+  <a href="https://github.com/shapedthought/owlctl/blob/master/LICENSE"><img src="https://img.shields.io/github/license/shapedthought/owlctl" alt="License"></a>
+  <img src="https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-blue" alt="Platform">
+</p>
+
 ![nu_demo](./assets/main.png)
 **Formatting provided by [Nushell.](https://www.nushell.sh/)** owlctl only gets the data!
 

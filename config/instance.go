@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/shapedthought/owlctl/models"
 	"github.com/shapedthought/owlctl/utils"
 )
 
@@ -40,8 +39,16 @@ func ResolveInstance(cfg *VCLIConfig, name string) (*ResolvedInstance, error) {
 
 	// Resolve credentials
 	if inst.CredentialRef != "" {
-		resolved.Username = os.Getenv(fmt.Sprintf("OWLCTL_%s_USERNAME", inst.CredentialRef))
-		resolved.Password = os.Getenv(fmt.Sprintf("OWLCTL_%s_PASSWORD", inst.CredentialRef))
+		usernameVar := fmt.Sprintf("OWLCTL_%s_USERNAME", inst.CredentialRef)
+		passwordVar := fmt.Sprintf("OWLCTL_%s_PASSWORD", inst.CredentialRef)
+		resolved.Username = os.Getenv(usernameVar)
+		resolved.Password = os.Getenv(passwordVar)
+		if resolved.Username == "" {
+			return nil, fmt.Errorf("instance %q has credentialRef=%q but %s is not set", name, inst.CredentialRef, usernameVar)
+		}
+		if resolved.Password == "" {
+			return nil, fmt.Errorf("instance %q has credentialRef=%q but %s is not set", name, inst.CredentialRef, passwordVar)
+		}
 	} else {
 		resolved.Username = os.Getenv("OWLCTL_USERNAME")
 		resolved.Password = os.Getenv("OWLCTL_PASSWORD")
@@ -80,14 +87,19 @@ func ActivateInstance(resolved *ResolvedInstance) error {
 		return fmt.Errorf("failed to set OWLCTL_KEYCHAIN_KEY: %w", err)
 	}
 
-	// 3. Override settings so ReadSettings() returns the instance's product + insecure
-	settings := models.Settings{
-		SelectedProfile: resolved.Product,
+	// 3. Override product port if the instance specifies a non-default port
+	if resolved.Port != 0 {
+		utils.OverrideProfilePort(resolved.Port)
 	}
+
+	// 4. Override settings so ReadSettings() returns the instance's product + insecure
+	// Read current settings first to preserve fields not overridden by the instance
+	currentSettings := utils.ReadSettings()
+	currentSettings.SelectedProfile = resolved.Product
 	if resolved.Insecure != nil {
-		settings.ApiNotSecure = *resolved.Insecure
+		currentSettings.ApiNotSecure = *resolved.Insecure
 	}
-	utils.OverrideSettings(settings)
+	utils.OverrideSettings(currentSettings)
 
 	return nil
 }

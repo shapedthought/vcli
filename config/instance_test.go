@@ -257,6 +257,21 @@ func TestResolveInstance(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for nonexistent instance")
 	}
+
+	// Resolve with credentialRef but missing env vars
+	cfgMissing := &VCLIConfig{
+		Instances: map[string]InstanceConfig{
+			"missing-creds": {
+				Product:       "vbr",
+				URL:           "https://example.com",
+				CredentialRef: "MISSING",
+			},
+		},
+	}
+	_, err = ResolveInstance(cfgMissing, "missing-creds")
+	if err == nil {
+		t.Error("Expected error when credentialRef env vars are not set")
+	}
 }
 
 func TestGroupConfigWithInstance(t *testing.T) {

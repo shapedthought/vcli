@@ -206,7 +206,9 @@ func applyGroup(group string) {
 	}
 
 	fmt.Printf("Applying group: %s (%d specs)\n", group, len(specsList))
-	if groupCfg.Instance != "" {
+	if instanceFlag != "" {
+		fmt.Printf("  Instance: %s (from --instance flag)\n", instanceFlag)
+	} else if groupCfg.Instance != "" {
 		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
 	}
 	if profilePath != "" {

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/shapedthought/owlctl/config"
 	"github.com/spf13/cobra"
@@ -56,7 +57,11 @@ var instanceListCmd = &cobra.Command{
 		fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", "----", "-------", "---", "--------------", "-----------")
 
 		for _, name := range names {
-			inst, _ := cfg.GetInstance(name)
+			inst, err := cfg.GetInstance(name)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: instance %q: %v\n", name, err)
+				continue
+			}
 
 			desc := inst.Description
 			if len(desc) > 28 {

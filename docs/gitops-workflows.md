@@ -254,6 +254,16 @@ apiVersion: owlctl.veeam.com/v1
 kind: Config
 
 instances:
+  vbr-dev:
+    product: vbr
+    url: https://vbr-dev.example.com
+    credentialRef: DEV
+    description: Development VBR
+  vbr-staging:
+    product: vbr
+    url: https://vbr-staging.example.com
+    credentialRef: STAGING
+    description: Staging VBR
   vbr-prod:
     product: vbr
     url: https://vbr-prod.example.com

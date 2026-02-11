@@ -23,10 +23,10 @@ type GroupApplyResult struct {
 }
 
 // activateGroupInstance activates the instance associated with a group, if any.
-// It loads the config, resolves the instance, and calls ActivateInstance.
+// If --instance was provided on the CLI it takes precedence (already activated by PersistentPreRunE).
 // Returns the updated profile after activation.
 func activateGroupInstance(cfg *config.VCLIConfig, groupCfg config.GroupConfig) models.Profile {
-	if groupCfg.Instance != "" {
+	if groupCfg.Instance != "" && instanceFlag == "" {
 		resolved, err := config.ResolveInstance(cfg, groupCfg.Instance)
 		if err != nil {
 			log.Fatalf("Failed to resolve group instance %q: %v", groupCfg.Instance, err)
@@ -110,7 +110,9 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 	}
 
 	fmt.Printf("Applying group: %s (%d specs)\n", group, len(specsList))
-	if groupCfg.Instance != "" {
+	if instanceFlag != "" {
+		fmt.Printf("  Instance: %s (from --instance flag)\n", instanceFlag)
+	} else if groupCfg.Instance != "" {
 		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
 	}
 	if profilePath != "" {
@@ -244,7 +246,9 @@ func diffGroupResource(group string, dcfg GroupDiffConfig) {
 	}
 
 	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(specsList))
-	if groupCfg.Instance != "" {
+	if instanceFlag != "" {
+		fmt.Printf("  Instance: %s (from --instance flag)\n", instanceFlag)
+	} else if groupCfg.Instance != "" {
 		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
 	}
 	if profilePath != "" {

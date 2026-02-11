@@ -553,12 +553,6 @@ func diffAllJobs() {
 // IS the source of truth.
 func diffGroup(group string) {
 	loadSeverityOverrides()
-	settings := utils.ReadSettings()
-	profile := utils.GetCurrentProfile()
-
-	if settings.SelectedProfile != "vbr" {
-		log.Fatal("This command only works with VBR at the moment.")
-	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -571,7 +565,13 @@ func diffGroup(group string) {
 		log.Fatalf("Group error: %v", err)
 	}
 
-	if len(groupCfg.Specs) == 0 {
+	// Activate instance if configured on the group
+	profile := activateGroupInstance(cfg, groupCfg)
+
+	// Resolve effective specs (Specs + SpecsDir)
+	specsList := resolveGroupSpecs(cfg, groupCfg)
+
+	if len(specsList) == 0 {
 		log.Fatalf("Group %q has no specs defined", group)
 	}
 
@@ -585,7 +585,12 @@ func diffGroup(group string) {
 		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
 	}
 
-	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(specsList))
+	if instanceFlag != "" {
+		fmt.Printf("  Instance: %s (from --instance flag)\n", instanceFlag)
+	} else if groupCfg.Instance != "" {
+		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
+	}
 	if profilePath != "" {
 		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
 	}
@@ -620,7 +625,7 @@ func diffGroup(group string) {
 	errorCount := 0
 	var allDrifts []Drift
 
-	for _, specRelPath := range groupCfg.Specs {
+	for _, specRelPath := range specsList {
 		specPath := cfg.ResolvePath(specRelPath)
 
 		// Load spec

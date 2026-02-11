@@ -8,6 +8,7 @@ Fast reference for common owlctl commands. See full documentation in [User Guide
 - [Imperative Commands (All Products)](#imperative-commands-all-products)
 - [Declarative Commands (VBR Only)](#declarative-commands-vbr-only)
 - [Group Commands](#group-commands)
+- [Instance Commands](#instance-commands)
 - [Target Commands](#target-commands)
 - [Common Flags](#common-flags)
 - [Exit Codes](#exit-codes)
@@ -116,18 +117,21 @@ owlctl export <id> --simplified -o job.yaml # Minimal format (legacy)
 # Repositories
 owlctl repo export <name> -o repo.yaml
 owlctl repo export --all -d repos/
+owlctl repo export <name> --as-overlay --base base-repo.yaml -o overlay.yaml
 
 # Scale-Out Repositories (SOBRs)
 owlctl repo sobr-export <name> -o sobr.yaml
 owlctl repo sobr-export --all -d sobrs/
+owlctl repo sobr-export <name> --as-overlay --base base-sobr.yaml -o overlay.yaml
 
-# Encryption Passwords
+# Encryption Passwords (read-only, no overlay support)
 owlctl encryption export <name> -o enc.yaml
 owlctl encryption export --all -d encryption/
 
 # KMS Servers
 owlctl encryption kms-export <name> -o kms.yaml
 owlctl encryption kms-export --all -d kms/
+owlctl encryption kms-export <name> --as-overlay --base base-kms.yaml -o overlay.yaml
 ```
 
 ### Apply Configurations
@@ -211,13 +215,13 @@ owlctl job plan base.yaml -o prod.yaml --show-yaml
 
 ## Group Commands
 
-Groups bundle specs with a shared profile and overlay for batch operations. Defined in `owlctl.yaml`.
+Groups bundle specs with a shared profile, overlay, and optional instance for batch operations. Defined in `owlctl.yaml`.
 
 ```bash
-# List all groups
+# List all groups (shows instance, profile, overlay, spec count)
 owlctl group list
 
-# Show group details (resolved paths, spec count)
+# Show group details (resolved paths, spec count, instance)
 owlctl group show sql-tier
 ```
 
@@ -244,7 +248,34 @@ owlctl job diff --group sql-tier
 
 ---
 
-## Target Commands
+## Instance Commands
+
+Instances define named server connections with product type, credentials, and TLS settings. They replace `--target` for multi-server workflows. Defined in `owlctl.yaml`.
+
+```bash
+# List all instances
+owlctl instance list
+
+# Show instance details (product, URL, credential ref)
+owlctl instance show vbr-prod
+```
+
+### Using --instance
+
+```bash
+# Run any command against a named instance
+owlctl --instance vbr-prod get jobs
+owlctl --instance vbr-prod login
+
+# Apply group (group can also specify instance in owlctl.yaml)
+owlctl job apply --group sql-tier --instance vbr-prod
+```
+
+---
+
+## Target Commands (Deprecated)
+
+> **Deprecated:** Use `--instance` instead. Targets only set the URL; instances also handle product type, credentials, and per-instance token caching.
 
 Targets define named VBR server connections in `owlctl.yaml`. Use `--target` to switch between servers.
 
@@ -259,7 +290,7 @@ owlctl target list --json
 ### Multi-Target Workflow
 
 ```bash
-# Apply to production VBR
+# Apply to production VBR (deprecated — use --instance instead)
 owlctl job apply --group sql-tier --target primary
 
 # Apply same group to DR site
@@ -295,7 +326,7 @@ owlctl job apply --group sql-tier --target dr
 | `-o, --output <file>` | Output file path |
 | `-d, --directory <dir>` | Output directory (for --all) |
 | `--all` | Export all resources |
-| `--as-overlay` | Export as minimal overlay (jobs only) |
+| `--as-overlay` | Export as minimal overlay (jobs, repos, SOBRs, KMS) |
 | `--base <file>` | Base file for overlay comparison (with --as-overlay) |
 | `--simplified` | Minimal format - legacy (jobs only) |
 
@@ -304,7 +335,8 @@ owlctl job apply --group sql-tier --target dr
 | Flag | Description |
 |------|-------------|
 | `--yaml` | Output in YAML format (default: JSON) |
-| `--target <name>` | Use named VBR target from `owlctl.yaml` |
+| `--instance <name>` | Use named instance from `owlctl.yaml` (sets URL, credentials, product) |
+| `--target <name>` | Use named VBR target from `owlctl.yaml` (deprecated, use `--instance`) |
 | `-h, --help` | Show help |
 
 ---
@@ -400,18 +432,25 @@ owlctl job apply --group sql-tier
 owlctl job diff --group sql-tier
 ```
 
-### Multi-Target Deployment
+### Multi-Instance Deployment
 
 ```bash
 # Apply group to production VBR
-owlctl job apply --group sql-tier --target primary
+owlctl job apply --group sql-tier --instance vbr-prod
 
 # Apply same group to DR site
-owlctl job apply --group sql-tier --target dr
+owlctl job apply --group sql-tier --instance vbr-dr
 
-# Drift check across both targets
-owlctl job diff --group sql-tier --target primary
-owlctl job diff --group sql-tier --target dr
+# Drift check across both instances
+owlctl job diff --group sql-tier --instance vbr-prod
+owlctl job diff --group sql-tier --instance vbr-dr
+
+# Or define the instance on the group in owlctl.yaml:
+# groups:
+#   prod-jobs:
+#     instance: vbr-prod
+#     specsDir: specs/jobs/
+owlctl job apply --group prod-jobs    # uses vbr-prod automatically
 ```
 
 ### Single-File Overlay (Simpler Alternative)

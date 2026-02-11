@@ -20,6 +20,9 @@ type VCLIConfig struct {
 	// Groups maps group names to their configuration
 	Groups map[string]GroupConfig `yaml:"groups,omitempty"`
 
+	// Instances maps instance names to their server connection configuration
+	Instances map[string]InstanceConfig `yaml:"instances,omitempty"`
+
 	// Targets maps target names to their VBR server connection configuration
 	Targets map[string]TargetConfig `yaml:"targets,omitempty"`
 
@@ -39,6 +42,30 @@ type VCLIConfig struct {
 	DefaultOverlayDir string `yaml:"defaultOverlayDir,omitempty"`
 }
 
+// InstanceConfig defines a named server connection with product type and credentials
+type InstanceConfig struct {
+	// Product is the Veeam product type (e.g., "vbr", "azure", "vb365")
+	Product string `yaml:"product"`
+
+	// URL is the server address (e.g., "https://vbr-prod.example.com")
+	URL string `yaml:"url"`
+
+	// Port overrides the product default port
+	Port int `yaml:"port,omitempty"`
+
+	// Insecure overrides the global ApiNotSecure setting.
+	// Pointer type distinguishes "not set" (nil, use global) from "explicitly false".
+	Insecure *bool `yaml:"insecure,omitempty"`
+
+	// CredentialRef is an env var prefix for credentials.
+	// If set, reads OWLCTL_{ref}_USERNAME / OWLCTL_{ref}_PASSWORD.
+	// If empty, falls back to OWLCTL_USERNAME / OWLCTL_PASSWORD.
+	CredentialRef string `yaml:"credentialRef,omitempty"`
+
+	// Description is a human-readable description of the instance
+	Description string `yaml:"description,omitempty"`
+}
+
 // TargetConfig defines a named VBR server connection
 type TargetConfig struct {
 	// URL is the VBR server address (e.g., "https://vbr-prod.example.com")
@@ -53,6 +80,9 @@ type GroupConfig struct {
 	// Description is a human-readable description of the group
 	Description string `yaml:"description,omitempty"`
 
+	// Instance is the named instance from owlctl.yaml to use for this group
+	Instance string `yaml:"instance,omitempty"`
+
 	// Profile is the path to a Profile YAML file (base defaults)
 	Profile string `yaml:"profile,omitempty"`
 
@@ -60,7 +90,11 @@ type GroupConfig struct {
 	Overlay string `yaml:"overlay,omitempty"`
 
 	// Specs is the list of spec file paths in this group
-	Specs []string `yaml:"specs"`
+	Specs []string `yaml:"specs,omitempty"`
+
+	// SpecsDir is a directory path; all *.yaml files in it are used as specs.
+	// If both Specs and SpecsDir are set, they are combined.
+	SpecsDir string `yaml:"specsDir,omitempty"`
 }
 
 // EnvironmentConfig defines settings for a specific environment
@@ -112,6 +146,7 @@ func LoadConfig() (*VCLIConfig, error) {
 		return &VCLIConfig{
 			Environments: make(map[string]EnvironmentConfig),
 			Groups:       make(map[string]GroupConfig),
+			Instances:    make(map[string]InstanceConfig),
 			Targets:      make(map[string]TargetConfig),
 		}, nil
 	}
@@ -137,6 +172,9 @@ func LoadConfigFrom(path string) (*VCLIConfig, error) {
 	}
 	if config.Groups == nil {
 		config.Groups = make(map[string]GroupConfig)
+	}
+	if config.Instances == nil {
+		config.Instances = make(map[string]InstanceConfig)
 	}
 	if config.Targets == nil {
 		config.Targets = make(map[string]TargetConfig)
@@ -200,6 +238,57 @@ func (c *VCLIConfig) ListGroups() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// GetInstance returns the instance configuration for the given name
+func (c *VCLIConfig) GetInstance(name string) (InstanceConfig, error) {
+	instance, exists := c.Instances[name]
+	if !exists {
+		return InstanceConfig{}, fmt.Errorf("instance %q not found in configuration", name)
+	}
+	if instance.URL == "" {
+		return InstanceConfig{}, fmt.Errorf("instance %q has no URL configured", name)
+	}
+	if instance.Product == "" {
+		return InstanceConfig{}, fmt.Errorf("instance %q has no product configured", name)
+	}
+	return instance, nil
+}
+
+// ListInstances returns sorted instance names
+func (c *VCLIConfig) ListInstances() []string {
+	names := make([]string, 0, len(c.Instances))
+	for name := range c.Instances {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// ResolveGroupSpecs returns the effective specs list for a group,
+// combining Specs and SpecsDir (glob *.yaml from the resolved directory).
+func (c *VCLIConfig) ResolveGroupSpecs(group GroupConfig) ([]string, error) {
+	specs := make([]string, len(group.Specs))
+	copy(specs, group.Specs)
+
+	if group.SpecsDir != "" {
+		dir := c.ResolvePath(group.SpecsDir)
+		pattern := filepath.Join(dir, "*.yaml")
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("failed to glob specsDir %q: %w", dir, err)
+		}
+		// Convert absolute matches back to relative paths from ConfigDir for consistent display
+		for _, match := range matches {
+			rel, err := filepath.Rel(c.ConfigDir, match)
+			if err != nil {
+				rel = match // fallback to absolute
+			}
+			specs = append(specs, rel)
+		}
+	}
+
+	return specs, nil
 }
 
 // GetTarget returns the target configuration for the given name

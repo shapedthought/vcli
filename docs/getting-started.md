@@ -296,7 +296,7 @@ See [Drift Detection Guide](drift-detection.md) for complete documentation.
 
 ## Group-Based Workflow (Declarative)
 
-Groups are the recommended way to manage multiple specs with shared defaults and policy overrides. Define groups and targets in `owlctl.yaml`.
+Groups are the recommended way to manage multiple specs with shared defaults and policy overrides. Define groups and instances in `owlctl.yaml`.
 
 ### 1. Export Specs and Create owlctl.yaml
 
@@ -309,19 +309,22 @@ cat > owlctl.yaml <<'EOF'
 apiVersion: owlctl.veeam.com/v1
 kind: Config
 
+instances:
+  vbr-prod:
+    product: vbr
+    url: https://vbr-prod.example.com
+    credentialRef: PROD
+    description: Production VBR
+
 groups:
   sql-tier:
     description: SQL Server backups
+    instance: vbr-prod
     profile: profiles/gold.yaml
     overlay: overlays/compliance.yaml
     specs:
       - specs/jobs/sql-vm-01.yaml
       - specs/jobs/sql-vm-02.yaml
-
-targets:
-  primary:
-    url: https://vbr-prod.example.com
-    description: Production VBR
 EOF
 ```
 
@@ -334,11 +337,11 @@ EOF
 # Dry-run first
 ./owlctl job apply --group sql-tier --dry-run
 
-# Apply
-./owlctl job apply --group sql-tier --target primary
+# Apply (instance activated from group definition)
+./owlctl job apply --group sql-tier
 
 # Drift check
-./owlctl job diff --group sql-tier --target primary
+./owlctl job diff --group sql-tier
 ```
 
 ### 3. Track in Git

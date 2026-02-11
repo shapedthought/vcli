@@ -31,6 +31,11 @@ func GetProfile(profileName string) models.Profile {
 		os.Exit(1)
 	}
 
+	// Apply instance port override if set
+	if profilePortOverride != nil {
+		profile.Port = *profilePortOverride
+	}
+
 	return profile
 }
 
@@ -103,7 +108,31 @@ func SaveProfilesFile(profilesFile models.ProfilesFile) error {
 	return nil
 }
 
+// settingsOverride allows ActivateInstance to change the effective profile/insecure
+// without touching settings.json on disk.
+var settingsOverride *models.Settings
+
+// OverrideSettings sets a process-level settings override.
+// Subsequent calls to ReadSettings() return this value instead of reading from disk.
+func OverrideSettings(s models.Settings) { settingsOverride = &s }
+
+// ClearSettingsOverride removes the settings override, reverting to disk reads.
+func ClearSettingsOverride() { settingsOverride = nil }
+
+// profilePortOverride allows ActivateInstance to override the product profile's default port.
+var profilePortOverride *int
+
+// OverrideProfilePort sets a process-level port override applied by GetProfile.
+func OverrideProfilePort(port int) { profilePortOverride = &port }
+
+// ClearProfilePortOverride removes the port override, reverting to the product default.
+func ClearProfilePortOverride() { profilePortOverride = nil }
+
 func ReadSettings() models.Settings {
+	if settingsOverride != nil {
+		return *settingsOverride
+	}
+
 	var settings models.Settings
 
 	// get the settings path if there

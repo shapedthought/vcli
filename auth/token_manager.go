@@ -89,6 +89,16 @@ func NewTokenManager(debug bool) (*TokenManager, error) {
 	}, nil
 }
 
+// keychainKey returns the effective keychain key for token storage/retrieval.
+// If OWLCTL_KEYCHAIN_KEY is set (by instance activation), it is used instead of profileName.
+// This ensures separate keychain entries per instance (e.g., "instance:vbr-prod" vs "instance:vbr-dr").
+func keychainKey(profileName string) string {
+	if override := os.Getenv("OWLCTL_KEYCHAIN_KEY"); override != "" {
+		return override
+	}
+	return profileName
+}
+
 // GetToken retrieves token using hybrid approach
 // Priority: 1) OWLCTL_TOKEN env var, 2) keychain, 3) auto-authenticate
 // profileName is used for keychain storage/retrieval
@@ -96,6 +106,8 @@ func (tm *TokenManager) GetToken(profileName string, profile models.Profile, use
 	if tm.debug {
 		fmt.Fprintln(os.Stderr, "DEBUG: Token resolution started")
 	}
+
+	kcKey := keychainKey(profileName)
 
 	// 1. Check explicit token env var (highest priority)
 	if token := os.Getenv(TokenEnvVar); token != "" {
@@ -112,7 +124,7 @@ func (tm *TokenManager) GetToken(profileName string, profile models.Profile, use
 	}
 
 	// 2. Check system keychain
-	if token, err := tm.getTokenFromKeychain(profileName); err == nil {
+	if token, err := tm.getTokenFromKeychain(kcKey); err == nil {
 		if tm.debug {
 			fmt.Fprintln(os.Stderr, "DEBUG: Using token from system keychain")
 		}
@@ -136,7 +148,7 @@ func (tm *TokenManager) GetToken(profileName string, profile models.Profile, use
 			if tm.debug {
 				fmt.Fprintln(os.Stderr, "DEBUG: Storing token in keychain (interactive session)")
 			}
-			if err := tm.StoreToken(profileName, token, expiresIn); err != nil {
+			if err := tm.StoreToken(kcKey, token, expiresIn); err != nil {
 				// Non-fatal: just warn
 				if tm.debug {
 					fmt.Fprintf(os.Stderr, "DEBUG: Failed to store token in keychain: %v\n", err)
@@ -302,8 +314,11 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 		return "", fmt.Errorf("failed to initialize token manager: %w", err)
 	}
 
-	// Get token (tries keychain → auto-auth)
-	token, err := tm.GetToken(profileName, profile, username, password, apiURL, settings.ApiNotSecure)
+	// Use instance-aware keychain key (keychainKey checks OWLCTL_KEYCHAIN_KEY env var)
+	kcKey := keychainKey(profileName)
+
+	// Get token (tries keychain → auto-auth) using instance-aware key
+	token, err := tm.GetToken(kcKey, profile, username, password, apiURL, settings.ApiNotSecure)
 	if err != nil {
 		return "", fmt.Errorf("failed to get authentication token: %w", err)
 	}

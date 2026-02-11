@@ -14,9 +14,10 @@ Declarative mode enables infrastructure-as-code workflows for Veeam Backup & Rep
 - [Drift Detection](#drift-detection)
 - [Configuration Overlays](#configuration-overlays)
 - [Groups](#groups)
-- [Targets](#targets)
+- [Instances](#instances)
+- [Targets (Deprecated)](#targets-deprecated)
 - [Strategic Merge Behavior](#strategic-merge-behavior)
-- [Multi-Target Workflow](#multi-target-workflow)
+- [Multi-Instance Workflow](#multi-instance-workflow)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
@@ -101,8 +102,11 @@ Profile files (`kind: Profile`) define organizational defaults (retention standa
 ### 4. Groups
 A group bundles multiple specs with a shared profile and overlay. Defined in `owlctl.yaml`, groups enable batch apply and drift detection with a single command (`--group`).
 
-### 5. Targets
-Targets define named VBR server connections in `owlctl.yaml`. Use `--target` to apply the same group to different VBR servers (e.g., production and DR).
+### 5. Instances
+Instances define named server connections in `owlctl.yaml` with product type, URL, credentials, and TLS settings. Use `--instance` on any command to target a specific server. Groups can reference an instance directly.
+
+### 5b. Targets (Deprecated)
+Targets are the legacy version of instances. They only set the URL. Use instances instead for full credential and product type support.
 
 ### 6. Strategic Merge
 owlctl uses strategic merge to combine layers. The merge order is:
@@ -161,6 +165,9 @@ owlctl repo export "Default Backup Repository" -o repo.yaml
 
 # Export all repositories
 owlctl repo export --all -d ./repos/
+
+# Export as overlay (minimal diff from base)
+owlctl repo export "Default Backup Repository" --as-overlay --base base-repo.yaml -o overlay.yaml
 ```
 
 ### Scale-Out Repositories (SOBRs)
@@ -171,6 +178,9 @@ owlctl repo sobr-export "SOBR-Production" -o sobr.yaml
 
 # Export all SOBRs
 owlctl repo sobr-export --all -d ./sobrs/
+
+# Export as overlay
+owlctl repo sobr-export "SOBR-Production" --as-overlay --base base-sobr.yaml -o overlay.yaml
 ```
 
 ### Encryption Passwords
@@ -183,7 +193,7 @@ owlctl encryption export "Production Encryption Key" -o enc.yaml
 owlctl encryption export --all -d ./encryption/
 ```
 
-**Note:** Password values are never exported. Only metadata (name, description, hint) is captured.
+**Note:** Password values are never exported. Only metadata (name, description, hint) is captured. Overlay export is not supported for encryption passwords.
 
 ### KMS Servers
 
@@ -193,6 +203,9 @@ owlctl encryption kms-export "Azure Key Vault" -o kms.yaml
 
 # Export all KMS servers
 owlctl encryption kms-export --all -d ./kms/
+
+# Export as overlay
+owlctl encryption kms-export "Azure Key Vault" --as-overlay --base base-kms.yaml -o overlay.yaml
 ```
 
 ## Apply Configurations
@@ -552,7 +565,7 @@ owlctl job apply base-backup.yaml -o overlays/dev-overlay.yaml
 
 ## Groups
 
-Groups bundle multiple specs with a shared profile and overlay, enabling batch apply and drift detection with a single command. Groups are defined in `owlctl.yaml`.
+Groups bundle multiple specs with a shared profile, overlay, and optional instance, enabling batch apply and drift detection with a single command. Groups are defined in `owlctl.yaml`.
 
 ### owlctl.yaml Schema
 
@@ -561,30 +574,52 @@ Groups bundle multiple specs with a shared profile and overlay, enabling batch a
 apiVersion: owlctl.veeam.com/v1
 kind: Config
 
+instances:
+  vbr-prod:
+    product: vbr
+    url: https://vbr-prod.example.com
+    credentialRef: PROD                  # reads OWLCTL_PROD_USERNAME / OWLCTL_PROD_PASSWORD
+    description: Production VBR server
+  vbr-dr:
+    product: vbr
+    url: https://vbr-dr.example.com
+    credentialRef: DR
+    description: Disaster recovery site
+
 groups:
   sql-tier:
     description: SQL Server backup group
-    profile: profiles/gold.yaml         # kind: Profile — base defaults
-    overlay: overlays/compliance.yaml   # kind: Overlay — policy patch
+    instance: vbr-prod                   # target this group at vbr-prod
+    profile: profiles/gold.yaml          # kind: Profile — base defaults
+    overlay: overlays/compliance.yaml    # kind: Overlay — policy patch
     specs:
       - specs/jobs/sql-vm-01.yaml
       - specs/jobs/sql-vm-02.yaml
 
   web-tier:
     description: Web server backups
+    instance: vbr-prod
     profile: profiles/standard.yaml
-    specs:
-      - specs/jobs/web-frontend.yaml
-      - specs/jobs/web-api.yaml
+    specsDir: specs/web-jobs/            # all *.yaml files in this directory
 
-targets:
-  primary:
-    url: https://vbr-prod.example.com
-    description: Production VBR server
-  dr:
-    url: https://vbr-dr.example.com
-    description: Disaster recovery site
+  dr-jobs:
+    description: DR site backup jobs
+    instance: vbr-dr
+    specsDir: specs/dr-jobs/
 ```
+
+### Group Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Human-readable description |
+| `instance` | Named instance to target (from `instances:` section) |
+| `profile` | Path to Profile YAML (base defaults, lowest merge priority) |
+| `overlay` | Path to Overlay YAML (policy patch, highest merge priority) |
+| `specs` | Explicit list of spec file paths |
+| `specsDir` | Directory path; all `*.yaml` files are included as specs |
+
+If both `specs` and `specsDir` are set, they are combined (explicit specs first, then directory contents).
 
 ### Profile vs Overlay
 
@@ -667,14 +702,95 @@ owlctl job apply base-job.yaml -o prod-overlay.yaml
 
 This is useful for one-off operations or simple setups that don't need the full group model.
 
-## Targets
+## Instances
 
-Targets define named VBR server connections, enabling multi-server workflows from a single `owlctl.yaml`.
+Instances define named server connections with product type, URL, credentials, and TLS settings. They enable multi-server automation from a single `owlctl.yaml`.
+
+### Instance Schema
+
+```yaml
+# In owlctl.yaml
+instances:
+  vbr-prod:
+    product: vbr                         # Required: vbr, azure, vb365, vone, etc.
+    url: https://vbr-prod.example.com    # Required: server address
+    port: 9419                           # Optional: override product default port
+    insecure: true                       # Optional: override global TLS setting
+    credentialRef: PROD                  # Optional: env var prefix for credentials
+    description: Production VBR server   # Optional: human-readable description
+  vbr-dr:
+    product: vbr
+    url: https://vbr-dr.example.com
+    credentialRef: DR
+    description: Disaster recovery site
+```
+
+### Credential Resolution
+
+When `credentialRef` is set, credentials are read from prefixed environment variables:
+- `OWLCTL_{ref}_USERNAME` (e.g., `OWLCTL_PROD_USERNAME`)
+- `OWLCTL_{ref}_PASSWORD` (e.g., `OWLCTL_PROD_PASSWORD`)
+
+When `credentialRef` is not set, falls back to `OWLCTL_USERNAME` / `OWLCTL_PASSWORD`.
+
+### Instance Commands
+
+```bash
+# List all instances
+owlctl instance list
+
+# Show instance details
+owlctl instance show vbr-prod
+```
+
+### Using --instance
+
+The `--instance` flag is a persistent flag available on all commands. It activates the instance's URL, credentials, product type, and per-instance token caching.
+
+```bash
+# Login to a specific instance
+owlctl --instance vbr-prod login
+
+# Run any command against an instance
+owlctl --instance vbr-prod get jobs
+owlctl --instance vbr-dr get jobs
+
+# Apply group to a specific instance
+owlctl job apply --group sql-tier --instance vbr-prod
+owlctl job apply --group sql-tier --instance vbr-dr
+```
+
+### Instance on Groups
+
+Groups can specify an `instance` field, eliminating the need for `--instance` on every command:
+
+```yaml
+groups:
+  prod-jobs:
+    instance: vbr-prod
+    specsDir: specs/prod-jobs/
+```
+
+```bash
+# Instance is activated automatically from the group definition
+owlctl job apply --group prod-jobs
+owlctl job diff --group prod-jobs
+```
+
+### Per-Instance Token Caching
+
+Each instance gets its own keychain entry (e.g., `instance:vbr-prod`, `instance:vbr-dr`). This prevents token collisions when multiple instances share the same product type.
+
+## Targets (Deprecated)
+
+> **Deprecated:** Use [Instances](#instances) instead. Targets only set the URL; instances also handle product type, credentials, per-instance token caching, and TLS settings.
+
+Targets define named VBR server connections for URL-only switching.
 
 ### Target Schema
 
 ```yaml
-# In owlctl.yaml
+# In owlctl.yaml (deprecated — migrate to instances)
 targets:
   primary:
     url: https://vbr-prod.example.com
@@ -684,31 +800,15 @@ targets:
     description: Disaster recovery site
 ```
 
-### Target Commands
-
-```bash
-# List all targets
-owlctl target list
-
-# List as JSON (for scripting)
-owlctl target list --json
-```
-
 ### Using --target
 
-The `--target` flag is a persistent flag available on all commands. It overrides the `OWLCTL_URL` environment variable for the duration of that command.
-
 ```bash
-# Apply group to production
+# These work but print a deprecation warning
 owlctl job apply --group sql-tier --target primary
-
-# Apply same group to DR site
-owlctl job apply --group sql-tier --target dr
-
-# Drift check on both targets
-owlctl job diff --group sql-tier --target primary
 owlctl job diff --group sql-tier --target dr
 ```
+
+`--target` and `--instance` cannot be used together.
 
 ## Strategic Merge Behavior
 
@@ -796,20 +896,23 @@ labels:
   env: production         # From overlay
 ```
 
-## Multi-Target Workflow
+## Multi-Instance Workflow
 
 ### Project Structure
 
 ```
 vbr-infrastructure/
-├── owlctl.yaml                    # Groups and targets
+├── owlctl.yaml                    # Instances, groups
 ├── profiles/
 │   ├── gold.yaml                  # kind: Profile — high retention, encryption
 │   └── standard.yaml              # kind: Profile — standard defaults
 ├── specs/
-│   ├── sql-vm-01.yaml             # kind: VBRJob
-│   ├── sql-vm-02.yaml
-│   ├── web-frontend.yaml
+│   ├── jobs/
+│   │   ├── sql-vm-01.yaml         # kind: VBRJob
+│   │   └── sql-vm-02.yaml
+│   ├── web-jobs/                  # specsDir target
+│   │   ├── web-frontend.yaml
+│   │   └── web-api.yaml
 │   └── repos/
 │       └── production-repo.yaml   # kind: VBRRepository
 ├── overlays/
@@ -821,7 +924,7 @@ vbr-infrastructure/
 
 ```bash
 # 1. Export existing jobs as specs
-owlctl export --all -d specs/
+owlctl export --all -d specs/jobs/
 
 # 2. Create a profile with organizational defaults
 # profiles/gold.yaml (kind: Profile)
@@ -829,47 +932,76 @@ owlctl export --all -d specs/
 # 3. Create an overlay for policy overrides
 # overlays/compliance.yaml (kind: Overlay)
 
-# 4. Define groups and targets in owlctl.yaml
+# 4. Define instances and groups in owlctl.yaml
 cat > owlctl.yaml <<'EOF'
 apiVersion: owlctl.veeam.com/v1
 kind: Config
 
+instances:
+  vbr-prod:
+    product: vbr
+    url: https://vbr-prod.example.com
+    credentialRef: PROD
+    description: Production VBR
+  vbr-dr:
+    product: vbr
+    url: https://vbr-dr.example.com
+    credentialRef: DR
+    description: DR site
+
 groups:
   sql-tier:
     description: SQL Server backup group
+    instance: vbr-prod
     profile: profiles/gold.yaml
     overlay: overlays/compliance.yaml
     specs:
-      - specs/sql-vm-01.yaml
-      - specs/sql-vm-02.yaml
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
 
-targets:
-  primary:
-    url: https://vbr-prod.example.com
-    description: Production VBR
-  dr:
-    url: https://vbr-dr.example.com
-    description: DR site
+  sql-tier-dr:
+    description: SQL Server backup group (DR)
+    instance: vbr-dr
+    profile: profiles/gold.yaml
+    overlay: overlays/compliance.yaml
+    specs:
+      - specs/jobs/sql-vm-01.yaml
+      - specs/jobs/sql-vm-02.yaml
+
+  web-tier:
+    description: Web server backups
+    instance: vbr-prod
+    profile: profiles/standard.yaml
+    specsDir: specs/web-jobs/
 EOF
 
-# 5. Preview the group
+# 5. Set up credentials
+export OWLCTL_PROD_USERNAME="admin" OWLCTL_PROD_PASSWORD="prod-pass"
+export OWLCTL_DR_USERNAME="admin" OWLCTL_DR_PASSWORD="dr-pass"
+
+# 6. Preview the group
 owlctl group show sql-tier
 
-# 6. Dry-run apply
+# 7. Dry-run apply
 owlctl job apply --group sql-tier --dry-run
 
-# 7. Apply to production
-owlctl job apply --group sql-tier --target primary
+# 8. Apply to production (instance activated from group)
+owlctl job apply --group sql-tier
 
-# 8. Apply same group to DR
-owlctl job apply --group sql-tier --target dr
+# 9. Apply same specs to DR
+owlctl job apply --group sql-tier-dr
 
-# 9. Drift check
-owlctl job diff --group sql-tier --target primary
+# 10. Drift check
+owlctl job diff --group sql-tier
+owlctl job diff --group sql-tier-dr
 
-# 10. Commit to version control
+# 11. Or use --instance to override
+owlctl --instance vbr-prod get jobs
+owlctl --instance vbr-dr get jobs
+
+# 12. Commit to version control
 git add .
-git commit -m "Add group-based backup configuration"
+git commit -m "Add instance-based backup configuration"
 git push
 ```
 
@@ -1014,19 +1146,19 @@ git commit -m "Increase production retention to 30 days to meet compliance requi
 ```
 
 ### 8. Test in Dev First
-Apply to a dev target before production.
+Apply to a dev instance before production.
 
 ```bash
 # 1. Test in development
-owlctl job apply --group sql-tier --target dev --dry-run
-owlctl job apply --group sql-tier --target dev
+owlctl job apply --group sql-tier --instance vbr-dev --dry-run
+owlctl job apply --group sql-tier --instance vbr-dev
 
 # 2. Verify in development
 # Run test backup, verify results
 
 # 3. Apply to production
-owlctl job apply --group sql-tier --target primary --dry-run
-owlctl job apply --group sql-tier --target primary
+owlctl job apply --group sql-tier --instance vbr-prod --dry-run
+owlctl job apply --group sql-tier --instance vbr-prod
 ```
 
 ### 9. Regular Drift Scans

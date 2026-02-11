@@ -48,8 +48,8 @@ var groupListCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%-20s %-40s %-6s %-8s %-8s\n", "NAME", "DESCRIPTION", "SPECS", "PROFILE", "OVERLAY")
-		fmt.Printf("%-20s %-40s %-6s %-8s %-8s\n", "----", "-----------", "-----", "-------", "-------")
+		fmt.Printf("%-20s %-40s %-6s %-15s %-8s %-8s\n", "NAME", "DESCRIPTION", "SPECS", "INSTANCE", "PROFILE", "OVERLAY")
+		fmt.Printf("%-20s %-40s %-6s %-15s %-8s %-8s\n", "----", "-----------", "-----", "--------", "-------", "-------")
 
 		for _, name := range names {
 			group, _ := cfg.GetGroup(name)
@@ -59,6 +59,10 @@ var groupListCmd = &cobra.Command{
 				desc = desc[:35] + "..."
 			}
 
+			instanceName := "-"
+			if group.Instance != "" {
+				instanceName = group.Instance
+			}
 			profileFlag := "-"
 			if group.Profile != "" {
 				profileFlag = "yes"
@@ -68,7 +72,15 @@ var groupListCmd = &cobra.Command{
 				overlayFlag = "yes"
 			}
 
-			fmt.Printf("%-20s %-40s %-6d %-8s %-8s\n", name, desc, len(group.Specs), profileFlag, overlayFlag)
+			specCount := len(group.Specs)
+			if group.SpecsDir != "" {
+				specs, err := cfg.ResolveGroupSpecs(group)
+				if err == nil {
+					specCount = len(specs)
+				}
+			}
+
+			fmt.Printf("%-20s %-40s %-6d %-15s %-8s %-8s\n", name, desc, specCount, instanceName, profileFlag, overlayFlag)
 		}
 	},
 }
@@ -96,6 +108,12 @@ var groupShowCmd = &cobra.Command{
 		}
 		fmt.Println()
 
+		if group.Instance != "" {
+			fmt.Printf("Instance: %s\n", group.Instance)
+		} else {
+			fmt.Println("Instance: (none)")
+		}
+
 		if group.Profile != "" {
 			fmt.Printf("Profile: %s\n", group.Profile)
 			fmt.Printf("  (resolved: %s)\n", cfg.ResolvePath(group.Profile))
@@ -110,8 +128,19 @@ var groupShowCmd = &cobra.Command{
 			fmt.Println("Overlay: (none)")
 		}
 
-		fmt.Printf("\nSpecs (%d):\n", len(group.Specs))
-		for i, spec := range group.Specs {
+		if group.SpecsDir != "" {
+			fmt.Printf("SpecsDir: %s\n", group.SpecsDir)
+			fmt.Printf("  (resolved: %s)\n", cfg.ResolvePath(group.SpecsDir))
+		}
+
+		// Resolve effective specs (Specs + SpecsDir)
+		allSpecs, err := cfg.ResolveGroupSpecs(group)
+		if err != nil {
+			log.Fatalf("Failed to resolve specs: %v", err)
+		}
+
+		fmt.Printf("\nSpecs (%d):\n", len(allSpecs))
+		for i, spec := range allSpecs {
 			fmt.Printf("  %d. %s\n", i+1, spec)
 		}
 	},

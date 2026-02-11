@@ -95,7 +95,7 @@ func sendRequestWithError(method string, url string, data interface{}, profile m
 	}
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return body, fmt.Errorf("HTTP %d: %s", res.StatusCode, string(body))
+		return body, fmt.Errorf("HTTP %d: %s %s\nResponse: %s", res.StatusCode, method, connstring, string(body))
 	}
 
 	return body, nil
@@ -152,7 +152,7 @@ func sendRequest[T any](method string, url string, data interface{}, profile mod
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		body, _ := io.ReadAll(res.Body)
-		log.Fatalf("HTTP Error %v: %s", res.StatusCode, string(body))
+		log.Fatalf("HTTP %d: %s %s\nResponse: %s", res.StatusCode, method, connstring, string(body))
 	}
 
 	defer res.Body.Close()

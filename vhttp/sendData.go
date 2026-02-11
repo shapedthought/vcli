@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -96,6 +97,11 @@ func SendData(api_url string, filename string, endPoint string, method string, p
 		}
 
 		defer res.Body.Close()
+
+		if res.StatusCode < 200 || res.StatusCode >= 300 {
+			body, _ := io.ReadAll(res.Body)
+			log.Fatalf("HTTP %d: %s %s\nResponse: %s", res.StatusCode, method, connstring, string(body))
+		}
 
 		fmt.Println("Status Code:", res.StatusCode)
 		fmt.Println("Status:", res.Status)

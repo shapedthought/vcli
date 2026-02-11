@@ -54,8 +54,9 @@ func GetData[T any](url string, profile models.Profile) T {
 	res, err := client.Do(r)
 	utils.IsErr(err)
 
-	if res.StatusCode != 200 {
-		log.Fatalf("Error %v", res.StatusCode)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		body, _ := io.ReadAll(res.Body)
+		log.Fatalf("HTTP %d: GET %s\nResponse: %s", res.StatusCode, connstring, string(body))
 	}
 
 	defer res.Body.Close()
@@ -66,7 +67,7 @@ func GetData[T any](url string, profile models.Profile) T {
 	var udata T
 
 	if err := json.Unmarshal(body, &udata); err != nil {
-		log.Fatalf("Could not unmarshal - %v", err)
+		log.Fatalf("Could not unmarshal response from GET %s: %v", connstring, err)
 	}
 
 	return udata

@@ -39,15 +39,14 @@ func ResolveInstance(cfg *VCLIConfig, name string) (*ResolvedInstance, error) {
 
 	// Resolve credentials
 	if inst.CredentialRef != "" {
-		usernameVar := fmt.Sprintf("OWLCTL_%s_USERNAME", inst.CredentialRef)
-		passwordVar := fmt.Sprintf("OWLCTL_%s_PASSWORD", inst.CredentialRef)
-		resolved.Username = os.Getenv(usernameVar)
-		resolved.Password = os.Getenv(passwordVar)
+		ref := inst.CredentialRef
+		resolved.Username = os.Getenv("OWLCTL_" + ref + "_USERNAME")
+		resolved.Password = os.Getenv("OWLCTL_" + ref + "_PASSWORD")
 		if resolved.Username == "" {
-			return nil, fmt.Errorf("instance %q has credentialRef=%q but %s is not set", name, inst.CredentialRef, usernameVar)
+			return nil, fmt.Errorf("instance %q: OWLCTL_%s_USERNAME is not set (required by credentialRef %q)", name, ref, ref)
 		}
 		if resolved.Password == "" {
-			return nil, fmt.Errorf("instance %q has credentialRef=%q but %s is not set", name, inst.CredentialRef, passwordVar)
+			return nil, fmt.Errorf("instance %q: OWLCTL_%s_PASSWORD is not set (required by credentialRef %q)", name, ref, ref)
 		}
 	} else {
 		resolved.Username = os.Getenv("OWLCTL_USERNAME")

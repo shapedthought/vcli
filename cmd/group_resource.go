@@ -22,6 +22,32 @@ type GroupApplyResult struct {
 	Error        error
 }
 
+// activateGroupInstance activates the instance associated with a group, if any.
+// It loads the config, resolves the instance, and calls ActivateInstance.
+// Returns the updated profile after activation.
+func activateGroupInstance(cfg *config.VCLIConfig, groupCfg config.GroupConfig) models.Profile {
+	if groupCfg.Instance != "" {
+		resolved, err := config.ResolveInstance(cfg, groupCfg.Instance)
+		if err != nil {
+			log.Fatalf("Failed to resolve group instance %q: %v", groupCfg.Instance, err)
+		}
+		if err := config.ActivateInstance(resolved); err != nil {
+			log.Fatalf("Failed to activate group instance %q: %v", groupCfg.Instance, err)
+		}
+	}
+	// Re-read settings/profile after potential activation
+	return utils.GetCurrentProfile()
+}
+
+// resolveGroupSpecs returns the effective spec list for a group (Specs + SpecsDir globs).
+func resolveGroupSpecs(cfg *config.VCLIConfig, groupCfg config.GroupConfig) []string {
+	specs, err := cfg.ResolveGroupSpecs(groupCfg)
+	if err != nil {
+		log.Fatalf("Failed to resolve specs: %v", err)
+	}
+	return specs
+}
+
 // GroupDiffConfig defines resource-specific parameters for group diff operations
 type GroupDiffConfig struct {
 	// Kind is the expected resource kind string used in YAML specs (e.g., "VBRRepository")
@@ -52,13 +78,6 @@ func (dcfg GroupDiffConfig) pluralDisplayName() string {
 // applyGroupResource applies all specs in a named group using the generic resource apply path.
 // It loads the group config, resolves profile/overlay, merges each spec, and applies via applyResourceSpec.
 func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool) {
-	settings := utils.ReadSettings()
-	profile := utils.GetCurrentProfile()
-
-	if settings.SelectedProfile != "vbr" {
-		log.Fatal("This command only works with VBR at the moment.")
-	}
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load owlctl.yaml: %v", err)
@@ -70,7 +89,13 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 		log.Fatalf("Group error: %v", err)
 	}
 
-	if len(groupCfg.Specs) == 0 {
+	// Activate instance if configured on the group
+	profile := activateGroupInstance(cfg, groupCfg)
+
+	// Resolve effective specs (Specs + SpecsDir)
+	specsList := resolveGroupSpecs(cfg, groupCfg)
+
+	if len(specsList) == 0 {
 		log.Fatalf("Group %q has no specs defined", group)
 	}
 
@@ -84,7 +109,10 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
 	}
 
-	fmt.Printf("Applying group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	fmt.Printf("Applying group: %s (%d specs)\n", group, len(specsList))
+	if groupCfg.Instance != "" {
+		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
+	}
 	if profilePath != "" {
 		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
 	}
@@ -120,7 +148,7 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 
 	var results []GroupApplyResult
 
-	for _, specRelPath := range groupCfg.Specs {
+	for _, specRelPath := range specsList {
 		specPath := cfg.ResolvePath(specRelPath)
 		result := GroupApplyResult{SpecPath: specRelPath}
 
@@ -183,12 +211,6 @@ func applyGroupResource(group string, applyCfg ResourceApplyConfig, dryRun bool)
 // IS the source of truth.
 func diffGroupResource(group string, dcfg GroupDiffConfig) {
 	loadSeverityOverrides()
-	settings := utils.ReadSettings()
-	profile := utils.GetCurrentProfile()
-
-	if settings.SelectedProfile != "vbr" {
-		log.Fatal("This command only works with VBR at the moment.")
-	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -201,7 +223,13 @@ func diffGroupResource(group string, dcfg GroupDiffConfig) {
 		log.Fatalf("Group error: %v", err)
 	}
 
-	if len(groupCfg.Specs) == 0 {
+	// Activate instance if configured on the group
+	profile := activateGroupInstance(cfg, groupCfg)
+
+	// Resolve effective specs (Specs + SpecsDir)
+	specsList := resolveGroupSpecs(cfg, groupCfg)
+
+	if len(specsList) == 0 {
 		log.Fatalf("Group %q has no specs defined", group)
 	}
 
@@ -215,7 +243,10 @@ func diffGroupResource(group string, dcfg GroupDiffConfig) {
 		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
 	}
 
-	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	fmt.Printf("Checking drift for group: %s (%d specs)\n", group, len(specsList))
+	if groupCfg.Instance != "" {
+		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
+	}
 	if profilePath != "" {
 		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
 	}
@@ -250,7 +281,7 @@ func diffGroupResource(group string, dcfg GroupDiffConfig) {
 	errorCount := 0
 	var allDrifts []Drift
 
-	for _, specRelPath := range groupCfg.Specs {
+	for _, specRelPath := range specsList {
 		specPath := cfg.ResolvePath(specRelPath)
 
 		// Load spec

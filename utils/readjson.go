@@ -103,7 +103,22 @@ func SaveProfilesFile(profilesFile models.ProfilesFile) error {
 	return nil
 }
 
+// settingsOverride allows ActivateInstance to change the effective profile/insecure
+// without touching settings.json on disk.
+var settingsOverride *models.Settings
+
+// OverrideSettings sets a process-level settings override.
+// Subsequent calls to ReadSettings() return this value instead of reading from disk.
+func OverrideSettings(s models.Settings) { settingsOverride = &s }
+
+// ClearSettingsOverride removes the settings override, reverting to disk reads.
+func ClearSettingsOverride() { settingsOverride = nil }
+
 func ReadSettings() models.Settings {
+	if settingsOverride != nil {
+		return *settingsOverride
+	}
+
 	var settings models.Settings
 
 	// get the settings path if there

@@ -99,6 +99,12 @@ func loginWithTokenManager() {
 		return
 	}
 
+	// Determine keychain storage key (instance-aware)
+	keychainStorageKey := settings.SelectedProfile
+	if kcOverride := os.Getenv("OWLCTL_KEYCHAIN_KEY"); kcOverride != "" {
+		keychainStorageKey = kcOverride
+	}
+
 	// Store token in keychain if interactive (not CI/CD)
 	if auth.IsCI() {
 		if debugAuth {
@@ -109,15 +115,19 @@ func loginWithTokenManager() {
 		fmt.Fprintln(os.Stderr, "Use 'owlctl login --output-token' to capture token for reuse")
 	} else {
 		// Store in keychain for interactive sessions
-		if err := tm.StoreToken(settings.SelectedProfile, token, expiresIn); err != nil {
+		if err := tm.StoreToken(keychainStorageKey, token, expiresIn); err != nil {
 			fmt.Fprintf(os.Stderr, "WARNING: Failed to store token in keychain: %v\n", err)
 			fmt.Fprintln(os.Stderr, "Token will need to be re-generated on next command")
 		} else {
 			if debugAuth {
-				fmt.Fprintf(os.Stderr, "DEBUG: Token stored in system keychain for profile '%s'\n", settings.SelectedProfile)
+				fmt.Fprintf(os.Stderr, "DEBUG: Token stored in system keychain for key '%s'\n", keychainStorageKey)
 			}
 		}
-		fmt.Println("Login OK")
+		if instanceFlag != "" {
+			fmt.Printf("Login OK (instance: %s)\n", instanceFlag)
+		} else {
+			fmt.Println("Login OK")
+		}
 	}
 
 	// For backward compatibility, also write to headers.json (will be removed in future version)

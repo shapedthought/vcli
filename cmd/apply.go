@@ -174,13 +174,6 @@ func applyJob(configFile string) {
 
 // applyGroup applies all specs in a named group from owlctl.yaml
 func applyGroup(group string) {
-	settings := utils.ReadSettings()
-	profile := utils.GetCurrentProfile()
-
-	if settings.SelectedProfile != "vbr" {
-		log.Fatal("This command only works with VBR at the moment.")
-	}
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load owlctl.yaml: %v", err)
@@ -192,7 +185,13 @@ func applyGroup(group string) {
 		log.Fatalf("Group error: %v", err)
 	}
 
-	if len(groupCfg.Specs) == 0 {
+	// Activate instance if configured on the group
+	profile := activateGroupInstance(cfg, groupCfg)
+
+	// Resolve effective specs (Specs + SpecsDir)
+	specsList := resolveGroupSpecs(cfg, groupCfg)
+
+	if len(specsList) == 0 {
 		log.Fatalf("Group %q has no specs defined", group)
 	}
 
@@ -206,7 +205,10 @@ func applyGroup(group string) {
 		overlayPath = cfg.ResolvePath(groupCfg.Overlay)
 	}
 
-	fmt.Printf("Applying group: %s (%d specs)\n", group, len(groupCfg.Specs))
+	fmt.Printf("Applying group: %s (%d specs)\n", group, len(specsList))
+	if groupCfg.Instance != "" {
+		fmt.Printf("  Instance: %s\n", groupCfg.Instance)
+	}
 	if profilePath != "" {
 		fmt.Printf("  Profile: %s\n", groupCfg.Profile)
 	}
@@ -236,7 +238,7 @@ func applyGroup(group string) {
 
 	var results []GroupApplyResult
 
-	for _, specRelPath := range groupCfg.Specs {
+	for _, specRelPath := range specsList {
 		specPath := cfg.ResolvePath(specRelPath)
 		result := GroupApplyResult{SpecPath: specRelPath}
 

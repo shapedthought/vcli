@@ -287,8 +287,9 @@ func IsCI() bool {
 // This is critical on Windows where the WinCred backend may reject large tokens
 // (>2560 bytes), causing every API call to re-authenticate.
 var (
-	processTokenCache    string
-	processTokenCacheKey string
+	processTokenCache     string
+	processTokenCacheKey  string
+	processTokenExpiresAt time.Time
 )
 
 // ClearProcessTokenCache resets the in-process token cache.
@@ -296,6 +297,7 @@ var (
 func ClearProcessTokenCache() {
 	processTokenCache = ""
 	processTokenCacheKey = ""
+	processTokenExpiresAt = time.Time{}
 }
 
 // GetTokenForRequest is a convenience function for API requests that handles
@@ -311,7 +313,7 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 
 	// Check in-process cache (avoids repeated keyring opens and re-authentication)
 	kcKey := keychainKey(profileName)
-	if processTokenCache != "" && processTokenCacheKey == kcKey {
+	if processTokenCache != "" && processTokenCacheKey == kcKey && time.Now().Before(processTokenExpiresAt) {
 		return processTokenCache, nil
 	}
 
@@ -341,9 +343,12 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 		return "", fmt.Errorf("failed to get authentication token: %w", err)
 	}
 
-	// Cache for subsequent calls in this process
+	// Cache for subsequent calls in this process.
+	// Use a conservative 10-minute TTL — VBR tokens expire in 15 minutes,
+	// so this provides a safe margin while covering any realistic single-command duration.
 	processTokenCache = token
 	processTokenCacheKey = kcKey
+	processTokenExpiresAt = time.Now().Add(10 * time.Minute)
 
 	return token, nil
 }

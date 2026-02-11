@@ -249,13 +249,26 @@ variables:
 Optional file for group-based deployments and multi-server targeting:
 
 ```yaml
-# owlctl.yaml - Groups and targets
+# owlctl.yaml - Groups and instances
 apiVersion: owlctl.veeam.com/v1
 kind: Config
+
+instances:
+  vbr-prod:
+    product: vbr
+    url: https://vbr-prod.example.com
+    credentialRef: PROD
+    description: Production VBR
+  vbr-dr:
+    product: vbr
+    url: https://vbr-dr.example.com
+    credentialRef: DR
+    description: DR site
 
 groups:
   sql-tier:
     description: SQL Server backup group
+    instance: vbr-prod
     profile: profiles/gold.yaml
     overlay: overlays/compliance.yaml
     specs:
@@ -264,26 +277,19 @@ groups:
 
   web-tier:
     description: Web server backups
+    instance: vbr-prod
     profile: profiles/standard.yaml
     specs:
       - specs/jobs/web-frontend.yaml
-
-targets:
-  primary:
-    url: https://vbr-prod.example.com
-    description: Production VBR
-  dr:
-    url: https://vbr-dr.example.com
-    description: DR site
 ```
 
 Then in pipelines:
 ```bash
-# Apply a group to the production target
-owlctl job apply --group sql-tier --target primary
+# Apply a group (instance activated from group definition)
+owlctl job apply --group sql-tier
 
-# Apply same group to DR
-owlctl job apply --group sql-tier --target dr
+# Apply same group to DR instance
+owlctl job apply --group sql-tier --instance vbr-dr
 ```
 
 ## CI/CD Platform Integration
@@ -1062,12 +1068,11 @@ jobs:
 
       - name: Deploy to dev
         env:
-          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
-          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
+          OWLCTL_DEV_USERNAME: ${{ secrets.VBR_USERNAME_DEV }}
+          OWLCTL_DEV_PASSWORD: ${{ secrets.VBR_PASSWORD_DEV }}
         run: |
-          ./owlctl profile --set vbr
-          ./owlctl login
-          ./owlctl job apply --group sql-tier --target dev
+          ./owlctl --instance vbr-dev login
+          ./owlctl job apply --group sql-tier --instance vbr-dev
 
   deploy-staging:
     runs-on: ubuntu-latest
@@ -1083,12 +1088,11 @@ jobs:
 
       - name: Deploy to staging
         env:
-          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME_STAGING }}
-          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD_STAGING }}
+          OWLCTL_STAGING_USERNAME: ${{ secrets.VBR_USERNAME_STAGING }}
+          OWLCTL_STAGING_PASSWORD: ${{ secrets.VBR_PASSWORD_STAGING }}
         run: |
-          ./owlctl profile --set vbr
-          ./owlctl login
-          ./owlctl job apply --group sql-tier --target staging
+          ./owlctl --instance vbr-staging login
+          ./owlctl job apply --group sql-tier --instance vbr-staging
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -1104,16 +1108,15 @@ jobs:
 
       - name: Deploy to production
         env:
-          OWLCTL_USERNAME: ${{ secrets.VBR_USERNAME }}
-          OWLCTL_PASSWORD: ${{ secrets.VBR_PASSWORD }}
+          OWLCTL_PROD_USERNAME: ${{ secrets.VBR_USERNAME }}
+          OWLCTL_PROD_PASSWORD: ${{ secrets.VBR_PASSWORD }}
         run: |
-          ./owlctl profile --set vbr
-          ./owlctl login
-          ./owlctl job apply --group sql-tier --target prod
+          ./owlctl --instance vbr-prod login
+          ./owlctl job apply --group sql-tier --instance vbr-prod
 
       - name: Verify deployment
         run: |
-          ./owlctl job diff --group sql-tier --target prod
+          ./owlctl job diff --group sql-tier --instance vbr-prod
           if [ $? -ne 0 ]; then
             echo "::error::Drift detected after production deployment"
             exit 1
@@ -1124,7 +1127,7 @@ jobs:
 - Progressive rollout (dev → staging → prod)
 - Approval gates for production
 - Group-based deployment with profile+overlay merge
-- Named targets keep `owlctl.yaml` as single source of truth
+- Named instances with per-instance credentials and token caching
 - Rollback by reverting Git commit
 
 ### Pattern 4: Auto-Remediation with Approval

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shapedthought/owlctl/auth"
 	"github.com/shapedthought/owlctl/utils"
 )
 
@@ -59,13 +60,17 @@ func ResolveInstance(cfg *VCLIConfig, name string) (*ResolvedInstance, error) {
 // ActivateInstance sets process-global state so that existing vhttp/auth code
 // picks up this instance's connection parameters without any call-site changes.
 //
-// It does four things:
-//  1. Sets OWLCTL_URL, OWLCTL_USERNAME, OWLCTL_PASSWORD env vars
-//  2. Sets OWLCTL_KEYCHAIN_KEY so token_manager stores/retrieves per-instance tokens
-//  3. Overrides utils.ReadSettings() to return the instance's product as SelectedProfile
+// It does five things:
+//  1. Clears the in-process token cache (previous instance's token must not be reused)
+//  2. Sets OWLCTL_URL, OWLCTL_USERNAME, OWLCTL_PASSWORD env vars
+//  3. Sets OWLCTL_KEYCHAIN_KEY so token_manager stores/retrieves per-instance tokens
+//  4. Overrides the profile port if the instance specifies a non-default port
+//  5. Overrides utils.ReadSettings() to return the instance's product as SelectedProfile
 //     and the instance's insecure flag as ApiNotSecure
-//  4. Returns nil on success
 func ActivateInstance(resolved *ResolvedInstance) error {
+	// 0. Clear in-process token cache since we're switching instances
+	auth.ClearProcessTokenCache()
+
 	// 1. Set connection env vars
 	if err := os.Setenv("OWLCTL_URL", resolved.URL); err != nil {
 		return fmt.Errorf("failed to set OWLCTL_URL: %w", err)

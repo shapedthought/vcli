@@ -283,6 +283,21 @@ func IsCI() bool {
 	return !isInteractiveSession()
 }
 
+// In-process token cache to avoid repeated authentication within a single command.
+// This is critical on Windows where the WinCred backend may reject large tokens
+// (>2560 bytes), causing every API call to re-authenticate.
+var (
+	processTokenCache    string
+	processTokenCacheKey string
+)
+
+// ClearProcessTokenCache resets the in-process token cache.
+// Used when switching instances mid-process (e.g., multi-instance group operations).
+func ClearProcessTokenCache() {
+	processTokenCache = ""
+	processTokenCacheKey = ""
+}
+
 // GetTokenForRequest is a convenience function for API requests that handles
 // credential gathering from settings/env and token resolution.
 // Returns the token string or an error.
@@ -292,6 +307,12 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 		if isValidTokenFormat(token) {
 			return token, nil
 		}
+	}
+
+	// Check in-process cache (avoids repeated keyring opens and re-authentication)
+	kcKey := keychainKey(profileName)
+	if processTokenCache != "" && processTokenCacheKey == kcKey {
+		return processTokenCache, nil
 	}
 
 	// Get credentials from environment variables
@@ -314,14 +335,15 @@ func GetTokenForRequest(profileName string, profile models.Profile, settings mod
 		return "", fmt.Errorf("failed to initialize token manager: %w", err)
 	}
 
-	// Use instance-aware keychain key (keychainKey checks OWLCTL_KEYCHAIN_KEY env var)
-	kcKey := keychainKey(profileName)
-
 	// Get token (tries keychain → auto-auth) using instance-aware key
 	token, err := tm.GetToken(kcKey, profile, username, password, apiURL, settings.ApiNotSecure)
 	if err != nil {
 		return "", fmt.Errorf("failed to get authentication token: %w", err)
 	}
+
+	// Cache for subsequent calls in this process
+	processTokenCache = token
+	processTokenCacheKey = kcKey
 
 	return token, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shapedthought/owlctl/auth"
 	"github.com/shapedthought/owlctl/utils"
 )
 
@@ -66,6 +67,9 @@ func ResolveInstance(cfg *VCLIConfig, name string) (*ResolvedInstance, error) {
 //     and the instance's insecure flag as ApiNotSecure
 //  4. Returns nil on success
 func ActivateInstance(resolved *ResolvedInstance) error {
+	// 0. Clear in-process token cache since we're switching instances
+	auth.ClearProcessTokenCache()
+
 	// 1. Set connection env vars
 	if err := os.Setenv("OWLCTL_URL", resolved.URL); err != nil {
 		return fmt.Errorf("failed to set OWLCTL_URL: %w", err)

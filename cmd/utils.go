@@ -101,8 +101,8 @@ VBR Job JSON GET to POST converter - Converts a VBR Job GET JSON file to a VBR J
 
 			latestVersion := result["tag_name"].(string)
 
-			if (latestVersion != "v1.1.0") {
-				fmt.Printf("You are running v1.1.0, the latest version is %s\n", latestVersion)
+			if (latestVersion != "v1.2.0") {
+				fmt.Printf("You are running v1.2.0, the latest version is %s\n", latestVersion)
 			} else {
 				fmt.Println("You are running the latest version.")
 			}

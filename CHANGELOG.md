@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-02-11
+
+### Added
+
+#### Multi-Instance Connection Management (Epic #135)
+- Named instances in `owlctl.yaml` for multi-server automation with per-instance product type, credentials, and TLS settings
+- `--instance <name>` persistent flag on all commands — replaces deprecated `--target`
+- `instance list` and `instance show <name>` commands
+- `credentialRef` support for per-instance environment variable prefixes (`OWLCTL_{ref}_USERNAME` / `OWLCTL_{ref}_PASSWORD`)
+- Per-instance keychain token storage
+- Group-level `instance` and `specsDir` fields for directory-based spec discovery
+
+#### YAML Export for All Resource Types (#92-#95)
+- `--yaml` output for `repo export`, `repo sobr-export`, `encryption export`, `encryption kms-export`
+
+#### Generic Job Pipeline (#131)
+- Refactored job pipeline to generic `map[string]interface{}` pattern, matching repos/SOBRs/KMS
+- All job types now export/apply with full API fidelity (not just VM backup jobs)
+
+### Changed
+- API error messages now include HTTP method, full URL, and response body for all vhttp functions
+- `--target` flag deprecated in favor of `--instance` (prints warning)
+- `SendData` now treats non-2xx responses as fatal errors (previously only printed status)
+
+### Fixed
+- Repeated authentication on Windows (#138)
+- CI workflow permissions security fix (#126)
+
+### Testing
+- Added test coverage for drift detection and job security severity (#132)
+- Added test coverage for group merge paths (#133)
+- Added test coverage for state package (#119)
+- Added GitHub Actions CI workflow
+
 ## [1.1.0] - 2026-02-09
 
 ### Epic #96: Groups, Targets & Profile/Overlay System

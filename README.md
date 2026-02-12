@@ -578,3 +578,4 @@ If you have any issues or would like to see a feature added please raise an issu
 | 0.12.1-beta1 | **Raw JSON Diff**: Fix job diff to use raw JSON instead of typed struct (#89). |
 | 1.0.0 | **Rebrand: vcli → owlctl**. Renamed binary, env vars (`VCLI_*` → `OWLCTL_*`), config dir (`~/.owlctl`), API version string. First stable release. See [Migration Guide](docs/migration-vcli-to-owlctl.md). |
 | 1.1.0 | **Groups, Targets & Profiles** (Epic #96). Group-based batch apply/diff with `--group`, `kind: Profile` and `kind: Overlay` for standardised policy management, named VBR targets with `--target`, extended `--group` to repos/SOBRs/KMS. |
+| 1.2.0 | **Multi-Instance & Generic Pipeline**. Named instances with `--instance` for multi-server automation, YAML export for repos/SOBRs/encryption/KMS, generic map-based job pipeline for all job types, improved API error messages, Windows auth fix. |

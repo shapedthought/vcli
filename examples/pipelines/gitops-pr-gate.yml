@@ -1,0 +1,353 @@
+# GitOps PR Gate Pipeline
+#
+# PR-triggered pipeline that enforces policy and validates spec changes before merge.
+# Use this as Build Validation on your main branch to ensure:
+#   1. Policy rules block dangerous changes (encryption/immutability disabled)
+#   2. Changed specs dry-run successfully against live VBR
+#   3. Existing resources are checked for unexpected drift (informational)
+#
+# Key difference from pr-validation.yml:
+#   This pipeline adds a PolicyCheck stage BEFORE dry-run, so blocked specs
+#   never reach VBR. Policy checks use yq and require no VBR connection.
+#
+# Prerequisites:
+#   - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
+#   - Configure as required Build Validation in Branch Policies for master/main
+#   - Policy rules in policies/policy-rules.yaml (committed to repo)
+#   - Infrastructure specs in infrastructure/{jobs,repos,sobrs,kms}/*.yaml
+#
+# Recommended setup:
+#   1. Run bootstrap.yml to populate infrastructure/ and state.json
+#   2. Configure this pipeline as Build Validation on main
+#   3. Configure gitops-deploy.yml as CI trigger on main
+
+trigger: none
+
+pr:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - infrastructure/**
+      - overlays/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: owlctlVersion
+    value: 'latest'
+  - name: policyFile
+    value: 'examples/pipelines/policies/policy-rules.yaml'
+
+stages:
+  # ============================================================
+  # Stage 1: Policy Check - Block dangerous changes (no VBR needed)
+  # ============================================================
+  - stage: PolicyCheck
+    displayName: 'Policy Check'
+    jobs:
+      - job: EvaluateRules
+        displayName: 'Evaluate policy rules'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              # Install yq for YAML inspection
+              curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
+              chmod +x yq
+            displayName: 'Install yq'
+
+          - script: |
+              BLOCKED=0
+              WARNED=0
+
+              echo "=== Finding Changed Spec Files ==="
+              CHANGED_FILES=$(git diff --name-only origin/$(System.PullRequest.TargetBranch)...HEAD -- '*.yaml' '*.yml' | grep -E '^infrastructure/' || true)
+
+              if [ -z "$CHANGED_FILES" ]; then
+                echo "No infrastructure YAML files changed in this PR"
+                exit 0
+              fi
+
+              echo "Changed files:"
+              echo "$CHANGED_FILES"
+              echo ""
+
+              # Load policy rules
+              if [ ! -f "$(policyFile)" ]; then
+                echo "##vso[task.logissue type=warning]Policy file not found: $(policyFile) - skipping policy checks"
+                exit 0
+              fi
+
+              RULE_COUNT=$(./yq '.rules | length' "$(policyFile)")
+              echo "Loaded $RULE_COUNT policy rules"
+              echo ""
+
+              for file in $CHANGED_FILES; do
+                [ -f "$file" ] || continue
+
+                # Get the resource kind from the spec
+                FILE_KIND=$(./yq '.kind // ""' "$file" 2>/dev/null)
+                if [ -z "$FILE_KIND" ]; then
+                  echo "Skipping $file (no kind field)"
+                  continue
+                fi
+
+                echo "=== Checking: $file (kind: $FILE_KIND) ==="
+
+                # Evaluate each rule against this file
+                for i in $(seq 0 $((RULE_COUNT - 1))); do
+                  RULE_NAME=$(./yq ".rules[$i].name" "$(policyFile)")
+                  RULE_RESOURCE=$(./yq ".rules[$i].resource" "$(policyFile)")
+                  RULE_PATH=$(./yq ".rules[$i].path" "$(policyFile)")
+                  RULE_OPERATOR=$(./yq ".rules[$i].operator" "$(policyFile)")
+                  RULE_VALUE=$(./yq ".rules[$i].value" "$(policyFile)")
+                  RULE_ACTION=$(./yq ".rules[$i].action" "$(policyFile)")
+                  RULE_MESSAGE=$(./yq ".rules[$i].message" "$(policyFile)")
+
+                  # Skip rules that don't match this resource type
+                  if [ "$RULE_RESOURCE" != "$FILE_KIND" ]; then
+                    continue
+                  fi
+
+                  # Extract the field value from the spec file
+                  FIELD_VALUE=$(./yq "$RULE_PATH" "$file" 2>/dev/null)
+
+                  # Skip if field doesn't exist in the spec (null = not set = no change)
+                  if [ "$FIELD_VALUE" = "null" ] || [ -z "$FIELD_VALUE" ]; then
+                    continue
+                  fi
+
+                  TRIGGERED=false
+
+                  case "$RULE_OPERATOR" in
+                    equals)
+                      if [ "$FIELD_VALUE" = "$RULE_VALUE" ]; then
+                        TRIGGERED=true
+                      fi
+                      ;;
+                    exists)
+                      # Field exists and is not null - rule triggers
+                      TRIGGERED=true
+                      ;;
+                  esac
+
+                  if [ "$TRIGGERED" = "true" ]; then
+                    case "$RULE_ACTION" in
+                      block)
+                        echo "##vso[task.logissue type=error][$RULE_NAME] $RULE_MESSAGE (file: $file, value: $FIELD_VALUE)"
+                        BLOCKED=$((BLOCKED + 1))
+                        ;;
+                      warn)
+                        echo "##vso[task.logissue type=warning][$RULE_NAME] $RULE_MESSAGE (file: $file, value: $FIELD_VALUE)"
+                        WARNED=$((WARNED + 1))
+                        ;;
+                    esac
+                  fi
+                done
+
+                echo ""
+              done
+
+              echo "=== Policy Check Summary ==="
+              echo "Blocked: $BLOCKED"
+              echo "Warnings: $WARNED"
+
+              if [ $BLOCKED -gt 0 ]; then
+                echo ""
+                echo "##vso[task.logissue type=error]$BLOCKED policy violation(s) - PR cannot be merged"
+                exit 1
+              fi
+
+              if [ $WARNED -gt 0 ]; then
+                echo "##vso[task.complete result=SucceededWithIssues;]$WARNED policy warning(s)"
+              fi
+            displayName: 'Evaluate policy rules'
+
+  # ============================================================
+  # Stage 2: Validate - Dry-run changed specs against live VBR
+  # ============================================================
+  - stage: Validate
+    displayName: 'Validate Spec Changes'
+    dependsOn: PolicyCheck
+    condition: succeeded()
+    jobs:
+      - job: DryRun
+        displayName: 'Dry-run changed specs'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
+            env:
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
+
+          - script: |
+              FAILED=0
+              VALIDATED=0
+
+              echo "=== Finding Changed Spec Files ==="
+              CHANGED_FILES=$(git diff --name-only origin/$(System.PullRequest.TargetBranch)...HEAD -- '*.yaml' '*.yml' | grep -E '^infrastructure/' || true)
+
+              if [ -z "$CHANGED_FILES" ]; then
+                echo "No infrastructure YAML files changed in this PR"
+                exit 0
+              fi
+
+              echo "Changed files:"
+              echo "$CHANGED_FILES"
+              echo ""
+
+              for file in $CHANGED_FILES; do
+                [ -f "$file" ] || continue
+                echo "=== Validating: $file ==="
+
+                # Determine resource type from path
+                case "$file" in
+                  */jobs/*)
+                    ./owlctl job apply "$file" --dry-run
+                    ;;
+                  */repos/*)
+                    ./owlctl repo apply "$file" --dry-run
+                    ;;
+                  */sobrs/*)
+                    ./owlctl repo sobr-apply "$file" --dry-run
+                    ;;
+                  */kms/*)
+                    ./owlctl encryption kms-apply "$file" --dry-run
+                    ;;
+                  *)
+                    echo "Skipping unknown resource type: $file"
+                    continue
+                    ;;
+                esac
+
+                EXIT=$?
+                if [ $EXIT -eq 0 ]; then
+                  VALIDATED=$((VALIDATED + 1))
+                  echo "PASS: $file"
+                elif [ $EXIT -eq 6 ]; then
+                  echo "##vso[task.logissue type=warning]Resource in $file not found in VBR - verify this is intentional"
+                  VALIDATED=$((VALIDATED + 1))
+                else
+                  FAILED=$((FAILED + 1))
+                  echo "##vso[task.logissue type=error]Validation failed for $file"
+                fi
+                echo ""
+              done
+
+              echo "=== Validation Summary ==="
+              echo "Validated: $VALIDATED"
+              echo "Failed: $FAILED"
+
+              if [ $FAILED -gt 0 ]; then
+                echo "##vso[task.logissue type=error]$FAILED spec file(s) failed validation"
+                exit 1
+              fi
+            displayName: 'Dry-run changed specs'
+            env:
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+  # ============================================================
+  # Stage 3: Drift Check - Informational, doesn't block merge
+  # ============================================================
+  - stage: DriftCheck
+    displayName: 'Check Existing Resources'
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: CheckDrift
+        displayName: 'Verify no unexpected drift'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
+            env:
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
+
+          - script: |
+              set +e
+              CRITICAL=0
+
+              echo "=== Checking for Unexpected Drift ==="
+              echo "Note: This checks that existing resources haven't drifted unexpectedly."
+              echo "The specs being added/changed in this PR are validated separately."
+              echo ""
+
+              ./owlctl job diff --all --severity critical 2>&1
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical job drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              ./owlctl repo diff --all --severity critical 2>&1
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical repository drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              ./owlctl repo sobr-diff --all --severity critical 2>&1
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical SOBR drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              ./owlctl encryption kms-diff --all --severity critical 2>&1
+              if [ $? -eq 4 ]; then
+                echo "##vso[task.logissue type=warning]Critical KMS drift detected - review before merge"
+                CRITICAL=1
+              fi
+
+              if [ $CRITICAL -eq 1 ]; then
+                echo ""
+                echo "##vso[task.logissue type=warning]Critical drift exists in VBR environment - PR can still merge but review recommended"
+                echo "##vso[task.complete result=SucceededWithIssues;]Critical drift detected"
+              else
+                echo "No critical drift detected in existing resources"
+              fi
+            displayName: 'Check for drift'
+            env:
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+  # ============================================================
+  # Stage 4: Summary
+  # ============================================================
+  - stage: Summary
+    displayName: 'Validation Summary'
+    dependsOn:
+      - PolicyCheck
+      - Validate
+      - DriftCheck
+    condition: always()
+    jobs:
+      - job: Report
+        displayName: 'Generate summary'
+        steps:
+          - script: |
+              echo "=== PR Validation Complete ==="
+              echo ""
+              echo "This PR has been validated against policy rules and the VBR environment."
+              echo ""
+              echo "Validation stages:"
+              echo "  1. Policy check: Evaluated spec changes against policy-rules.yaml"
+              echo "  2. Dry-run: Verified spec files can be applied to VBR"
+              echo "  3. Drift check: Checked for unexpected drift in existing resources"
+              echo ""
+              echo "If all stages passed, this PR is safe to merge."
+              echo "After merge, the gitops-deploy pipeline will apply changes automatically."
+            displayName: 'Print summary'

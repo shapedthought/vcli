@@ -12,6 +12,8 @@ Ready-to-use pipeline templates are available in [`examples/pipelines/`](../exam
 | [pr-validation.yml](../examples/pipelines/pr-validation.yml) | PR validation gate with dry-run |
 | [deployment.yml](../examples/pipelines/deployment.yml) | Multi-stage deployment with approval gates |
 | [nightly-compliance.yml](../examples/pipelines/nightly-compliance.yml) | Compliance report generation |
+| [gitops-pr-gate.yml](../examples/pipelines/gitops-pr-gate.yml) | Policy enforcement + validation before merge |
+| [gitops-deploy.yml](../examples/pipelines/gitops-deploy.yml) | Apply specs on merge, commit state to Git |
 
 See the [pipeline README](../examples/pipelines/README.md) for setup instructions.
 
@@ -343,6 +345,77 @@ pool:
 ```
 
 Self-hosted agents are installed on a machine within your network. This avoids exposing the VBR API to the internet. The agent communicates outbound to Azure DevOps (no inbound ports required).
+
+---
+
+## GitOps Workflow
+
+The recommended production setup uses two pipelines to enforce **main = desired state of VBR**. Changes flow through a controlled lifecycle: issue, branch, PR, validate, merge, apply, commit state.
+
+### Lifecycle
+
+```
+1. Create issue      -> "Change retention to 30 days for prod jobs"
+2. Create branch     -> feature/retention-30d
+3. Edit specs        -> Modify infrastructure/jobs/prod-backup.yaml
+4. Open PR           -> gitops-pr-gate.yml runs automatically
+   a. Policy check   -> Blocks if encryption/immutability disabled
+   b. Dry-run        -> Validates specs against live VBR
+   c. Drift check    -> Reports any unexpected drift (informational)
+5. Review & merge    -> Approver reviews pipeline results and merges
+6. Deploy            -> gitops-deploy.yml runs automatically
+   a. Apply          -> Specs applied in dependency order (KMS > repos > SOBRs > jobs)
+   b. Commit state   -> Re-exported specs + state.json committed to Git
+   c. Verify         -> Drift check confirms clean apply
+```
+
+### Setting Up
+
+**Step 1: Bootstrap your environment**
+
+Run [bootstrap.yml](../examples/pipelines/bootstrap.yml) once to export all current VBR configuration into Git. This creates the `infrastructure/` directory with job specs and `state.json` with resource snapshots.
+
+**Step 2: Configure PR gate**
+
+1. Create a pipeline from [gitops-pr-gate.yml](../examples/pipelines/gitops-pr-gate.yml)
+2. Go to **Repos > Branches > master > Branch policies**
+3. Under **Build Validation**, add the pipeline as a required check
+
+This ensures every spec change is validated against [policy rules](../examples/pipelines/policies/policy-rules.yaml) and dry-run against VBR before merge.
+
+**Step 3: Configure deploy pipeline**
+
+1. Create a pipeline from [gitops-deploy.yml](../examples/pipelines/gitops-deploy.yml)
+2. It triggers automatically on push to main (when `infrastructure/` files change)
+3. Create an Environment named `vbr-production` with approval gates for the Deploy stage
+
+**Step 4: Add ongoing assurance (optional)**
+
+Add [detect-remediate.yml](../examples/pipelines/detect-remediate.yml) on a schedule to catch out-of-band changes, or [nightly-compliance.yml](../examples/pipelines/nightly-compliance.yml) for audit reports.
+
+### Policy Enforcement
+
+The PR gate evaluates changed specs against configurable rules in [policies/policy-rules.yaml](../examples/pipelines/policies/policy-rules.yaml). Rules use `yq` to inspect YAML fields — no VBR connection needed.
+
+**Block rules** fail the pipeline (PR cannot merge):
+- Job encryption disabled
+- Job disabled via GitOps
+- SOBR immutability disabled
+- SOBR capacity tier encryption disabled
+
+**Warn rules** allow merge with a warning:
+- Retention policy changed
+- Job schedule disabled
+
+Custom rules can be added to `policy-rules.yaml` — see the [pipeline README](../examples/pipelines/README.md) for syntax.
+
+### State Commit Pattern
+
+After applying specs, the deploy pipeline re-exports job YAML and snapshots all resources, then commits the result back to Git with `[skip ci]`. This ensures:
+
+- Git always reflects VBR's authoritative state (including fields VBR normalizes or rejects)
+- `state.json` is always current for drift detection
+- The commit history provides an audit trail of every deployment
 
 ---
 

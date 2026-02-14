@@ -1,0 +1,71 @@
+# Policy Rules for GitOps PR Gate
+#
+# These rules are evaluated against YAML spec files during PR validation.
+# The gitops-pr-gate.yml pipeline uses yq to check each rule against changed specs.
+#
+# Rule fields:
+#   name:       Human-readable rule name
+#   resource:   Matches the spec's kind: field (e.g., VBRJob, VBRSOBR)
+#   path:       yq expression to extract the field value from the spec
+#   operator:   "equals" (match exact value) or "exists" (field is present)
+#   value:      Expected value for "equals" operator (ignored for "exists")
+#   action:     "block" (fail pipeline) or "warn" (SucceededWithIssues)
+#   message:    Displayed when the rule triggers
+#
+# Notes:
+#   - Rules only trigger if the field exists in the spec/overlay
+#   - An overlay that doesn't set a field = field unchanged = rule doesn't trigger
+#   - Paths use yq dot notation relative to .spec
+
+rules:
+  # === Block rules (hard failures) ===
+
+  - name: job-encryption-disabled
+    resource: VBRJob
+    path: .spec.storage.advancedSettings.storageData.encryption.isEnabled
+    operator: equals
+    value: false
+    action: block
+    message: "BLOCKED: Job encryption must not be disabled"
+
+  - name: job-disabled
+    resource: VBRJob
+    path: .spec.isDisabled
+    operator: equals
+    value: true
+    action: block
+    message: "BLOCKED: Jobs must not be disabled via GitOps"
+
+  - name: sobr-immutability-disabled
+    resource: VBRSOBR
+    path: .spec.immutabilityMode
+    operator: equals
+    value: Disabled
+    action: block
+    message: "BLOCKED: SOBR immutability must not be disabled"
+
+  - name: sobr-capacity-encryption-disabled
+    resource: VBRSOBR
+    path: .spec.capacityTier.encryption.isEnabled
+    operator: equals
+    value: false
+    action: block
+    message: "BLOCKED: SOBR capacity tier encryption must not be disabled"
+
+  # === Warn rules (allow with flag) ===
+
+  - name: retention-changed
+    resource: VBRJob
+    path: .spec.storage.retentionPolicy.quantity
+    operator: exists
+    value: ""
+    action: warn
+    message: "WARNING: Retention policy is being changed - verify this is intentional"
+
+  - name: schedule-disabled
+    resource: VBRJob
+    path: .spec.schedule.runAutomatically
+    operator: equals
+    value: false
+    action: warn
+    message: "WARNING: Job schedule is being disabled - verify this is intentional"

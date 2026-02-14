@@ -2,6 +2,19 @@
 
 Ready-to-use Azure DevOps pipeline templates for VBR configuration management with owlctl.
 
+## Recommended GitOps Workflow
+
+These pipelines work together to enforce **main = desired state of your VBR environment**:
+
+1. **Bootstrap** (run once) - Capture current VBR state into Git with [bootstrap.yml](bootstrap.yml)
+2. **PR gate** - Set up [gitops-pr-gate.yml](gitops-pr-gate.yml) as Build Validation on main. Every PR that changes specs is checked against [policy rules](policies/policy-rules.yaml) and dry-run against VBR before merge.
+3. **Deploy on merge** - Set up [gitops-deploy.yml](gitops-deploy.yml) as CI trigger on main. After merge, specs are applied in dependency order, then re-exported and committed back to Git.
+4. **Ongoing assurance** (optional) - Add [detect-remediate.yml](detect-remediate.yml) or [nightly-compliance.yml](nightly-compliance.yml) to catch out-of-band changes.
+
+```
+Issue -> Branch -> Edit specs -> PR (policy + dry-run) -> Merge -> Apply -> Commit state
+```
+
 ## Available Templates
 
 | Template | Purpose | Trigger |
@@ -13,6 +26,9 @@ Ready-to-use Azure DevOps pipeline templates for VBR configuration management wi
 | [pr-validation.yml](pr-validation.yml) | Validate spec changes before merge | Pull requests |
 | [deployment.yml](deployment.yml) | Multi-stage deployment with approval gates | Push to master / manual |
 | [nightly-compliance.yml](nightly-compliance.yml) | Generate compliance reports | Scheduled (nightly 2AM UTC) |
+| [gitops-pr-gate.yml](gitops-pr-gate.yml) | Policy enforcement + validation before merge | Pull requests |
+| [gitops-deploy.yml](gitops-deploy.yml) | Apply specs, commit state back to Git | Push to master/main |
+| [policies/policy-rules.yaml](policies/policy-rules.yaml) | Configurable policy rules for PR gate | N/A (config file) |
 
 ## Prerequisites
 
@@ -281,6 +297,80 @@ variables:
     value: '/Compliance/VBR-Drift-Report'
 ```
 
+### gitops-pr-gate.yml
+
+**Purpose:** Policy enforcement and validation gate for PRs that modify infrastructure specs
+
+Unlike `pr-validation.yml`, this pipeline adds a **PolicyCheck** stage before dry-run. Policy rules are evaluated with `yq` against the changed YAML files — no VBR connection needed. Blocked specs (e.g., encryption disabled) never reach VBR.
+
+**Stages:**
+1. **PolicyCheck** - Evaluate changed specs against `policies/policy-rules.yaml` (block or warn)
+2. **Validate** - Dry-run changed specs against live VBR
+3. **DriftCheck** - Check existing resources for unexpected drift (informational)
+4. **Summary** - Report validation results
+
+**Branch Policy Setup:**
+1. Go to **Repos > Branches > master > Branch policies**
+2. Under **Build Validation**, click **+**
+3. Select the `gitops-pr-gate` pipeline
+4. Enable **Require** and **Immediately when updated**
+
+**Customization:**
+```yaml
+variables:
+  - name: policyFile
+    value: 'examples/pipelines/policies/policy-rules.yaml'  # Path to your policy rules
+```
+
+### gitops-deploy.yml
+
+**Purpose:** Apply all specs on merge to main, then commit updated state back to Git
+
+This pipeline enforces **main = desired state**. After merge, all specs are applied in dependency order (KMS > repos > SOBRs > jobs), then specs are re-exported and state is committed back to Git with `[skip ci]`.
+
+**Stages:**
+1. **PreDeploy** - Dry-run all specs (catches issues from concurrent merges)
+2. **Deploy** - Apply specs in dependency order (uses `vbr-production` environment for approval gates)
+3. **CommitState** - Re-export jobs, snapshot all resources, commit state to Git
+4. **PostDeploy** - Drift check to verify everything applied cleanly
+
+**Requirements:**
+- Environment `vbr-production` with approval gates configured
+- Git repo write permissions (`persistCredentials: true` on checkout)
+
+**Key differences from `deployment.yml`:**
+- Adds CommitState stage so Git stays the authoritative audit trail
+- Applies in dependency order (KMS > repos > SOBRs > jobs)
+- Commits with `[skip ci]` to prevent re-triggering
+
+### policies/policy-rules.yaml
+
+**Purpose:** Configurable policy rules evaluated during PR validation
+
+Rules are evaluated against changed YAML spec files using `yq`. Each rule specifies a resource kind, a field path, and an action (`block` or `warn`).
+
+**Default block rules (hard failures):**
+- Job encryption disabled
+- Job disabled via GitOps
+- SOBR immutability disabled
+- SOBR capacity tier encryption disabled
+
+**Default warn rules (allow with flag):**
+- Retention policy changed
+- Job schedule disabled
+
+**Adding custom rules:**
+```yaml
+rules:
+  - name: my-custom-rule
+    resource: VBRJob           # Matches kind: field
+    path: .spec.some.field     # yq path to check
+    operator: equals           # equals or exists
+    value: "unwanted-value"    # value to match (for equals)
+    action: block              # block or warn
+    message: "Custom message"
+```
+
 ## Troubleshooting
 
 ### Authentication Failures
@@ -345,6 +435,43 @@ Set `skipTLSVerify: true` in settings.json. This bypasses certificate validation
 If wiki update fails:
 1. Go to **Project Settings → Repositories → Security**
 2. Grant **Contribute** permission to build service account
+
+## Hardening Pipeline Security
+
+The templates in this directory are self-contained for ease of adoption. In production, you should prevent users from modifying pipeline definitions to bypass policy checks.
+
+### Protect pipeline files with required reviewers
+
+Add `examples/pipelines/**` and `policies/**` to your branch policy path filters so changes to pipeline YAML and policy rules go through the same PR gate. Use required reviewers (Azure DevOps) or CODEOWNERS (GitHub) to require security team approval for these paths.
+
+### Use extends templates from a protected repo (recommended)
+
+Azure DevOps supports [template references from other repositories](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/templates). Move the policy and validation logic into a separate, locked-down repository and reference it with `extends`. Users can customize parameters but cannot skip or modify the enforcement stages.
+
+```yaml
+# In the team's repo — cannot bypass the gate
+resources:
+  repositories:
+    - repository: pipeline-templates
+      type: git
+      name: MyProject/pipeline-templates  # Restricted write access
+
+extends:
+  template: templates/gitops-gate.yml@pipeline-templates
+  parameters:
+    specsPath: infrastructure/
+    policyFile: policies/policy-rules.yaml
+```
+
+The `pipeline-templates` repo has restricted write access — only the platform/security team can modify it.
+
+### Restrict pipeline editing permissions
+
+Under **Pipelines > Security**, limit who can edit pipeline definitions. This prevents users from modifying the pipeline through the Azure DevOps UI even if they can't push changes to the YAML file.
+
+### Environment approvals are separate from pipeline code
+
+The `vbr-production` environment approval gate is configured in the Azure DevOps UI, not in the pipeline YAML. Even if someone modifies the pipeline definition, they cannot bypass environment approvals.
 
 ## See Also
 

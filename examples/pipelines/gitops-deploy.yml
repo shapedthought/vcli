@@ -1,0 +1,398 @@
+# GitOps Deploy Pipeline
+#
+# Merge-to-main triggered pipeline that applies all infrastructure specs to VBR,
+# then commits updated state and re-exported specs back to Git.
+#
+# This pipeline enforces: main branch = desired state of VBR environment.
+#
+# Stages:
+#   1. PreDeploy   - Dry-run all specs (catches concurrent merge issues)
+#   2. Deploy      - Apply specs in dependency order with approval gate
+#   3. CommitState - Re-export specs + snapshot state + commit to Git
+#   4. PostDeploy  - Drift check to verify everything applied cleanly
+#
+# Key design decisions:
+#   - Applies ALL specs, not just changed ones (owlctl apply is idempotent)
+#   - Dependency-ordered apply: KMS -> repos -> SOBRs -> jobs
+#   - State commit uses [skip ci] to prevent re-triggering this pipeline
+#   - Uses Azure DevOps deployment job with environment approval gates
+#
+# Prerequisites:
+#   - Run bootstrap.yml to populate infrastructure/ and state.json
+#   - Variable Group 'veeam-credentials' with OWLCTL_USERNAME, OWLCTL_PASSWORD, OWLCTL_URL
+#   - Environment 'vbr-production' with approval gates configured
+#   - Self-hosted agent with Go installed (for building owlctl from source)
+#     OR change setup steps to download a release binary
+
+trigger:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - infrastructure/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: 'veeam-credentials'
+  - name: owlctlVersion
+    value: 'latest'
+  - name: specsPath
+    value: 'infrastructure'
+
+stages:
+  # ============================================================
+  # Stage 1: Pre-Deploy - Dry-run all specs
+  # ============================================================
+  - stage: PreDeploy
+    displayName: 'Pre-Deploy Validation'
+    jobs:
+      - job: DryRunAll
+        displayName: 'Dry-run all specs'
+        steps:
+          - checkout: self
+
+          - script: |
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
+            env:
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
+
+          - script: |
+              FAILED=0
+
+              echo "=== Pre-Deploy: Dry-Run All Specs ==="
+              echo "Validating all specs in $(specsPath)/ against live VBR..."
+              echo ""
+
+              echo "--- KMS Servers ---"
+              for spec in $(specsPath)/kms/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./owlctl encryption kms-apply "$spec" --dry-run
+                EXIT=$?
+                if [ $EXIT -ne 0 ] && [ $EXIT -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              echo ""
+              echo "--- Repositories ---"
+              for spec in $(specsPath)/repos/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./owlctl repo apply "$spec" --dry-run
+                EXIT=$?
+                if [ $EXIT -ne 0 ] && [ $EXIT -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              echo ""
+              echo "--- Scale-Out Repositories ---"
+              for spec in $(specsPath)/sobrs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./owlctl repo sobr-apply "$spec" --dry-run
+                EXIT=$?
+                if [ $EXIT -ne 0 ] && [ $EXIT -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              echo ""
+              echo "--- Jobs ---"
+              for spec in $(specsPath)/jobs/*.yaml; do
+                [ -f "$spec" ] || continue
+                echo "Validating: $spec"
+                ./owlctl job apply "$spec" --dry-run
+                EXIT=$?
+                if [ $EXIT -ne 0 ] && [ $EXIT -ne 6 ]; then FAILED=$((FAILED + 1)); fi
+              done
+
+              echo ""
+              if [ $FAILED -gt 0 ]; then
+                echo "##vso[task.logissue type=error]$FAILED spec(s) failed validation"
+                exit 1
+              fi
+
+              echo "All specs validated successfully"
+            displayName: 'Validate all specs (dry-run)'
+            env:
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+  # ============================================================
+  # Stage 2: Deploy - Apply in dependency order with approval
+  # ============================================================
+  - stage: Deploy
+    displayName: 'Deploy Configuration'
+    dependsOn: PreDeploy
+    condition: succeeded()
+    jobs:
+      - deployment: ApplyConfig
+        displayName: 'Apply VBR configuration'
+        environment: 'vbr-production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - script: |
+                    curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+                    chmod +x owlctl
+                    ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+                  displayName: 'Install and authenticate owlctl'
+                  env:
+                    OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+                    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+                    OWLCTL_URL: $(OWLCTL_URL)
+
+                - script: |
+                    APPLIED=0
+                    FAILED=0
+                    PARTIAL=0
+
+                    echo "=== Applying Configuration (dependency order) ==="
+
+                    # 1. KMS Servers (no dependencies)
+                    echo ""
+                    echo "--- KMS Servers ---"
+                    for spec in $(specsPath)/kms/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./owlctl encryption kms-apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    # 2. Repositories (may reference KMS)
+                    echo ""
+                    echo "--- Repositories ---"
+                    for spec in $(specsPath)/repos/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./owlctl repo apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    # 3. Scale-Out Repositories (reference repos)
+                    echo ""
+                    echo "--- Scale-Out Repositories ---"
+                    for spec in $(specsPath)/sobrs/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./owlctl repo sobr-apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    # 4. Jobs (reference repos/SOBRs)
+                    echo ""
+                    echo "--- Jobs ---"
+                    for spec in $(specsPath)/jobs/*.yaml; do
+                      [ -f "$spec" ] || continue
+                      echo "Applying: $spec"
+                      ./owlctl job apply "$spec"
+                      EXIT=$?
+                      case $EXIT in
+                        0) APPLIED=$((APPLIED + 1)) ;;
+                        5) PARTIAL=$((PARTIAL + 1)); APPLIED=$((APPLIED + 1)) ;;
+                        6) echo "##vso[task.logissue type=error]Resource not found: $spec"; FAILED=$((FAILED + 1)) ;;
+                        *) echo "##vso[task.logissue type=error]Failed to apply: $spec"; FAILED=$((FAILED + 1)) ;;
+                      esac
+                    done
+
+                    echo ""
+                    echo "=== Deployment Summary ==="
+                    echo "Applied: $APPLIED"
+                    echo "Partial (some fields skipped): $PARTIAL"
+                    echo "Failed: $FAILED"
+
+                    if [ $FAILED -gt 0 ]; then
+                      echo "##vso[task.logissue type=error]$FAILED resource(s) failed to apply"
+                      exit 1
+                    fi
+
+                    if [ $PARTIAL -gt 0 ]; then
+                      echo "##vso[task.logissue type=warning]$PARTIAL resource(s) had fields skipped (known immutable)"
+                      echo "##vso[task.complete result=SucceededWithIssues;]Partial apply"
+                    fi
+                  displayName: 'Apply all specs'
+                  env:
+                    OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+  # ============================================================
+  # Stage 3: Commit State - Re-export and commit back to Git
+  # ============================================================
+  - stage: CommitState
+    displayName: 'Commit State to Git'
+    dependsOn: Deploy
+    condition: succeeded()
+    jobs:
+      - job: ExportAndCommit
+        displayName: 'Re-export specs and commit state'
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - script: |
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
+            env:
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
+
+          - script: |
+              echo "=== Re-exporting specs from VBR ==="
+              echo "This captures VBR's authoritative state after apply."
+              echo ""
+
+              # Re-export all jobs
+              echo "--- Re-exporting jobs ---"
+              ./owlctl export --all -d $(specsPath)/jobs/
+              echo ""
+
+              # Snapshot all resource types
+              echo "--- Snapshotting resources ---"
+              ./owlctl repo snapshot --all
+              ./owlctl repo sobr-snapshot --all
+              ./owlctl encryption snapshot --all
+              ./owlctl encryption kms-snapshot --all
+              echo ""
+
+              echo "State updated"
+            displayName: 'Re-export and snapshot'
+            env:
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+          - script: |
+              git config user.email "owlctl-pipeline@azure-devops.local"
+              git config user.name "owlctl GitOps Pipeline"
+
+              git add $(specsPath)/
+              git add state.json
+
+              if git diff --cached --quiet; then
+                echo "No changes to commit - state already matches Git"
+                exit 0
+              fi
+
+              echo "Files changed:"
+              git diff --cached --name-only
+              echo ""
+
+              git commit -m "Update state after deploy $(Build.BuildNumber) [skip ci]
+
+              Re-exported specs and snapshotted resources after successful deployment.
+              Pipeline: $(Build.DefinitionName)
+              Commit: $(Build.SourceVersion)"
+
+              git push origin HEAD:refs/heads/$(Build.SourceBranchName)
+              if [ $? -ne 0 ]; then
+                echo "##vso[task.logissue type=error]Failed to push state commit"
+                exit 1
+              fi
+              echo "State committed and pushed"
+            displayName: 'Commit and push state'
+
+  # ============================================================
+  # Stage 4: Post-Deploy - Verify no remaining drift
+  # ============================================================
+  - stage: PostDeploy
+    displayName: 'Post-Deploy Verification'
+    dependsOn: CommitState
+    condition: succeeded()
+    jobs:
+      - job: Verify
+        displayName: 'Verify configuration applied'
+        steps:
+          - script: |
+              curl -sL https://github.com/shapedthought/owlctl/releases/download/$(owlctlVersion)/owlctl-linux-amd64 -o owlctl
+              chmod +x owlctl
+              ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
+            displayName: 'Install and authenticate owlctl'
+            env:
+              OWLCTL_USERNAME: $(OWLCTL_USERNAME)
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+              OWLCTL_URL: $(OWLCTL_URL)
+
+          - script: |
+              set +e
+              DRIFT=0
+
+              echo "=== Post-Deploy Verification ==="
+              echo "Checking that VBR matches desired state..."
+              echo ""
+
+              ./owlctl job diff --all 2>&1
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Job drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./owlctl repo diff --all 2>&1
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Repository drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./owlctl repo sobr-diff --all 2>&1
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]SOBR drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./owlctl encryption diff --all 2>&1
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]Encryption drift detected after deployment"
+                DRIFT=1
+              fi
+
+              ./owlctl encryption kms-diff --all 2>&1
+              if [ $? -eq 4 ] || [ $? -eq 3 ]; then
+                echo "##vso[task.logissue type=warning]KMS drift detected after deployment"
+                DRIFT=1
+              fi
+
+              echo ""
+              if [ $DRIFT -eq 1 ]; then
+                echo "##vso[task.logissue type=warning]Some drift remains after deployment - this may be expected for immutable fields"
+                echo "##vso[task.complete result=SucceededWithIssues;]Drift remains"
+              else
+                echo "Deployment verified - no drift detected"
+              fi
+            displayName: 'Verify no drift'
+            env:
+              OWLCTL_PASSWORD: $(OWLCTL_PASSWORD)
+
+          - script: |
+              echo "=== Deployment Complete ==="
+              echo ""
+              echo "Pipeline: $(Build.DefinitionName)"
+              echo "Build: $(Build.BuildNumber)"
+              echo "Commit: $(Build.SourceVersion)"
+              echo ""
+              echo "Configuration has been applied to VBR and state committed to Git."
+              echo "Main branch is now the authoritative source of truth."
+            displayName: 'Print summary'

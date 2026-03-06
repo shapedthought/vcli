@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-03-06
+
+### Fixed
+- `repo apply`, `repo sobr-apply`, and `encryption kms-apply` failing with HTTP 400 "'Id' must not be empty" (#139)
+  - VBR API requires the `id` field in PUT request bodies; moved id injection from job-specific logic to generic apply infrastructure
+
 ## [1.2.0] - 2026-02-11
 
 ### Added

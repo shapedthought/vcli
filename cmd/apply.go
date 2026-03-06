@@ -409,14 +409,6 @@ func fetchCurrentJob(name string, profile models.Profile) (json.RawMessage, stri
 // This handles guest credential defaults and VM exclude cleanup using map-based operations,
 // making it safe for all job types (VM, file, NAS, etc.).
 func prepareJobPayload(spec, existing map[string]interface{}) (map[string]interface{}, error) {
-	// VBR jobs API requires the ID in PUT body. cleanSpec strips it (it's in jobIgnoreFields
-	// for drift detection), so we restore it from the existing resource when updating.
-	if existing != nil {
-		if id, ok := existing["id"]; ok {
-			spec["id"] = id
-		}
-	}
-
 	// Guest credential defaults: if no credsType and no credentials, set useAgentManagementCredentials
 	if gp, ok := spec["guestProcessing"].(map[string]interface{}); ok {
 		if gc, ok := gp["guestCredentials"].(map[string]interface{}); ok {

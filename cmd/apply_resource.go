@@ -192,6 +192,12 @@ func applyResourceSpec(spec resources.ResourceSpec, cfg ResourceApplyConfig, pro
 		// Restore existing values for skipped fields (don't change them)
 		mergedSpec = restoreSkippedFields(mergedSpec, existingMap, toSkip)
 
+		// VBR API requires the id field in PUT request bodies. cleanSpec strips it
+		// (it's in IgnoreFields for drift/export), so restore it from the existing resource.
+		if id, ok := existingMap["id"]; ok {
+			mergedSpec["id"] = id
+		}
+
 		// Apply payload transformation if defined
 		if cfg.PreparePayload != nil {
 			mergedSpec, err = cfg.PreparePayload(mergedSpec, existingMap)

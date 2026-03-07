@@ -21,7 +21,7 @@ import (
 const configBackupStateKey = "ConfigurationBackup"
 
 // configBackupEndpoint is the VBR API endpoint for configuration backup settings.
-const configBackupEndpoint = "configurationBackup"
+const configBackupEndpoint = "configBackup"
 
 var (
 	configBackupExportOutput string

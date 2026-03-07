@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shapedthought/owlctl/models"
+	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/state"
 	"github.com/shapedthought/owlctl/utils"
 	"github.com/shapedthought/owlctl/vhttp"
@@ -18,14 +19,16 @@ import (
 var (
 	repoSnapshotAll    bool
 	repoDiffAll        bool
-	repoApplyDryRun    bool
-	repoApplyGroupName string
-	repoDiffGroupName  string
-	sobrSnapshotAll    bool
-	sobrDiffAll        bool
-	sobrApplyDryRun    bool
-	sobrApplyGroupName string
-	sobrDiffGroupName  string
+	repoApplyDryRun      bool
+	repoApplyGroupName   string
+	repoApplyOverlayFile string
+	repoDiffGroupName    string
+	sobrSnapshotAll      bool
+	sobrDiffAll          bool
+	sobrApplyDryRun      bool
+	sobrApplyGroupName   string
+	sobrApplyOverlayFile string
+	sobrDiffGroupName    string
 
 	// Export flags
 	repoExportOutput    string
@@ -423,6 +426,9 @@ Exit Codes:
 			if len(args) > 0 {
 				log.Fatal("Cannot use --group with a positional spec file argument")
 			}
+			if repoApplyOverlayFile != "" {
+				log.Fatal("Cannot use --group with --overlay (group defines its own overlay)")
+			}
 			applyGroupResource(repoApplyGroupName, repoApplyConfig, repoApplyDryRun)
 		} else if len(args) > 0 {
 			settings := utils.ReadSettings()
@@ -432,7 +438,17 @@ Exit Codes:
 				log.Fatal("This command only works with VBR at the moment.")
 			}
 
-			result := applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
+			var result ApplyResult
+			if repoApplyOverlayFile != "" {
+				fmt.Printf("Applying overlay: %s\n", repoApplyOverlayFile)
+				mergedSpec, err := resources.MergeYAMLFiles(args[0], repoApplyOverlayFile, resources.DefaultMergeOptions())
+				if err != nil {
+					log.Fatalf("Failed to merge with overlay: %v", err)
+				}
+				result = applyResourceSpec(mergedSpec, repoApplyConfig, profile, repoApplyDryRun, nil)
+			} else {
+				result = applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
+			}
 			if result.Error != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 				outcome := DetermineApplyOutcome([]ApplyResult{result})
@@ -503,6 +519,9 @@ Exit Codes:
 			if len(args) > 0 {
 				log.Fatal("Cannot use --group with a positional spec file argument")
 			}
+			if sobrApplyOverlayFile != "" {
+				log.Fatal("Cannot use --group with --overlay (group defines its own overlay)")
+			}
 			applyGroupResource(sobrApplyGroupName, sobrApplyConfig, sobrApplyDryRun)
 		} else if len(args) > 0 {
 			settings := utils.ReadSettings()
@@ -512,7 +531,17 @@ Exit Codes:
 				log.Fatal("This command only works with VBR at the moment.")
 			}
 
-			result := applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
+			var result ApplyResult
+			if sobrApplyOverlayFile != "" {
+				fmt.Printf("Applying overlay: %s\n", sobrApplyOverlayFile)
+				mergedSpec, err := resources.MergeYAMLFiles(args[0], sobrApplyOverlayFile, resources.DefaultMergeOptions())
+				if err != nil {
+					log.Fatalf("Failed to merge with overlay: %v", err)
+				}
+				result = applyResourceSpec(mergedSpec, sobrApplyConfig, profile, sobrApplyDryRun, nil)
+			} else {
+				result = applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
+			}
 			if result.Error != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 				outcome := DetermineApplyOutcome([]ApplyResult{result})
@@ -1006,6 +1035,7 @@ func init() {
 	addSeverityFlags(repoDiffCmd)
 	repoApplyCmd.Flags().BoolVar(&repoApplyDryRun, "dry-run", false, "Preview changes without applying them")
 	repoApplyCmd.Flags().StringVar(&repoApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
+	repoApplyCmd.Flags().StringVar(&repoApplyOverlayFile, "overlay", "", "Overlay file to merge with base configuration")
 
 	sobrSnapshotCmd.Flags().BoolVar(&sobrSnapshotAll, "all", false, "Snapshot all scale-out repositories")
 	sobrDiffCmd.Flags().BoolVar(&sobrDiffAll, "all", false, "Check drift for all scale-out repositories in state")
@@ -1013,6 +1043,7 @@ func init() {
 	addSeverityFlags(sobrDiffCmd)
 	sobrApplyCmd.Flags().BoolVar(&sobrApplyDryRun, "dry-run", false, "Preview changes without applying them")
 	sobrApplyCmd.Flags().StringVar(&sobrApplyGroupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")
+	sobrApplyCmd.Flags().StringVar(&sobrApplyOverlayFile, "overlay", "", "Overlay file to merge with base configuration")
 
 	repoCmd.AddCommand(repoExportCmd)
 	repoCmd.AddCommand(repoSnapshotCmd)

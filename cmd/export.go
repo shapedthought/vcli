@@ -363,7 +363,7 @@ func convertJobToYAMLOverlay(name, id string, rawData json.RawMessage, basePath 
 		header += fmt.Sprintf("# Base: %s\n", basePath)
 	}
 	header += fmt.Sprintf("# Job ID: %s\n", id)
-	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: owlctl job apply base.yaml -o this-file.yaml\n\n"
+	header += "#\n# This overlay contains only the fields that differ from the base.\n# Apply with: owlctl job apply base.yaml --overlay this-file.yaml\n\n"
 
 	// Marshal to YAML
 	yamlBytes, err := yaml.Marshal(resourceSpec)
@@ -486,11 +486,29 @@ func sanitizeFilename(name string) string {
 }
 
 func init() {
-	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Output file (default: stdout)")
-	exportCmd.Flags().StringVarP(&exportDirectory, "directory", "d", "", "Output directory for bulk export")
-	exportCmd.Flags().BoolVar(&exportAll, "all", false, "Export all jobs")
-	exportCmd.Flags().BoolVar(&exportSimplified, "simplified", false, "Export simplified format (legacy)")
-	exportCmd.Flags().BoolVar(&exportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
-	exportCmd.Flags().StringVar(&exportBasePath, "base", "", "Base template to diff against (for overlay export)")
+	addExportFlags(exportCmd)
+	exportCmd.Deprecated = "use 'owlctl job export' instead"
 	rootCmd.AddCommand(exportCmd)
+
+	// Register job export as subcommand of jobsCmd
+	addExportFlags(jobExportCmd)
+	jobsCmd.AddCommand(jobExportCmd)
+}
+
+// addExportFlags registers the common export flags on a command
+func addExportFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Output file (default: stdout)")
+	cmd.Flags().StringVarP(&exportDirectory, "directory", "d", "", "Output directory for bulk export")
+	cmd.Flags().BoolVar(&exportAll, "all", false, "Export all jobs")
+	cmd.Flags().BoolVar(&exportSimplified, "simplified", false, "Export simplified format (legacy)")
+	cmd.Flags().BoolVar(&exportAsOverlay, "as-overlay", false, "Export as overlay (minimal patch)")
+	cmd.Flags().StringVar(&exportBasePath, "base", "", "Base template to diff against (for overlay export)")
+}
+
+// jobExportCmd is the preferred location under 'owlctl job export'
+var jobExportCmd = &cobra.Command{
+	Use:   "export [job-id]",
+	Short: "Export VBR jobs to declarative YAML format",
+	Long:  exportCmd.Long,
+	Run:   exportCmd.Run,
 }

@@ -34,13 +34,13 @@ Examples:
   owlctl job apply backup-job.yaml
 
   # Apply with overlay file
-  owlctl job apply base-job.yaml -o prod-overlay.yaml
+  owlctl job apply base-job.yaml --overlay prod-overlay.yaml
 
   # Apply with environment (uses overlay from owlctl.yaml)
   owlctl job apply base-job.yaml --env production
 
   # Dry run to preview changes
-  owlctl job apply base-job.yaml -o prod-overlay.yaml --dry-run
+  owlctl job apply base-job.yaml --overlay prod-overlay.yaml --dry-run
 
   # Apply all specs in a group (from owlctl.yaml)
   owlctl job apply --group sql-tier
@@ -49,7 +49,7 @@ Examples:
   owlctl job apply --group sql-tier --dry-run
 
 Overlay Resolution:
-  1. If -o/--overlay is specified, use that overlay file
+  1. If --overlay is specified, use that overlay file
   2. If --env is specified, use overlay from owlctl.yaml for that environment
   3. If owlctl.yaml exists and has currentEnvironment set, use that overlay
   4. Otherwise, apply base configuration without overlay
@@ -469,7 +469,7 @@ func applyVBRJob(spec resources.ResourceSpec, profile models.Profile) error {
 }
 
 func init() {
-	applyCmd.Flags().StringVarP(&overlayFile, "overlay", "o", "", "Overlay file to merge with base configuration")
+	applyCmd.Flags().StringVar(&overlayFile, "overlay", "", "Overlay file to merge with base configuration")
 	applyCmd.Flags().StringVar(&environment, "env", "", "Environment to use (looks up overlay from owlctl.yaml)")
 	applyCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without applying them")
 	applyCmd.Flags().StringVar(&groupName, "group", "", "Apply all specs in named group (from owlctl.yaml)")

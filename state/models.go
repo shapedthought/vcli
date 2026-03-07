@@ -56,22 +56,26 @@ func NewState() *State {
 }
 
 // getInstance returns the InstanceState for the given key, creating it if needed.
+// Handles nil entries that may result from JSON unmarshaling of "instance": null.
 func (s *State) getInstance(instance string) *InstanceState {
 	if s.Instances == nil {
 		s.Instances = make(map[string]*InstanceState)
 	}
-	if _, ok := s.Instances[instance]; !ok {
-		s.Instances[instance] = &InstanceState{
-			Resources: make(map[string]*Resource),
-		}
+	inst, ok := s.Instances[instance]
+	if !ok || inst == nil {
+		inst = &InstanceState{Resources: make(map[string]*Resource)}
+		s.Instances[instance] = inst
 	}
-	return s.Instances[instance]
+	if inst.Resources == nil {
+		inst.Resources = make(map[string]*Resource)
+	}
+	return inst
 }
 
 // GetResource retrieves a resource by instance and name
 func (s *State) GetResource(instance, name string) (*Resource, bool) {
 	inst, ok := s.Instances[instance]
-	if !ok {
+	if !ok || inst == nil || inst.Resources == nil {
 		return nil, false
 	}
 	resource, ok := inst.Resources[name]

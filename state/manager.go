@@ -98,12 +98,24 @@ func migrateState(s *State) {
 
 	// v2 → v3: History field added (no migration needed - omitempty handles it)
 
-	// v3 → v4: move flat Resources into Instances["default"]
+	// v3 → v4: merge flat Resources into Instances["default"]
+	// Merges rather than overwrites to avoid discarding any existing default instance data.
 	if s.Version < 4 && s.Resources != nil {
 		if s.Instances == nil {
 			s.Instances = make(map[string]*InstanceState)
 		}
-		s.Instances["default"] = &InstanceState{Resources: s.Resources}
+		defaultInst, ok := s.Instances["default"]
+		if !ok || defaultInst == nil {
+			s.Instances["default"] = &InstanceState{Resources: s.Resources}
+		} else {
+			if defaultInst.Resources == nil {
+				defaultInst.Resources = s.Resources
+			} else {
+				for name, r := range s.Resources {
+					defaultInst.Resources[name] = r
+				}
+			}
+		}
 		s.Resources = nil
 	}
 

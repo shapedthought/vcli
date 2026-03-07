@@ -141,6 +141,11 @@ var kmsIgnoreFields = map[string]bool{
 	"id": true,
 }
 
+// configBackupIgnoreFields defines runtime fields to ignore during configuration backup drift detection
+var configBackupIgnoreFields = map[string]bool{
+	"lastSuccessfulBackup": true,
+}
+
 // --- Per-resource severity maps ---
 
 // jobSeverityMap classifies job drift fields by severity
@@ -232,6 +237,20 @@ var kmsSeverityMap = SeverityMap{
 	// WARNING — server hostname and description changes
 	"name":        SeverityWarning, // Server hostname/address
 	"description": SeverityWarning,
+}
+
+// configBackupSeverityMap classifies configuration backup drift fields by severity
+var configBackupSeverityMap = SeverityMap{
+	// CRITICAL — backup disabled or encryption removed
+	"isEnabled":               SeverityCritical,
+	"encryption.isEnabled":    SeverityCritical,
+	// WARNING — backup target or key changed
+	"backupRepositoryId":      SeverityWarning,
+	"encryption.passwordId":   SeverityWarning,
+	"restorePointsToKeep":     SeverityWarning,
+	// INFO — schedule and notification changes
+	"schedule":                SeverityInfo,
+	"notifications":           SeverityInfo,
 }
 
 // --- Drift detection ---

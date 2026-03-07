@@ -98,7 +98,7 @@ export OWLCTL_URL="vbr.example.com"
 **Declarative Mode** (infrastructure-as-code for VBR):
 ```bash
 # Export existing configuration
-./owlctl export <job-id> -o my-job.yaml
+./owlctl job export <job-id> -o my-job.yaml
 
 # Apply configuration
 ./owlctl job apply my-job.yaml --dry-run
@@ -119,7 +119,7 @@ owlctl supports declarative infrastructure management for VBR backup jobs with *
 
 **1. Export existing job to YAML (full configuration):**
 ```bash
-owlctl export <job-id> -o my-backup.yaml
+owlctl job export <job-id> -o my-backup.yaml
 # Exports complete job with all 300+ VBR API fields
 ```
 
@@ -178,22 +178,22 @@ spec:
 **3. Preview merged configuration:**
 ```bash
 # Preview production configuration
-owlctl job plan base-backup.yaml -o prod-overlay.yaml
+owlctl job plan base-backup.yaml --overlay prod-overlay.yaml
 
 # Preview development configuration
-owlctl job plan base-backup.yaml -o dev-overlay.yaml
+owlctl job plan base-backup.yaml --overlay dev-overlay.yaml
 
 # Show full merged YAML
-owlctl job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
+owlctl job plan base-backup.yaml --overlay prod-overlay.yaml --show-yaml
 ```
 
 **4. Apply configuration (dry-run mode):**
 ```bash
 # Preview what would be applied
-owlctl job apply base-backup.yaml -o prod-overlay.yaml --dry-run
+owlctl job apply base-backup.yaml --overlay prod-overlay.yaml --dry-run
 
 # Apply when ready
-owlctl job apply base-backup.yaml -o prod-overlay.yaml
+owlctl job apply base-backup.yaml --overlay prod-overlay.yaml
 ```
 
 **5. Configure groups (optional):**
@@ -240,7 +240,7 @@ owlctl job diff --group sql-tier              # Drift check the group
 **Single Environment Workflow:**
 ```bash
 # Export existing job
-owlctl export <job-id> -o prod-backup.yaml
+owlctl job export <job-id> -o prod-backup.yaml
 
 # Make changes to YAML file
 vim prod-backup.yaml
@@ -261,7 +261,7 @@ git push
 ```bash
 # 1. Export specs and create directory structure
 mkdir -p specs profiles overlays
-owlctl export --all -d specs/
+owlctl job export --all -d specs/
 
 # 2. Create a profile (kind: Profile) with organizational defaults
 # and an overlay (kind: Overlay) for policy overrides
@@ -308,14 +308,14 @@ owlctl job diff --group sql-tier --target primary
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `export <job-id>` | Export job to YAML (full config) | `owlctl export abc-123 -o job.yaml` |
-| `export --all` | Export all jobs to directory | `owlctl export --all -d ./configs/` |
-| `export --as-overlay` | Export minimal overlay patch | `owlctl export abc-123 --as-overlay --base base.yaml -o overlay.yaml` |
-| `export --simplified` | Export minimal format (legacy) | `owlctl export abc-123 -o job.yaml --simplified` |
-| `job apply` | Apply configuration with overlay | `owlctl job apply base.yaml -o prod.yaml --dry-run` |
+| `job export <job-id>` | Export job to YAML (full config) | `owlctl job export abc-123 -o job.yaml` |
+| `job export --all` | Export all jobs to directory | `owlctl job export --all -d ./configs/` |
+| `job export --as-overlay` | Export minimal overlay patch | `owlctl job export abc-123 --as-overlay --base base.yaml -o overlay.yaml` |
+| `job export --simplified` | Export minimal format (legacy) | `owlctl job export abc-123 -o job.yaml --simplified` |
+| `job apply` | Apply configuration with overlay | `owlctl job apply base.yaml --overlay prod.yaml --dry-run` |
 | `job apply --group` | Apply all specs in a group | `owlctl job apply --group sql-tier` |
-| `job plan` | Preview merged configuration | `owlctl job plan base.yaml -o prod.yaml` |
-| `job plan --show-yaml` | Show full merged YAML | `owlctl job plan base.yaml -o prod.yaml --show-yaml` |
+| `job plan` | Preview merged configuration | `owlctl job plan base.yaml --overlay prod.yaml` |
+| `job plan --show-yaml` | Show full merged YAML | `owlctl job plan base.yaml --overlay prod.yaml --show-yaml` |
 | `job diff <name>` | Check single job for drift | `owlctl job diff "SQL-Backup-Job"` |
 | `job diff --all` | Check all jobs for drift | `owlctl job diff --all` |
 | `job diff --security-only` | Show only WARNING+ drifts | `owlctl job diff --all --security-only` |
@@ -389,19 +389,19 @@ Create minimal overlay patches for existing jobs:
 
 **Export full job:**
 ```bash
-owlctl export <job-id> -o full-job.yaml
+owlctl job export <job-id> -o full-job.yaml
 # Creates 300+ line YAML with all fields
 ```
 
 **Export as overlay (with base):**
 ```bash
-owlctl export <job-id> --as-overlay --base base-template.yaml -o overlay.yaml
+owlctl job export <job-id> --as-overlay --base base-template.yaml -o overlay.yaml
 # Creates minimal overlay with only differences
 ```
 
 **Export as overlay (without base):**
 ```bash
-owlctl export <job-id> --as-overlay -o overlay.yaml
+owlctl job export <job-id> --as-overlay -o overlay.yaml
 # Extracts commonly changed fields (description, retention, schedule)
 ```
 
@@ -412,7 +412,7 @@ owlctl export <job-id> --as-overlay -o overlay.yaml
 # Job ID: c07c7ea3-0471-43a6-af57-c03c0d82354a
 #
 # This overlay contains only the fields that differ from the base.
-# Apply with: owlctl job apply base.yaml -o this-file.yaml
+# Apply with: owlctl job apply base.yaml --overlay this-file.yaml
 
 apiVersion: owlctl.veeam.com/v1
 kind: VBRJob

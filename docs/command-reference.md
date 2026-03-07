@@ -109,10 +109,10 @@ owlctl get sessions/<id>                    # Session details
 
 ```bash
 # Jobs
-owlctl export <job-id> -o job.yaml          # Export single job
-owlctl export --all -d jobs/                # Export all jobs
-owlctl export <id> --as-overlay -o ov.yaml  # Export as overlay
-owlctl export <id> --simplified -o job.yaml # Minimal format (legacy)
+owlctl job export <job-id> -o job.yaml          # Export single job
+owlctl job export --all -d jobs/                # Export all jobs
+owlctl job export <id> --as-overlay -o ov.yaml  # Export as overlay
+owlctl job export <id> --simplified -o job.yaml # Minimal format (legacy)
 
 # Repositories
 owlctl repo export <name> -o repo.yaml
@@ -140,7 +140,7 @@ owlctl encryption kms-export <name> --as-overlay --base base-kms.yaml -o overlay
 # Jobs (create or update)
 owlctl job apply job.yaml
 owlctl job apply job.yaml --dry-run         # Preview changes
-owlctl job apply base.yaml -o prod.yaml     # Apply with overlay
+owlctl job apply base.yaml --overlay prod.yaml     # Apply with overlay
 
 # Repositories (update-only)
 owlctl repo apply repo.yaml
@@ -207,8 +207,8 @@ owlctl repo diff --all --severity warning   # WARNING and above
 ```bash
 # Preview merged configuration
 owlctl job plan base.yaml
-owlctl job plan base.yaml -o prod.yaml
-owlctl job plan base.yaml -o prod.yaml --show-yaml
+owlctl job plan base.yaml --overlay prod.yaml
+owlctl job plan base.yaml --overlay prod.yaml --show-yaml
 ```
 
 ---
@@ -404,7 +404,7 @@ owlctl get jobs | jq '.data[] | {name: .name, type: .type}'
 
 ```bash
 # Export everything to Git
-owlctl export --all -d specs/jobs/
+owlctl job export --all -d specs/jobs/
 owlctl repo export --all -d specs/repos/
 owlctl repo sobr-export --all -d specs/sobrs/
 owlctl encryption kms-export --all -d specs/kms/
@@ -457,11 +457,11 @@ owlctl job apply --group prod-jobs    # uses vbr-prod automatically
 
 ```bash
 # Preview production changes
-owlctl job plan base-backup.yaml -o overlays/prod.yaml --show-yaml
+owlctl job plan base-backup.yaml --overlay overlays/prod.yaml --show-yaml
 
 # Apply production (dry-run first)
-owlctl job apply base-backup.yaml -o overlays/prod.yaml --dry-run
-owlctl job apply base-backup.yaml -o overlays/prod.yaml
+owlctl job apply base-backup.yaml --overlay overlays/prod.yaml --dry-run
+owlctl job apply base-backup.yaml --overlay overlays/prod.yaml
 ```
 
 ### Drift Detection Scan
@@ -495,7 +495,7 @@ echo "No critical drift detected"
 
 ```bash
 # 1. Export current VBR state
-owlctl export --all -d infrastructure/jobs/
+owlctl job export --all -d infrastructure/jobs/
 owlctl repo export --all -d infrastructure/repos/
 owlctl repo sobr-export --all -d infrastructure/sobrs/
 owlctl encryption kms-export --all -d infrastructure/kms/

@@ -137,7 +137,7 @@ stages:
               echo ""
 
               # Export the full job configuration as the base
-              ./owlctl export "$JOB_ID" > base-job.yaml
+              ./owlctl job export "$JOB_ID" > base-job.yaml
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to export job '$(JOB_NAME)'"
                 exit 1
@@ -179,7 +179,7 @@ stages:
               # Retention Policy Overlay
               # Changes only the retention settings, all other job config is preserved.
               #
-              # Apply with: owlctl job apply base-job.yaml -o retention-overlay.yaml
+              # Apply with: owlctl job apply base-job.yaml --overlay retention-overlay.yaml
 
               apiVersion: owlctl.veeam.com/v1
               kind: VBRJob
@@ -260,7 +260,7 @@ stages:
               echo ""
 
               # Plan shows the diff between current and desired state
-              ./owlctl job apply base-job.yaml -o retention-overlay.yaml --dry-run
+              ./owlctl job apply base-job.yaml --overlay retention-overlay.yaml --dry-run
               DRY_RUN_EXIT=$?
 
               echo ""
@@ -328,7 +328,7 @@ stages:
               echo ""
 
               # Apply the overlay to the base config
-              ./owlctl job apply base-job.yaml -o retention-overlay.yaml
+              ./owlctl job apply base-job.yaml --overlay retention-overlay.yaml
               APPLY_EXIT=$?
 
               echo ""
@@ -437,7 +437,7 @@ stages:
               # Confirm the actual value from VBR
               echo "Exporting final job configuration..."
               JOB_ID=$(./owlctl get jobs | jq -r '.data[] | select(.name == "'"$(JOB_NAME)"'") | .id')
-              ./owlctl export "$JOB_ID" --as-overlay > final-state.yaml
+              ./owlctl job export "$JOB_ID" --as-overlay > final-state.yaml
 
               echo ""
               echo "Final retention settings:"

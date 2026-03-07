@@ -4,7 +4,7 @@
 #
 # Usage:
 #   owlctl job apply database-backup.yaml
-#   owlctl job apply database-backup.yaml -o ../overlays/prod/database-backup-overlay.yaml
+#   owlctl job apply database-backup.yaml --overlay ../overlays/prod/database-backup-overlay.yaml
 #   owlctl job apply database-backup.yaml --dry-run
 
 apiVersion: owlctl.veeam.com/v1

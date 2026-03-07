@@ -87,7 +87,7 @@ stages:
               echo "Exporting all jobs as YAML"
               echo "=========================================="
               mkdir -p infrastructure/jobs
-              ./owlctl export --all -d infrastructure/jobs/
+              ./owlctl job export --all -d infrastructure/jobs/
               if [ $? -ne 0 ]; then
                 echo "##vso[task.logissue type=error]Failed to export jobs"
                 exit 1

@@ -65,7 +65,7 @@ owlctl repo apply backup-repository.yaml --dry-run
 owlctl repo apply backup-repository.yaml
 
 # Apply with environment overlay
-owlctl repo apply backup-repository.yaml -o ../overlays/prod/backup-repository-overlay.yaml
+owlctl repo apply backup-repository.yaml --overlay ../overlays/prod/backup-repository-overlay.yaml
 ```
 
 ### Detect Configuration Drift

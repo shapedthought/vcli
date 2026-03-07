@@ -35,13 +35,13 @@ Examples:
   owlctl job plan backup-job.yaml
 
   # Preview with overlay
-  owlctl job plan base-job.yaml -o prod-overlay.yaml
+  owlctl job plan base-job.yaml --overlay prod-overlay.yaml
 
   # Preview with environment overlay
   owlctl job plan base-job.yaml --env production
 
   # Show full YAML output
-  owlctl job plan base-job.yaml -o prod-overlay.yaml --show-yaml
+  owlctl job plan base-job.yaml --overlay prod-overlay.yaml --show-yaml
 
 Note: This command shows the merged configuration but does not compare
 against current VBR state. Full drift detection will be available in Phase 2.
@@ -165,7 +165,7 @@ func planJob(configFile string) {
 	fmt.Printf("  To apply this configuration:\n")
 	if overlayUsed != "none" {
 		if planOverlayFile != "" {
-			fmt.Printf("    owlctl job apply %s -o %s\n", configFile, planOverlayFile)
+			fmt.Printf("    owlctl job apply %s --overlay %s\n", configFile, planOverlayFile)
 		} else {
 			fmt.Printf("    owlctl job apply %s --env %s\n", configFile, planEnvironment)
 		}
@@ -394,7 +394,7 @@ func printPlanDrift(drift Drift) {
 }
 
 func init() {
-	planCmd.Flags().StringVarP(&planOverlayFile, "overlay", "o", "", "Overlay file to merge with base configuration")
+	planCmd.Flags().StringVar(&planOverlayFile, "overlay", "", "Overlay file to merge with base configuration")
 	planCmd.Flags().StringVar(&planEnvironment, "env", "", "Environment to use (looks up overlay from owlctl.yaml)")
 	planCmd.Flags().BoolVar(&planShowYAML, "show-yaml", false, "Display full merged YAML configuration")
 

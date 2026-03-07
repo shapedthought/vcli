@@ -137,7 +137,7 @@ Currently, owlctl's declarative workflow (apply, diff, export, adopt) **only wor
 
 - **Apply**: If a user writes a YAML spec for an EntraID tenant backup job and runs `owlctl job apply`, the apply command will strip all EntraID-specific fields (such as tenant configuration, EntraID-specific storage settings, or identity provider details) from the request body before sending it to VBR. This could create a broken job, create a job with default values instead of the specified ones, or cause an API error. There is no warning that fields were dropped.
 
-- **Export**: If a user runs `owlctl export <job-id>` on a non-VSphere job, the exported YAML will be missing all type-specific fields. The user might believe they have a complete backup of their job configuration, but reapplying the export would produce a different (and likely broken) job.
+- **Export**: If a user runs `owlctl job export <job-id>` on a non-VSphere job, the exported YAML will be missing all type-specific fields. The user might believe they have a complete backup of their job configuration, but reapplying the export would produce a different (and likely broken) job.
 
 - **Diff**: If a user runs `owlctl job diff` on a non-VSphere job, the drift detection will report false "removed" drifts because the typed struct dropped fields when reading from VBR. The user would see phantom drift that does not actually exist, making the diff output untrustworthy.
 

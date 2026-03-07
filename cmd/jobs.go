@@ -792,7 +792,7 @@ func init() {
 	snapshotCmd.Flags().BoolVar(&snapshotAll, "all", false, "Snapshot all jobs")
 	jobsCmd.AddCommand(snapshotCmd)
 
-	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input")
-	jobsCmd.Flags().StringVarP(&customTemplate, "template", "t", "", "custom template")
+	jobsCmd.Flags().StringVarP(&folder, "folder", "f", "", "folder input (legacy template system)")
+	jobsCmd.Flags().StringVarP(&customTemplate, "template", "t", "", "custom template (legacy template system)")
 	rootCmd.AddCommand(jobsCmd)
 }

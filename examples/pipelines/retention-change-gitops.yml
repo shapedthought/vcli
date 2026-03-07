@@ -144,7 +144,7 @@ stages:
               echo "Dry Run: Previewing Changes"
               echo "=========================================="
 
-              ./owlctl job apply "$JOB_FILE" -o retention-overlay.yaml --dry-run
+              ./owlctl job apply "$JOB_FILE" --overlay retention-overlay.yaml --dry-run
               DRY_RUN_EXIT=$?
 
               echo ""
@@ -227,7 +227,7 @@ stages:
               echo "Target retention: $(DESIRED_RETENTION_DAYS) days"
               echo ""
 
-              ./owlctl job apply "$(JOB_FILE)" -o retention-overlay.yaml
+              ./owlctl job apply "$(JOB_FILE)" --overlay retention-overlay.yaml
               APPLY_EXIT=$?
 
               case $APPLY_EXIT in
@@ -272,7 +272,7 @@ stages:
               if [ -z "$JOB_ID" ]; then
                 echo "##vso[task.logissue type=warning]Could not look up job ID for re-export"
               else
-                ./owlctl export "$JOB_ID" -o "$(JOB_FILE)"
+                ./owlctl job export "$JOB_ID" -o "$(JOB_FILE)"
                 echo "Re-exported: $(JOB_FILE)"
               fi
             displayName: 'Update state and re-export'

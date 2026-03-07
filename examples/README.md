@@ -130,10 +130,10 @@ For simpler setups that don't need groups, apply individual files directly with 
 owlctl job apply jobs/database-backup.yaml
 
 # Apply with a policy overlay
-owlctl job apply jobs/database-backup.yaml -o overlays/retention-30d.yaml
+owlctl job apply jobs/database-backup.yaml --overlay overlays/retention-30d.yaml
 
 # Preview the merged result
-owlctl job plan jobs/database-backup.yaml -o overlays/enable-encryption.yaml --show-yaml
+owlctl job plan jobs/database-backup.yaml --overlay overlays/enable-encryption.yaml --show-yaml
 ```
 
 See [`jobs/`](jobs/) for full standalone spec examples.
@@ -148,7 +148,7 @@ Repositories, SOBRs, and KMS servers follow the same spec format and support ove
 
 ```bash
 owlctl repo export "Default Backup Repository" -o base-repo.yaml
-owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml
+owlctl repo apply base-repo.yaml --overlay prod-repo-overlay.yaml
 owlctl repo diff --all
 ```
 

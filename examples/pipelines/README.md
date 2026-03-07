@@ -75,7 +75,7 @@ Run [bootstrap.yml](bootstrap.yml) once — it exports all jobs, snapshots all r
 
 ```bash
 # Export current configuration as YAML specs
-owlctl export --all -d infrastructure/jobs/
+owlctl job export --all -d infrastructure/jobs/
 
 # Snapshot current state (records baseline in state.json)
 owlctl repo snapshot --all

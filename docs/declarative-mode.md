@@ -133,22 +133,22 @@ Export existing VBR resources to YAML format for declarative management.
 
 ```bash
 # Export single job by ID
-owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
+owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
 
 # Export single job by name
-owlctl export "Database Backup" -o my-job.yaml
+owlctl job export "Database Backup" -o my-job.yaml
 
 # Export all jobs to directory
-owlctl export --all -d ./jobs/
+owlctl job export --all -d ./jobs/
 
 # Export as overlay (minimal changes only)
-owlctl export <id> --as-overlay -o overlay.yaml
+owlctl job export <id> --as-overlay -o overlay.yaml
 
 # Export as overlay with base comparison
-owlctl export <id> --as-overlay --base base-job.yaml -o overlay.yaml
+owlctl job export <id> --as-overlay --base base-job.yaml -o overlay.yaml
 
 # Legacy simplified format (20-30 fields)
-owlctl export <id> --simplified -o job.yaml
+owlctl job export <id> --simplified -o job.yaml
 ```
 
 **Full export (default):** Captures all VBR API fields (300+) ensuring complete job fidelity.
@@ -222,7 +222,7 @@ owlctl job apply my-job.yaml
 owlctl job apply my-job.yaml --dry-run
 
 # Apply with overlay
-owlctl job apply base-job.yaml -o prod-overlay.yaml
+owlctl job apply base-job.yaml --overlay prod-overlay.yaml
 
 # Apply all specs in a group (profile + spec + overlay merge)
 owlctl job apply --group sql-tier
@@ -240,7 +240,7 @@ owlctl repo apply repo.yaml
 owlctl repo apply repo.yaml --dry-run
 
 # Apply with overlay
-owlctl repo apply base-repo.yaml -o prod-repo-overlay.yaml
+owlctl repo apply base-repo.yaml --overlay prod-repo-overlay.yaml
 ```
 
 **Important:** Repositories must be created in VBR console first. Apply only updates existing repositories.
@@ -530,13 +530,13 @@ Use the `plan` command to preview the merged configuration:
 owlctl job plan base-backup.yaml
 
 # Preview with production overlay
-owlctl job plan base-backup.yaml -o overlays/prod-overlay.yaml
+owlctl job plan base-backup.yaml --overlay overlays/prod-overlay.yaml
 
 # Preview with development overlay
-owlctl job plan base-backup.yaml -o overlays/dev-overlay.yaml
+owlctl job plan base-backup.yaml --overlay overlays/dev-overlay.yaml
 
 # Show full merged YAML
-owlctl job plan base-backup.yaml -o overlays/prod-overlay.yaml --show-yaml
+owlctl job plan base-backup.yaml --overlay overlays/prod-overlay.yaml --show-yaml
 ```
 
 **Output:**
@@ -554,13 +554,13 @@ The plan command displays:
 
 ```bash
 # Preview changes (recommended)
-owlctl job apply base-backup.yaml -o overlays/prod-overlay.yaml --dry-run
+owlctl job apply base-backup.yaml --overlay overlays/prod-overlay.yaml --dry-run
 
 # Apply to production
-owlctl job apply base-backup.yaml -o overlays/prod-overlay.yaml
+owlctl job apply base-backup.yaml --overlay overlays/prod-overlay.yaml
 
 # Apply to development
-owlctl job apply base-backup.yaml -o overlays/dev-overlay.yaml
+owlctl job apply base-backup.yaml --overlay overlays/dev-overlay.yaml
 ```
 
 ## Groups
@@ -697,7 +697,7 @@ owlctl job diff --group sql-tier
 You can still apply a single file with an overlay, without using groups:
 
 ```bash
-owlctl job apply base-job.yaml -o prod-overlay.yaml
+owlctl job apply base-job.yaml --overlay prod-overlay.yaml
 ```
 
 This is useful for one-off operations or simple setups that don't need the full group model.
@@ -924,7 +924,7 @@ vbr-infrastructure/
 
 ```bash
 # 1. Export existing jobs as specs
-owlctl export --all -d specs/jobs/
+owlctl job export --all -d specs/jobs/
 
 # 2. Create a profile with organizational defaults
 # profiles/gold.yaml (kind: Profile)
@@ -1010,8 +1010,8 @@ git push
 For simpler setups that don't need groups, use the `-o` flag directly:
 
 ```bash
-owlctl job apply base-backup.yaml -o overlays/prod.yaml --dry-run
-owlctl job apply base-backup.yaml -o overlays/prod.yaml
+owlctl job apply base-backup.yaml --overlay overlays/prod.yaml --dry-run
+owlctl job apply base-backup.yaml --overlay overlays/prod.yaml
 ```
 
 ### Bootstrap Declarative Management
@@ -1020,7 +1020,7 @@ Start managing existing VBR infrastructure declaratively:
 
 ```bash
 # 1. Export current VBR state
-owlctl export --all -d specs/jobs/
+owlctl job export --all -d specs/jobs/
 owlctl repo export --all -d specs/repos/
 owlctl repo sobr-export --all -d specs/sobrs/
 owlctl encryption kms-export --all -d specs/kms/
@@ -1116,13 +1116,13 @@ Always use plan or --dry-run before applying.
 
 ```bash
 # Preview merged configuration
-owlctl job plan base-backup.yaml -o prod-overlay.yaml --show-yaml
+owlctl job plan base-backup.yaml --overlay prod-overlay.yaml --show-yaml
 
 # Dry-run apply
-owlctl job apply base-backup.yaml -o prod-overlay.yaml --dry-run
+owlctl job apply base-backup.yaml --overlay prod-overlay.yaml --dry-run
 
 # Apply for real
-owlctl job apply base-backup.yaml -o prod-overlay.yaml
+owlctl job apply base-backup.yaml --overlay prod-overlay.yaml
 ```
 
 ### 6. Consistent Naming
@@ -1207,7 +1207,7 @@ owlctl repo sobr-diff --all
    - Check home directory (`~/.owlctl/owlctl.yaml`)
 4. Use `--show-yaml` to see the actual merged result:
    ```bash
-   owlctl job plan base.yaml -o overlay.yaml --show-yaml
+   owlctl job plan base.yaml --overlay overlay.yaml --show-yaml
    ```
 
 ### Unexpected Merge Results
@@ -1221,7 +1221,7 @@ owlctl repo sobr-diff --all
    ```
 2. Use `--show-yaml` to see full merged result:
    ```bash
-   owlctl job plan base.yaml -o overlay.yaml --show-yaml
+   owlctl job plan base.yaml --overlay overlay.yaml --show-yaml
    ```
 3. Check that overlay `kind` matches base `kind`:
    ```yaml

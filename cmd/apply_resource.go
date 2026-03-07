@@ -79,6 +79,20 @@ func applyResource(specFile string, cfg ResourceApplyConfig, profile models.Prof
 	return applyResourceSpec(spec, cfg, profile, dryRun, nil)
 }
 
+// applyWithOptionalOverlay applies a resource spec with an optional overlay merge.
+// Used by all apply commands that support --overlay.
+func applyWithOptionalOverlay(specFile, overlayFile string, cfg ResourceApplyConfig, profile models.Profile, dryRun bool) ApplyResult {
+	if overlayFile != "" {
+		fmt.Printf("Applying overlay: %s\n", overlayFile)
+		mergedSpec, err := resources.MergeYAMLFiles(specFile, overlayFile, resources.DefaultMergeOptions())
+		if err != nil {
+			return ApplyResult{Error: fmt.Errorf("failed to merge with overlay: %w", err), DryRun: dryRun}
+		}
+		return applyResourceSpec(mergedSpec, cfg, profile, dryRun, nil)
+	}
+	return applyResource(specFile, cfg, profile, dryRun)
+}
+
 // applyResourceSpec applies a pre-loaded ResourceSpec to VBR using the provided config.
 // It handles fetching existing resources, merging, and state updates.
 // If dryRun is true, it fetches current state (read-only) and displays what would change,

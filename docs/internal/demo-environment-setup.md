@@ -267,7 +267,7 @@ export OWLCTL_URL="https://vbr-primary.example.com:9419"
 owlctl login
 
 # Export all backup jobs as YAML specs
-owlctl export --all -d specs/jobs/
+owlctl job export --all -d specs/jobs/
 
 # Snapshot all resource types into state.json
 owlctl job snapshot --all
@@ -767,8 +767,8 @@ export OWLCTL_URL="https://vbr-primary.example.com:9419"
 owlctl login
 
 # Export two specific jobs
-owlctl export <sql-vm-01-id> -o specs/jobs/sql-vm-01.yaml
-owlctl export <sql-vm-02-id> -o specs/jobs/sql-vm-02.yaml
+owlctl job export <sql-vm-01-id> -o specs/jobs/sql-vm-01.yaml
+owlctl job export <sql-vm-02-id> -o specs/jobs/sql-vm-02.yaml
 
 # Snapshot them into state
 owlctl job snapshot --all

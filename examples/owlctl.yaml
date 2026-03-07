@@ -53,4 +53,4 @@ targets:
 #    owlctl job diff --group db-tier --target primary
 #
 # 6. Single-file overlay (no group needed)
-#    owlctl job apply jobs/database-backup.yaml -o overlays/retention-30d.yaml
+#    owlctl job apply jobs/database-backup.yaml --overlay overlays/retention-30d.yaml

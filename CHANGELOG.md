@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-03-07
+
+### Fixed
+- Apply commands reporting false changes for numeric fields where values are identical, e.g. `retryCount: 3 -> 3` (#142)
+  - JSON unmarshals numbers as `float64`, YAML as `int`; added numeric type normalization in value comparison
+
 ## [1.2.1] - 2026-03-06
 
 ### Fixed

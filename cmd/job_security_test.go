@@ -294,8 +294,8 @@ func setupStateWithRepos(t *testing.T, repos map[string]*state.Resource) func() 
 	}
 
 	s := state.NewState()
-	for name, r := range repos {
-		s.Resources[name] = r
+	for _, r := range repos {
+		s.SetResource("default", r)
 	}
 
 	data, err := json.MarshalIndent(s, "", "  ")

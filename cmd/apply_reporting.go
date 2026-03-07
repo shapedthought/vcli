@@ -78,7 +78,9 @@ func computeChangesRecursive(prefix string, existing, desired map[string]interfa
 	}
 }
 
-// applyValuesEqual compares two values for equality
+// applyValuesEqual compares two values for equality.
+// Handles numeric type mismatches (JSON float64 vs YAML int) by comparing
+// as float64 when both values are numeric.
 func applyValuesEqual(a, b interface{}) bool {
 	// Handle nil cases
 	if a == nil && b == nil {
@@ -88,8 +90,33 @@ func applyValuesEqual(a, b interface{}) bool {
 		return false
 	}
 
+	// Numeric comparison: JSON unmarshals numbers as float64, YAML as int.
+	aNum, aIsNum := tryFloat64(a)
+	bNum, bIsNum := tryFloat64(b)
+	if aIsNum && bIsNum {
+		return aNum == bNum
+	}
+
 	// Use reflect.DeepEqual for complex types
 	return reflect.DeepEqual(a, b)
+}
+
+// tryFloat64 attempts to convert a value to float64 for numeric comparison.
+func tryFloat64(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	default:
+		return 0, false
+	}
 }
 
 // applyFormatValue formats a value for display

@@ -304,7 +304,7 @@ See [Drift Detection Guide](drift-detection.md) for complete details.
 **Recommended approach:**
 ```bash
 # 1. Export all configurations to YAML
-owlctl export --all -d specs/jobs/
+owlctl job export --all -d specs/jobs/
 owlctl repo export --all -d specs/repos/
 owlctl repo sobr-export --all -d specs/sobrs/
 owlctl encryption kms-export --all -d specs/kms/

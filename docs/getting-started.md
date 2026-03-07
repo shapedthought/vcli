@@ -202,10 +202,10 @@ See the [User Guide](../user_guide.md) for complete imperative mode documentatio
 
 ```bash
 # Export a single job
-./owlctl export c07c7ea3-0471-43a6-af57-c03c0d82354a -o prod-backup.yaml
+./owlctl job export c07c7ea3-0471-43a6-af57-c03c0d82354a -o prod-backup.yaml
 
 # Export all jobs
-./owlctl export --all -d jobs/
+./owlctl job export --all -d jobs/
 
 # Export repositories
 ./owlctl repo export --all -d repos/
@@ -285,7 +285,7 @@ Summary:
 ```
 
 **Key Commands:**
-- `owlctl export <id>` - Export resource to YAML
+- `owlctl job export <id>` - Export resource to YAML
 - `owlctl job apply <file>` - Apply job configuration
 - `owlctl job diff <name>` - Detect drift
 - `owlctl repo apply <file>` - Apply repository configuration
@@ -302,7 +302,7 @@ Groups are the recommended way to manage multiple specs with shared defaults and
 
 ```bash
 # Export existing jobs
-./owlctl export --all -d specs/jobs/
+./owlctl job export --all -d specs/jobs/
 
 # Create owlctl.yaml
 cat > owlctl.yaml <<'EOF'
@@ -357,8 +357,8 @@ git push
 For simpler setups without groups, use the `-o` flag directly:
 
 ```bash
-./owlctl job apply base-backup.yaml -o overlays/prod.yaml
-./owlctl job apply base-backup.yaml -o overlays/dev.yaml
+./owlctl job apply base-backup.yaml --overlay overlays/prod.yaml
+./owlctl job apply base-backup.yaml --overlay overlays/dev.yaml
 ```
 
 See [Declarative Mode Guide](declarative-mode.md#groups) for the full groups reference.

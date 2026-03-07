@@ -146,7 +146,7 @@ This file is version-controlled, peer-reviewed through pull requests, and applie
 
 | Stage | Command | What It Does |
 |-------|---------|-------------|
-| **Export** | `owlctl export --all` | Captures current VBR configuration as YAML specs |
+| **Export** | `owlctl job export --all` | Captures current VBR configuration as YAML specs |
 | **Snapshot** | `owlctl repo snapshot --all` | Records current state as the desired baseline |
 | **Apply** | `owlctl job apply spec.yaml` | Applies desired configuration to VBR via API |
 | **Diff** | `owlctl job diff --all` | Compares desired state against live VBR configuration |
@@ -289,7 +289,7 @@ chmod +x owlctl
 ./owlctl init && ./owlctl profile --set vbr && ./owlctl login
 
 # Export current VBR configuration as YAML
-./owlctl export --all -d infrastructure/jobs/
+./owlctl job export --all -d infrastructure/jobs/
 ./owlctl repo export --all -d infrastructure/repos/
 ./owlctl repo sobr-export --all -d infrastructure/sobrs/
 ./owlctl encryption export --all -d infrastructure/encryption/

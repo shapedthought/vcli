@@ -70,7 +70,7 @@ owlctl repo sobr-apply scale-out-repository.yaml --dry-run
 owlctl repo sobr-apply scale-out-repository.yaml
 
 # Apply with environment overlay
-owlctl repo sobr-apply scale-out-repository.yaml -o ../overlays/prod/sobr-overlay.yaml
+owlctl repo sobr-apply scale-out-repository.yaml --overlay ../overlays/prod/sobr-overlay.yaml
 ```
 
 ### Detect Configuration Drift

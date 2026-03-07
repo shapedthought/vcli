@@ -354,8 +354,8 @@ jobs:
         run: |
           for job in specs/jobs/*.yaml; do
             echo "Applying: $job"
-            ./owlctl job apply "$job" -o "overlays/prod/$(basename $job)" --dry-run
-            ./owlctl job apply "$job" -o "overlays/prod/$(basename $job)"
+            ./owlctl job apply "$job" --overlay "overlays/prod/$(basename $job)" --dry-run
+            ./owlctl job apply "$job" --overlay "overlays/prod/$(basename $job)"
           done
 
       - name: Apply repository configurations
@@ -695,7 +695,7 @@ deploy-production:
         echo "Applying: $job"
         overlay="overlays/prod/$(basename $job)"
         if [ -f "$overlay" ]; then
-          ./owlctl job apply "$job" -o "$overlay"
+          ./owlctl job apply "$job" --overlay "$overlay"
         else
           ./owlctl job apply "$job"
         fi

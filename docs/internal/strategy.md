@@ -979,7 +979,7 @@ owlctl Declarative Infrastructure Management
 
   Export existing resources to YAML:
   # New command to generate declarative configs from existing jobs
-  owlctl export jobs > existing-jobs.yaml
+  owlctl job export jobs > existing-jobs.yaml
 
   # Output: existing-jobs.yaml
   ---
@@ -998,7 +998,7 @@ owlctl Declarative Infrastructure Management
     # ... populated from GET /jobs/{id}
 
   Workflow:
-  1. owlctl export jobs > jobs.yaml - Export existing configs
+  1. owlctl job export jobs > jobs.yaml - Export existing configs
   2. Commit to Git: git add jobs.yaml && git commit
   3. Make changes: vim jobs.yaml
   4. Preview: owlctl plan jobs.yaml
@@ -1050,7 +1050,7 @@ owlctl Declarative Infrastructure Management
 
   Could owlctl generate Terraform?
   # Interesting idea for Phase 3
-  owlctl export jobs --format terraform > jobs.tf
+  owlctl job export jobs --format terraform > jobs.tf
 
   Allows users to start with owlctl, migrate to Terraform later if needed.
 
@@ -1164,7 +1164,7 @@ owlctl Declarative Infrastructure Management
 
   Milestone 2.5: Export Command (Week 10-11)
 
-  - owlctl export jobs > jobs.yaml
+  - owlctl job export jobs > jobs.yaml
   - Generate declarative YAML from existing resources
   - Migration path for current users
   - Preserve all job settings accurately
@@ -2199,10 +2199,10 @@ owlctl Declarative Infrastructure Management
   Scope: 2 days
 
   Acceptance criteria:
-  owlctl export jobs                    # Export all jobs
-  owlctl export jobs --name prod-*      # Export matching jobs
-  owlctl export jobs --output ./exports # Write to files
-  owlctl export job 57b3baab-...        # Export specific job ID
+  owlctl job export jobs                    # Export all jobs
+  owlctl job export jobs --name prod-*      # Export matching jobs
+  owlctl job export jobs --output ./exports # Write to files
+  owlctl job export job 57b3baab-...        # Export specific job ID
 
   Implementation:
   // cmd/export.go
@@ -2337,7 +2337,7 @@ owlctl Declarative Infrastructure Management
 
   What you'll deliver:
   # Complete workflow
-  owlctl export jobs > existing-jobs.yaml   # Export current state
+  owlctl job export jobs > existing-jobs.yaml   # Export current state
   owlctl apply existing-jobs.yaml           # Adopt into management
   vim existing-jobs.yaml                  # Make changes
   owlctl plan existing-jobs.yaml            # Preview changes
@@ -2369,7 +2369,7 @@ owlctl Declarative Infrastructure Management
 
   Solo admin:
   # Define once
-  owlctl export jobs/57b3baab > prod-backup.yaml
+  owlctl job export jobs/57b3baab > prod-backup.yaml
 
   # Apply everywhere
   owlctl profile use vbr-staging && owlctl apply prod-backup.yaml
@@ -2416,7 +2416,7 @@ owlctl Declarative Infrastructure Management
   Week 4: Polish
   - owlctl diff shows drift
   - owlctl plan shows what would change
-  - owlctl export generates valid YAML
+  - owlctl job export generates valid YAML
 
   Success: Community user reports "I'm managing 10 Veeam servers declaratively now"
 
@@ -2493,7 +2493,7 @@ owlctl Declarative Infrastructure Management
   - Summary and detailed modes
 
   Day 3: Export command
-  - owlctl export jobs generates YAML
+  - owlctl job export jobs generates YAML
   - Filter by name pattern
   - Output to stdout or files
   - Clean up API response to declarative format
@@ -2915,7 +2915,7 @@ owlctl Declarative Infrastructure Management
   ├── cmd/
   │   ├── apply.go           # owlctl apply command
   │   ├── diff.go            # owlctl diff command
-  │   ├── export.go          # owlctl export command
+  │   ├── export.go          # owlctl job export command
   │   ├── plan.go            # owlctl plan command (alias for apply --dry-run)
   │   ├── get.go             # Existing imperative commands (unchanged)
   │   ├── post.go
@@ -3340,7 +3340,7 @@ owlctl Declarative Infrastructure Management
 
   Step 1: Export existing infrastructure
   # Export all jobs as YAML
-  owlctl export jobs --output ./configs
+  owlctl job export jobs --output ./configs
 
   # Output:
   # Exported: configs/nightly-vm-backup.yaml
@@ -3411,7 +3411,7 @@ owlctl Declarative Infrastructure Management
 
   Use case 3: Declarative exports for documentation
   # Generate current state as documentation
-  owlctl export jobs > docs/current-veeam-jobs.yaml
+  owlctl job export jobs > docs/current-veeam-jobs.yaml
 
   # Commit to repo (read-only documentation)
   git add docs/current-veeam-jobs.yaml
@@ -3443,7 +3443,7 @@ owlctl Declarative Infrastructure Management
   State-managed VBR job apply - 3-4 weeks to MVP
 
   Success criteria:
-  - owlctl export jobs > jobs.yaml generates valid configs
+  - owlctl job export jobs > jobs.yaml generates valid configs
   - owlctl apply jobs.yaml creates or updates jobs idempotently
   - owlctl diff detects configuration drift
   - owlctl plan previews changes before applying
@@ -3516,7 +3516,7 @@ owlctl Declarative Infrastructure Management
   - Additional Veeam products (VB365, VONE, cloud products)
   - Configuration compliance scanning
   - Policy-as-code (OPA integration)
-  - Terraform provider generation (owlctl export --format terraform)
+  - Terraform provider generation (owlctl job export --format terraform)
 
   Ultimate vision:
   owlctl becomes the de facto standard for declarative Veeam infrastructure management, bridging the

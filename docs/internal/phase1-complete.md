@@ -96,7 +96,7 @@ environments:
 **Usage:**
 ```bash
 owlctl job apply base-job.yaml --dry-run
-owlctl job apply base-job.yaml -o prod-overlay.yaml
+owlctl job apply base-job.yaml --overlay prod-overlay.yaml
 owlctl job apply base-job.yaml --env production
 ```
 
@@ -128,9 +128,9 @@ owlctl job apply base-job.yaml --env production
 **Usage:**
 ```bash
 owlctl job plan base-job.yaml
-owlctl job plan base-job.yaml -o prod-overlay.yaml
+owlctl job plan base-job.yaml --overlay prod-overlay.yaml
 owlctl job plan base-job.yaml --env production
-owlctl job plan base-job.yaml -o dev-overlay.yaml --show-yaml
+owlctl job plan base-job.yaml --overlay dev-overlay.yaml --show-yaml
 ```
 
 ## Additional Accomplishments
@@ -195,22 +195,22 @@ TestAddEnvironment: ✅ passing
 ✅ Displays: 7 Days retention, default-repo
 
 # Production overlay (30-day retention, prod-repo, 02:00)
-./owlctl job apply examples/overlay-base.yaml -o examples/overlay-prod.yaml --dry-run
+./owlctl job apply examples/overlay-base.yaml --overlay examples/overlay-prod.yaml --dry-run
 ✅ Displays: 30 Days retention, prod-repo, 02:00 schedule
 ✅ Preserves: Compression, retention type, objects from base
 
 # Development overlay (3-day retention, dev-repo, 23:00)
-./owlctl job apply examples/overlay-base.yaml -o examples/overlay-dev.yaml --dry-run
+./owlctl job apply examples/overlay-base.yaml --overlay examples/overlay-dev.yaml --dry-run
 ✅ Displays: 3 Days retention, dev-repo, 23:00 schedule
 
 # Plan command
-./owlctl job plan examples/overlay-base.yaml -o examples/overlay-prod.yaml
+./owlctl job plan examples/overlay-base.yaml --overlay examples/overlay-prod.yaml
 ✅ Rich formatted output with visual separators
 ✅ Shows merged configuration details
 ✅ Provides next steps
 
 # Plan with full YAML
-./owlctl job plan examples/overlay-base.yaml -o examples/overlay-dev.yaml --show-yaml
+./owlctl job plan examples/overlay-base.yaml --overlay examples/overlay-dev.yaml --show-yaml
 ✅ Displays complete merged YAML
 ```
 
@@ -247,15 +247,15 @@ Users can now define a base job template and apply environment-specific overlays
 
 ```bash
 # Same base, different environments
-owlctl job apply base.yaml -o prod-overlay.yaml    # 30-day retention
-owlctl job apply base.yaml -o dev-overlay.yaml     # 3-day retention
+owlctl job apply base.yaml --overlay prod-overlay.yaml    # 30-day retention
+owlctl job apply base.yaml --overlay dev-overlay.yaml     # 3-day retention
 ```
 
 ### 2. Configuration Validation
 Preview merged configurations before applying:
 
 ```bash
-owlctl job plan base.yaml -o prod-overlay.yaml
+owlctl job plan base.yaml --overlay prod-overlay.yaml
 ```
 
 ### 3. DRY Configuration
@@ -299,10 +299,10 @@ These will be addressed in subsequent phases per the strategy document.
 ### Pattern 1: Preview Before Apply
 ```bash
 # Plan what would be applied
-owlctl job plan db-backup.yaml -o prod-overlay.yaml
+owlctl job plan db-backup.yaml --overlay prod-overlay.yaml
 
 # Apply after review
-owlctl job apply db-backup.yaml -o prod-overlay.yaml
+owlctl job apply db-backup.yaml --overlay prod-overlay.yaml
 ```
 
 ### Pattern 2: Environment Switching
@@ -329,7 +329,7 @@ owlctl job apply base-job.yaml  # Uses dev overlay
 ### Pattern 3: Export-Modify-Apply Workflow
 ```bash
 # Export existing job
-owlctl export job-id -o exported-job.yaml
+owlctl job export job-id -o exported-job.yaml
 
 # Create overlay for changes
 cat > my-changes.yaml <<EOF
@@ -344,10 +344,10 @@ spec:
 EOF
 
 # Preview merged result
-owlctl job plan exported-job.yaml -o my-changes.yaml
+owlctl job plan exported-job.yaml --overlay my-changes.yaml
 
 # Apply changes (when implemented)
-owlctl job apply exported-job.yaml -o my-changes.yaml
+owlctl job apply exported-job.yaml --overlay my-changes.yaml
 ```
 
 ## Next Steps (Phase 2)

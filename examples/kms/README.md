@@ -71,7 +71,7 @@ owlctl encryption kms-apply azure-key-vault.yaml --dry-run
 owlctl encryption kms-apply azure-key-vault.yaml
 
 # Apply with environment overlay
-owlctl encryption kms-apply azure-key-vault.yaml -o ../overlays/prod/kms-overlay.yaml
+owlctl encryption kms-apply azure-key-vault.yaml --overlay ../overlays/prod/kms-overlay.yaml
 ```
 
 ### Detect Configuration Drift

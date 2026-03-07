@@ -270,7 +270,7 @@ stages:
 
               # Re-export all jobs
               echo "--- Re-exporting jobs ---"
-              ./owlctl export --all -d $(specsPath)/jobs/
+              ./owlctl job export --all -d $(specsPath)/jobs/
               echo ""
 
               # Snapshot all resource types

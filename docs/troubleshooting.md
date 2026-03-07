@@ -594,7 +594,7 @@ owlctl job diff "Job Name"
 owlctl job diff --all --security-only
 
 # Compare with exported current config
-owlctl export "Job Name" -o current.yaml
+owlctl job export "Job Name" -o current.yaml
 diff spec.yaml current.yaml
 ```
 
@@ -663,7 +663,7 @@ cat job.yaml | yq '.'
 owlctl job plan job.yaml --show-yaml
 
 # Compare with exported working job
-owlctl export <working-job-id> -o working.yaml
+owlctl job export <working-job-id> -o working.yaml
 diff job.yaml working.yaml
 
 # Common issues:
@@ -705,10 +705,10 @@ owlctl get jobs/<job-id>
 owlctl get jobs | jq '.data[] | {id, name}'
 
 # Export by exact name
-owlctl export "Exact Job Name" -o job.yaml
+owlctl job export "Exact Job Name" -o job.yaml
 
 # Export by ID
-owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o job.yaml
+owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c -o job.yaml
 
 # Verify resource exists
 owlctl get jobs/<job-id>
@@ -725,7 +725,7 @@ owlctl get jobs/<id> | jq '.type'
 
 # Some job types may have export limitations
 # Try simplified export for basic jobs
-owlctl export <id> --simplified -o job.yaml
+owlctl job export <id> --simplified -o job.yaml
 
 # Check VBR logs for API errors
 ```
@@ -741,7 +741,7 @@ owlctl export <id> --simplified -o job.yaml
 1. Check overlay resolution priority:
 ```bash
 # Explicit -o flag has highest priority
-owlctl job apply base.yaml -o overlay.yaml
+owlctl job apply base.yaml --overlay overlay.yaml
 
 # --env flag looks up environment in owlctl.yaml
 owlctl job apply base.yaml --env production
@@ -764,7 +764,7 @@ ls -la ~/.owlctl/owlctl.yaml
 
 3. Use `--show-yaml` to see the actual merged result:
 ```bash
-owlctl job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml --overlay overlay.yaml --show-yaml
 ```
 
 ### Unexpected Merge Results
@@ -781,7 +781,7 @@ owlctl job plan base.yaml -o overlay.yaml --show-yaml
 
 2. Use `--show-yaml` to see full merged result:
 ```bash
-owlctl job plan base.yaml -o overlay.yaml --show-yaml
+owlctl job plan base.yaml --overlay overlay.yaml --show-yaml
 ```
 
 3. Check that overlay `kind` matches base `kind`:
@@ -887,13 +887,13 @@ ls -la $OWLCTL_SETTINGS_PATH/
 **Solutions:**
 ```powershell
 # Use double quotes for paths with spaces
-owlctl export <id> -o "C:\Users\Name\My Documents\job.yaml"
+owlctl job export <id> -o "C:\Users\Name\My Documents\job.yaml"
 
 # Escape backslashes in paths
-owlctl export <id> -o "C:\\Users\\Name\\job.yaml"
+owlctl job export <id> -o "C:\\Users\\Name\\job.yaml"
 
 # Use forward slashes (PowerShell accepts them)
-owlctl export <id> -o "C:/Users/Name/job.yaml"
+owlctl job export <id> -o "C:/Users/Name/job.yaml"
 ```
 
 ### Linux Permissions

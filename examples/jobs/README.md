@@ -36,20 +36,20 @@ owlctl job apply database-backup.yaml
 owlctl job apply database-backup.yaml --dry-run
 
 # Apply with a policy overlay
-owlctl job apply database-backup.yaml -o ../overlays/retention-30d.yaml
+owlctl job apply database-backup.yaml --overlay ../overlays/retention-30d.yaml
 
 # Preview merged result
-owlctl job plan database-backup.yaml -o ../overlays/enable-encryption.yaml --show-yaml
+owlctl job plan database-backup.yaml --overlay ../overlays/enable-encryption.yaml --show-yaml
 ```
 
 ## Exporting Existing Jobs
 
 ```bash
 # Export by job ID
-owlctl export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
+owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c -o my-job.yaml
 
 # Export all jobs
-owlctl export --all -d ./all-jobs/
+owlctl job export --all -d ./all-jobs/
 ```
 
 ## Required Fields

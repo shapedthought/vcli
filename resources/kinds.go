@@ -8,6 +8,7 @@ const (
 	KindVBRScaleOutRepository     = "VBRScaleOutRepository" // Alias used in YAML specs and apply configs
 	KindVBREncryptionPassword     = "VBREncryptionPassword"
 	KindVBRKmsServer              = "VBRKmsServer"
+	KindVBRConfigurationBackup    = "VBRConfigurationBackup"
 	KindProfile                   = "Profile"
 	KindOverlay                   = "Overlay"
 )
@@ -21,7 +22,7 @@ func IsMixinKind(kind string) bool {
 // IsResourceKind returns true if the kind represents a VBR resource type.
 func IsResourceKind(kind string) bool {
 	switch kind {
-	case KindVBRJob, KindVBRRepository, KindVBRSOBR, KindVBRScaleOutRepository, KindVBREncryptionPassword, KindVBRKmsServer:
+	case KindVBRJob, KindVBRRepository, KindVBRSOBR, KindVBRScaleOutRepository, KindVBREncryptionPassword, KindVBRKmsServer, KindVBRConfigurationBackup:
 		return true
 	default:
 		return false

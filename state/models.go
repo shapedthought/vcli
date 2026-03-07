@@ -4,10 +4,15 @@ import "time"
 
 // CurrentStateVersion is the latest state file format version.
 // Increment when changing the Resource schema and add a migration in manager.go.
-const CurrentStateVersion = 3
+const CurrentStateVersion = 4
 
 // DefaultMaxHistoryEvents is the maximum number of history events to keep per resource
 const DefaultMaxHistoryEvents = 20
+
+// InstanceState holds all managed resources for a single named instance.
+type InstanceState struct {
+	Resources map[string]*Resource `json:"resources"`
+}
 
 // State represents the owlctl state file structure
 //
@@ -15,59 +20,85 @@ const DefaultMaxHistoryEvents = 20
 // For compliance, use Git commit history + CI/CD logs + VBR audit logs.
 // State is purely operational - used for drift detection and tracking what was last applied.
 type State struct {
-	Version   int                  `json:"version"`
-	Resources map[string]*Resource `json:"resources"`
+	Version   int                       `json:"version"`
+	Instances map[string]*InstanceState `json:"instances"`
+	// Resources is retained for v3→v4 migration only; nil after migration.
+	Resources map[string]*Resource `json:"resources,omitempty"`
 }
 
 // ResourceEvent represents an action taken on a resource
 type ResourceEvent struct {
-	Action    string    `json:"action"`              // "snapshotted", "adopted", "applied", "created"
-	Timestamp time.Time `json:"timestamp"`           // When the action occurred
-	User      string    `json:"user"`                // Who performed the action
-	Fields    []string  `json:"fields,omitempty"`    // Fields that were changed (for apply/created)
-	Partial   bool      `json:"partial,omitempty"`   // Reserved for future partial-apply support; currently always false
+	Action    string    `json:"action"`           // "snapshotted", "adopted", "applied", "created"
+	Timestamp time.Time `json:"timestamp"`        // When the action occurred
+	User      string    `json:"user"`             // Who performed the action
+	Fields    []string  `json:"fields,omitempty"` // Fields that were changed (for apply/created)
+	Partial   bool      `json:"partial,omitempty"` // Reserved for future partial-apply support; currently always false
 }
 
 // Resource represents a managed resource in state
 type Resource struct {
-	Type          string                 `json:"type"`                    // e.g., "VBRJob"
-	ID            string                 `json:"id"`                      // VBR resource ID
-	Name          string                 `json:"name"`                    // Resource name
-	LastApplied   time.Time              `json:"lastApplied"`             // When it was last applied
-	LastAppliedBy string                 `json:"lastAppliedBy"`           // User who applied it
-	Origin        string                 `json:"origin"`                  // "applied" (declarative) or "observed" (snapshot)
-	Spec          map[string]interface{} `json:"spec"`                    // The applied configuration
-	History       []ResourceEvent        `json:"history,omitempty"`       // Audit trail of actions
+	Type          string                 `json:"type"`                  // e.g., "VBRJob"
+	ID            string                 `json:"id"`                    // VBR resource ID
+	Name          string                 `json:"name"`                  // Resource name
+	LastApplied   time.Time              `json:"lastApplied"`           // When it was last applied
+	LastAppliedBy string                 `json:"lastAppliedBy"`         // User who applied it
+	Origin        string                 `json:"origin"`                // "applied" (declarative) or "observed" (snapshot)
+	Spec          map[string]interface{} `json:"spec"`                  // The applied configuration
+	History       []ResourceEvent        `json:"history,omitempty"`     // Audit trail of actions
 }
 
 // NewState creates a new empty state
 func NewState() *State {
 	return &State{
 		Version:   CurrentStateVersion,
-		Resources: make(map[string]*Resource),
+		Instances: make(map[string]*InstanceState),
 	}
 }
 
-// GetResource retrieves a resource by name
-func (s *State) GetResource(name string) (*Resource, bool) {
-	resource, exists := s.Resources[name]
-	return resource, exists
+// getInstance returns the InstanceState for the given key, creating it if needed.
+func (s *State) getInstance(instance string) *InstanceState {
+	if s.Instances == nil {
+		s.Instances = make(map[string]*InstanceState)
+	}
+	if _, ok := s.Instances[instance]; !ok {
+		s.Instances[instance] = &InstanceState{
+			Resources: make(map[string]*Resource),
+		}
+	}
+	return s.Instances[instance]
 }
 
-// SetResource adds or updates a resource in state
-func (s *State) SetResource(resource *Resource) {
-	s.Resources[resource.Name] = resource
+// GetResource retrieves a resource by instance and name
+func (s *State) GetResource(instance, name string) (*Resource, bool) {
+	inst, ok := s.Instances[instance]
+	if !ok {
+		return nil, false
+	}
+	resource, ok := inst.Resources[name]
+	return resource, ok
 }
 
-// DeleteResource removes a resource from state
-func (s *State) DeleteResource(name string) {
-	delete(s.Resources, name)
+// SetResource adds or updates a resource within the given instance
+func (s *State) SetResource(instance string, resource *Resource) {
+	s.getInstance(instance).Resources[resource.Name] = resource
 }
 
-// ListResources returns all resources of a given type
-func (s *State) ListResources(resourceType string) []*Resource {
+// DeleteResource removes a resource from the given instance
+func (s *State) DeleteResource(instance, name string) {
+	if inst, ok := s.Instances[instance]; ok {
+		delete(inst.Resources, name)
+	}
+}
+
+// ListResources returns all resources of a given type within the given instance.
+// Pass an empty resourceType to return all resources.
+func (s *State) ListResources(instance, resourceType string) []*Resource {
+	inst, ok := s.Instances[instance]
+	if !ok {
+		return nil
+	}
 	var resources []*Resource
-	for _, resource := range s.Resources {
+	for _, resource := range inst.Resources {
 		if resourceType == "" || resource.Type == resourceType {
 			resources = append(resources, resource)
 		}

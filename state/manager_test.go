@@ -17,11 +17,10 @@ func setupManagerTest(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
-	origEnv := os.Getenv("OWLCTL_SETTINGS_PATH")
-	os.Setenv("OWLCTL_SETTINGS_PATH", tmpDir)
+	t.Setenv("OWLCTL_SETTINGS_PATH", tmpDir)
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "") // ensure default instance
 
 	cleanup := func() {
-		os.Setenv("OWLCTL_SETTINGS_PATH", origEnv)
 		os.RemoveAll(tmpDir)
 	}
 	return tmpDir, cleanup
@@ -39,9 +38,7 @@ func TestNewManagerUsesSettingsPath(t *testing.T) {
 }
 
 func TestNewManagerFallsBackWithoutEnv(t *testing.T) {
-	origEnv := os.Getenv("OWLCTL_SETTINGS_PATH")
-	os.Setenv("OWLCTL_SETTINGS_PATH", "")
-	defer os.Setenv("OWLCTL_SETTINGS_PATH", origEnv)
+	t.Setenv("OWLCTL_SETTINGS_PATH", "")
 
 	m := NewManager()
 	// Should contain state.json in some path (either ~/.owlctl/ or current dir)
@@ -63,18 +60,19 @@ func TestLoadReturnsEmptyStateWhenNoFile(t *testing.T) {
 	if state.Version != CurrentStateVersion {
 		t.Errorf("Expected version %d, got %d", CurrentStateVersion, state.Version)
 	}
-	if state.Resources == nil {
-		t.Fatal("Expected Resources map to be initialized")
+	if state.Instances == nil {
+		t.Fatal("Expected Instances map to be initialized")
 	}
-	if len(state.Resources) != 0 {
-		t.Errorf("Expected empty Resources, got %d", len(state.Resources))
+	if len(state.Instances) != 0 {
+		t.Errorf("Expected empty Instances, got %d", len(state.Instances))
 	}
 }
 
-func TestLoadParsesValidStateJSON(t *testing.T) {
+func TestLoadMigratesV3ToV4(t *testing.T) {
 	tmpDir, cleanup := setupManagerTest(t)
 	defer cleanup()
 
+	// Write a v3 state with flat resources
 	stateJSON := `{
   "version": 3,
   "resources": {
@@ -100,48 +98,26 @@ func TestLoadParsesValidStateJSON(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if state.Version != 3 {
-		t.Errorf("Expected version 3, got %d", state.Version)
+	if state.Version != CurrentStateVersion {
+		t.Errorf("Expected version %d after migration, got %d", CurrentStateVersion, state.Version)
+	}
+	if state.Resources != nil {
+		t.Error("Expected legacy Resources field to be nil after migration")
 	}
 
-	r, exists := state.GetResource("TestJob")
+	r, exists := state.GetResource("default", "TestJob")
 	if !exists {
-		t.Fatal("Expected TestJob resource to exist")
+		t.Fatal("Expected TestJob to be migrated into instances[\"default\"]")
 	}
 	if r.ID != "abc-123" {
 		t.Errorf("Expected ID=abc-123, got %s", r.ID)
-	}
-	if r.Type != "VBRJob" {
-		t.Errorf("Expected Type=VBRJob, got %s", r.Type)
 	}
 	if r.Origin != "applied" {
 		t.Errorf("Expected Origin=applied, got %s", r.Origin)
 	}
 }
 
-func TestLoadInitializesNilResourcesMap(t *testing.T) {
-	tmpDir, cleanup := setupManagerTest(t)
-	defer cleanup()
-
-	// State with null resources
-	stateJSON := `{"version": 3, "resources": null}`
-	statePath := filepath.Join(tmpDir, "state.json")
-	if err := os.WriteFile(statePath, []byte(stateJSON), 0644); err != nil {
-		t.Fatalf("Failed to write state file: %v", err)
-	}
-
-	m := NewManager()
-	state, err := m.Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	if state.Resources == nil {
-		t.Fatal("Expected Resources map to be initialized, got nil")
-	}
-}
-
-func TestLoadMigratesV1ToV3(t *testing.T) {
+func TestLoadMigratesV1ToV4(t *testing.T) {
 	tmpDir, cleanup := setupManagerTest(t)
 	defer cleanup()
 
@@ -183,13 +159,19 @@ func TestLoadMigratesV1ToV3(t *testing.T) {
 		t.Errorf("Expected version %d after migration, got %d", CurrentStateVersion, state.Version)
 	}
 
-	// v1→v2 migration: VBRJob gets origin "applied", others get "observed"
-	job, _ := state.GetResource("MyJob")
+	// v1→v2: VBRJob gets origin "applied", others get "observed"
+	job, exists := state.GetResource("default", "MyJob")
+	if !exists {
+		t.Fatal("Expected MyJob in instances[\"default\"] after migration")
+	}
 	if job.Origin != "applied" {
 		t.Errorf("Expected job Origin=applied after migration, got %s", job.Origin)
 	}
 
-	repo, _ := state.GetResource("MyRepo")
+	repo, exists := state.GetResource("default", "MyRepo")
+	if !exists {
+		t.Fatal("Expected MyRepo in instances[\"default\"] after migration")
+	}
 	if repo.Origin != "observed" {
 		t.Errorf("Expected repo Origin=observed after migration, got %s", repo.Origin)
 	}
@@ -203,7 +185,7 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 
 	original := NewState()
 	now := time.Now().Truncate(time.Second) // Truncate for JSON round-trip
-	original.SetResource(&Resource{
+	original.SetResource("default", &Resource{
 		Type:          "VBRJob",
 		ID:            "job-456",
 		Name:          "BackupJob",
@@ -226,7 +208,7 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 		t.Errorf("Expected version %d, got %d", original.Version, loaded.Version)
 	}
 
-	r, exists := loaded.GetResource("BackupJob")
+	r, exists := loaded.GetResource("default", "BackupJob")
 	if !exists {
 		t.Fatal("Expected BackupJob to exist after round-trip")
 	}
@@ -247,7 +229,7 @@ func TestSaveCreatesValidJSON(t *testing.T) {
 
 	m := NewManager()
 	state := NewState()
-	state.SetResource(&Resource{
+	state.SetResource("default", &Resource{
 		Name: "TestRes",
 		Type: "VBRJob",
 		ID:   "1",
@@ -269,7 +251,33 @@ func TestSaveCreatesValidJSON(t *testing.T) {
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("Saved file is not valid JSON: %v", err)
 	}
+
+	// Verify instances key is present
+	if _, ok := parsed["instances"]; !ok {
+		t.Error("Expected 'instances' key in saved JSON")
+	}
+	if _, ok := parsed["resources"]; ok {
+		t.Error("Expected legacy 'resources' key to be absent from v4 JSON")
+	}
 }
+
+// ---- activeInstance ------------------------------------------------------------
+
+func TestActiveInstanceDefaultsToDefault(t *testing.T) {
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "")
+	if got := activeInstance(); got != "default" {
+		t.Errorf("Expected activeInstance()=%q, got %q", "default", got)
+	}
+}
+
+func TestActiveInstanceReadsEnvVar(t *testing.T) {
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "vbr-prod")
+	if got := activeInstance(); got != "vbr-prod" {
+		t.Errorf("Expected activeInstance()=%q, got %q", "vbr-prod", got)
+	}
+}
+
+// ---- Manager convenience methods -----------------------------------------------
 
 func TestUpdateResource(t *testing.T) {
 	_, cleanup := setupManagerTest(t)
@@ -277,7 +285,6 @@ func TestUpdateResource(t *testing.T) {
 
 	m := NewManager()
 
-	// Add a new resource
 	r := &Resource{
 		Type: "VBRJob",
 		ID:   "job-1",
@@ -288,7 +295,6 @@ func TestUpdateResource(t *testing.T) {
 		t.Fatalf("UpdateResource failed: %v", err)
 	}
 
-	// Verify it was saved
 	got, err := m.GetResource("NewJob")
 	if err != nil {
 		t.Fatalf("GetResource failed: %v", err)
@@ -304,24 +310,12 @@ func TestUpdateResourceOverwrites(t *testing.T) {
 
 	m := NewManager()
 
-	// Create initial resource
-	r1 := &Resource{
-		Type: "VBRJob",
-		ID:   "job-1",
-		Name: "MyJob",
-		Spec: map[string]interface{}{"version": "v1"},
-	}
+	r1 := &Resource{Type: "VBRJob", ID: "job-1", Name: "MyJob", Spec: map[string]interface{}{"version": "v1"}}
 	if err := m.UpdateResource(r1); err != nil {
 		t.Fatalf("UpdateResource failed: %v", err)
 	}
 
-	// Overwrite with updated resource
-	r2 := &Resource{
-		Type: "VBRJob",
-		ID:   "job-1",
-		Name: "MyJob",
-		Spec: map[string]interface{}{"version": "v2"},
-	}
+	r2 := &Resource{Type: "VBRJob", ID: "job-1", Name: "MyJob", Spec: map[string]interface{}{"version": "v2"}}
 	if err := m.UpdateResource(r2); err != nil {
 		t.Fatalf("UpdateResource overwrite failed: %v", err)
 	}
@@ -335,13 +329,51 @@ func TestUpdateResourceOverwrites(t *testing.T) {
 	}
 }
 
+func TestUpdateResourceInstanceScoping(t *testing.T) {
+	_, cleanup := setupManagerTest(t)
+	defer cleanup()
+
+	m := NewManager()
+
+	// Write under vbr-prod
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "vbr-prod")
+	if err := m.UpdateResource(&Resource{Name: "Production", Type: "VBRJob", ID: "1", Spec: map[string]interface{}{}}); err != nil {
+		t.Fatalf("UpdateResource failed: %v", err)
+	}
+
+	// Write under azure-prod — same name, different instance
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "azure-prod")
+	if err := m.UpdateResource(&Resource{Name: "Production", Type: "AzurePolicy", ID: "2", Spec: map[string]interface{}{}}); err != nil {
+		t.Fatalf("UpdateResource failed: %v", err)
+	}
+
+	// Read back vbr-prod
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "vbr-prod")
+	vbrRes, err := m.GetResource("Production")
+	if err != nil {
+		t.Fatalf("GetResource (vbr-prod) failed: %v", err)
+	}
+	if vbrRes.Type != "VBRJob" {
+		t.Errorf("Expected VBRJob in vbr-prod, got %s", vbrRes.Type)
+	}
+
+	// Read back azure-prod
+	t.Setenv("OWLCTL_ACTIVE_INSTANCE", "azure-prod")
+	azureRes, err := m.GetResource("Production")
+	if err != nil {
+		t.Fatalf("GetResource (azure-prod) failed: %v", err)
+	}
+	if azureRes.Type != "AzurePolicy" {
+		t.Errorf("Expected AzurePolicy in azure-prod, got %s", azureRes.Type)
+	}
+}
+
 func TestRemoveResource(t *testing.T) {
 	_, cleanup := setupManagerTest(t)
 	defer cleanup()
 
 	m := NewManager()
 
-	// Create a resource then remove it
 	m.UpdateResource(&Resource{Name: "ToRemove", Type: "VBRJob", ID: "1"})
 
 	if err := m.RemoveResource("ToRemove"); err != nil {
@@ -360,7 +392,6 @@ func TestRemoveResourceNoErrorWhenMissing(t *testing.T) {
 
 	m := NewManager()
 
-	// Should not return error for nonexistent resource
 	if err := m.RemoveResource("nonexistent"); err != nil {
 		t.Errorf("Expected no error removing nonexistent resource, got: %v", err)
 	}

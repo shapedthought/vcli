@@ -39,6 +39,15 @@ func NewManager() *Manager {
 	}
 }
 
+// activeInstance returns the currently active instance name.
+// Reads OWLCTL_ACTIVE_INSTANCE env var; falls back to "default".
+func activeInstance() string {
+	if inst := os.Getenv("OWLCTL_ACTIVE_INSTANCE"); inst != "" {
+		return inst
+	}
+	return "default"
+}
+
 // Load reads the state file from disk
 // Returns a new empty state if file doesn't exist
 func (m *Manager) Load() (*State, error) {
@@ -58,9 +67,9 @@ func (m *Manager) Load() (*State, error) {
 		return nil, fmt.Errorf("failed to parse state file: %w", err)
 	}
 
-	// Initialize resources map if nil (shouldn't happen, but defensive)
-	if state.Resources == nil {
-		state.Resources = make(map[string]*Resource)
+	// Initialize instances map if nil (defensive)
+	if state.Instances == nil {
+		state.Instances = make(map[string]*InstanceState)
 	}
 
 	// Migrate old state versions forward
@@ -74,7 +83,7 @@ func (m *Manager) Load() (*State, error) {
 // migrateState upgrades an older state to CurrentStateVersion in-memory.
 // The migrated state is persisted on the next Save() call.
 func migrateState(s *State) {
-	// v1 → v2: populate Origin field
+	// v1 → v2: populate Origin field (operates on legacy Resources field)
 	if s.Version < 2 {
 		for _, r := range s.Resources {
 			if r.Origin == "" {
@@ -88,7 +97,15 @@ func migrateState(s *State) {
 	}
 
 	// v2 → v3: History field added (no migration needed - omitempty handles it)
-	// Existing resources will have empty history, which is fine
+
+	// v3 → v4: move flat Resources into Instances["default"]
+	if s.Version < 4 && s.Resources != nil {
+		if s.Instances == nil {
+			s.Instances = make(map[string]*InstanceState)
+		}
+		s.Instances["default"] = &InstanceState{Resources: s.Resources}
+		s.Resources = nil
+	}
 
 	s.Version = CurrentStateVersion
 }
@@ -152,38 +169,38 @@ func (m *Manager) GetStatePath() string {
 	return m.statePath
 }
 
-// UpdateResource is a convenience method that loads state, updates a resource, and saves
+// UpdateResource loads state, updates a resource under the active instance, and saves
 func (m *Manager) UpdateResource(resource *Resource) error {
 	state, err := m.Load()
 	if err != nil {
 		return err
 	}
 
-	state.SetResource(resource)
+	state.SetResource(activeInstance(), resource)
 
 	return m.Save(state)
 }
 
-// RemoveResource is a convenience method that loads state, removes a resource, and saves
+// RemoveResource loads state, removes a resource from the active instance, and saves
 func (m *Manager) RemoveResource(name string) error {
 	state, err := m.Load()
 	if err != nil {
 		return err
 	}
 
-	state.DeleteResource(name)
+	state.DeleteResource(activeInstance(), name)
 
 	return m.Save(state)
 }
 
-// GetResource is a convenience method to load and retrieve a single resource
+// GetResource loads state and retrieves a single resource from the active instance
 func (m *Manager) GetResource(name string) (*Resource, error) {
 	state, err := m.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	resource, exists := state.GetResource(name)
+	resource, exists := state.GetResource(activeInstance(), name)
 	if !exists {
 		return nil, fmt.Errorf("resource '%s' not found in state", name)
 	}
@@ -191,14 +208,14 @@ func (m *Manager) GetResource(name string) (*Resource, error) {
 	return resource, nil
 }
 
-// ListResources is a convenience method to load and list resources
+// ListResources loads state and lists resources of the given type from the active instance
 func (m *Manager) ListResources(resourceType string) ([]*Resource, error) {
 	state, err := m.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	return state.ListResources(resourceType), nil
+	return state.ListResources(activeInstance(), resourceType), nil
 }
 
 // stateExists checks if the state file exists

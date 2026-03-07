@@ -60,12 +60,13 @@ func ResolveInstance(cfg *VCLIConfig, name string) (*ResolvedInstance, error) {
 // ActivateInstance sets process-global state so that existing vhttp/auth code
 // picks up this instance's connection parameters without any call-site changes.
 //
-// It does five things:
+// It does six things:
 //  1. Clears the in-process token cache (previous instance's token must not be reused)
 //  2. Sets OWLCTL_URL, OWLCTL_USERNAME, OWLCTL_PASSWORD env vars
 //  3. Sets OWLCTL_KEYCHAIN_KEY so token_manager stores/retrieves per-instance tokens
-//  4. Overrides the profile port if the instance specifies a non-default port
-//  5. Overrides utils.ReadSettings() to return the instance's product as SelectedProfile
+//  4. Sets OWLCTL_ACTIVE_INSTANCE so state manager scopes reads/writes to this instance
+//  5. Overrides the profile port if the instance specifies a non-default port
+//  6. Overrides utils.ReadSettings() to return the instance's product as SelectedProfile
 //     and the instance's insecure flag as ApiNotSecure
 func ActivateInstance(resolved *ResolvedInstance) error {
 	// 0. Clear in-process token cache since we're switching instances
@@ -91,12 +92,17 @@ func ActivateInstance(resolved *ResolvedInstance) error {
 		return fmt.Errorf("failed to set OWLCTL_KEYCHAIN_KEY: %w", err)
 	}
 
-	// 3. Override product port if the instance specifies a non-default port
+	// 3. Set active instance so state manager scopes reads/writes to this instance
+	if err := os.Setenv("OWLCTL_ACTIVE_INSTANCE", resolved.Name); err != nil {
+		return fmt.Errorf("failed to set OWLCTL_ACTIVE_INSTANCE: %w", err)
+	}
+
+	// 4. Override product port if the instance specifies a non-default port
 	if resolved.Port != 0 {
 		utils.OverrideProfilePort(resolved.Port)
 	}
 
-	// 4. Override settings so ReadSettings() returns the instance's product + insecure
+	// 5. Override settings so ReadSettings() returns the instance's product + insecure
 	// Read current settings first to preserve fields not overridden by the instance
 	currentSettings := utils.ReadSettings()
 	currentSettings.SelectedProfile = resolved.Product

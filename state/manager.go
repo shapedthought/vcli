@@ -48,6 +48,12 @@ func activeInstance() string {
 	return "default"
 }
 
+// activeProduct returns the currently active product name (e.g. "vbr", "azure").
+// Reads OWLCTL_ACTIVE_PRODUCT env var; returns empty string when not set.
+func activeProduct() string {
+	return os.Getenv("OWLCTL_ACTIVE_PRODUCT")
+}
+
 // Load reads the state file from disk
 // Returns a new empty state if file doesn't exist
 func (m *Manager) Load() (*State, error) {
@@ -181,14 +187,19 @@ func (m *Manager) GetStatePath() string {
 	return m.statePath
 }
 
-// UpdateResource loads state, updates a resource under the active instance, and saves
+// UpdateResource loads state, updates a resource under the active instance, and saves.
+// Stamps the active product onto the InstanceState if not already set.
 func (m *Manager) UpdateResource(resource *Resource) error {
 	state, err := m.Load()
 	if err != nil {
 		return err
 	}
 
-	state.SetResource(activeInstance(), resource)
+	inst := state.getInstance(activeInstance())
+	if inst.Product == "" {
+		inst.Product = activeProduct()
+	}
+	inst.Resources[resource.Name] = resource
 
 	return m.Save(state)
 }

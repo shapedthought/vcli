@@ -92,9 +92,12 @@ func ActivateInstance(resolved *ResolvedInstance) error {
 		return fmt.Errorf("failed to set OWLCTL_KEYCHAIN_KEY: %w", err)
 	}
 
-	// 3. Set active instance so state manager scopes reads/writes to this instance
+	// 3. Set active instance/product so state manager scopes reads/writes correctly
 	if err := os.Setenv("OWLCTL_ACTIVE_INSTANCE", resolved.Name); err != nil {
 		return fmt.Errorf("failed to set OWLCTL_ACTIVE_INSTANCE: %w", err)
+	}
+	if err := os.Setenv("OWLCTL_ACTIVE_PRODUCT", resolved.Product); err != nil {
+		return fmt.Errorf("failed to set OWLCTL_ACTIVE_PRODUCT: %w", err)
 	}
 
 	// 4. Override product port if the instance specifies a non-default port

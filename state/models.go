@@ -11,6 +11,7 @@ const DefaultMaxHistoryEvents = 20
 
 // InstanceState holds all managed resources for a single named instance.
 type InstanceState struct {
+	Product   string               `json:"product,omitempty"` // e.g. "vbr", "azure" — used for export folder structure
 	Resources map[string]*Resource `json:"resources"`
 }
 

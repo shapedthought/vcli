@@ -121,6 +121,12 @@ func TestIsValidTokenFormat(t *testing.T) {
 
 // ---- IsCI / isInteractiveSession -----------------------------------------------
 
+// TestIsCI_KnownCIEnvVars verifies that IsCI returns true when known CI env vars are set.
+// Note: in a `go test` process stdin is not a TTY, so isInteractiveSession() returns false
+// (i.e. IsCI()=true) regardless of env vars. The CI env var detection branch is therefore
+// not directly reachable in unit tests without refactoring isInteractiveSession to accept
+// an injectable isTTY parameter. For now these tests confirm the public API contract:
+// IsCI() is true in any non-TTY environment, which covers all real CI/CD scenarios.
 func TestIsCI_KnownCIEnvVars(t *testing.T) {
 	ciVars := []string{
 		"CI",
@@ -379,6 +385,16 @@ func TestGetToken_KeychainKeyOverrideUsed(t *testing.T) {
 // ---- ClearProcessTokenCache ----------------------------------------------------
 
 func TestClearProcessTokenCache(t *testing.T) {
+	// Capture and restore original state so this test doesn't affect others.
+	origCache := processTokenCache
+	origKey := processTokenCacheKey
+	origExpiry := processTokenExpiresAt
+	t.Cleanup(func() {
+		processTokenCache = origCache
+		processTokenCacheKey = origKey
+		processTokenExpiresAt = origExpiry
+	})
+
 	processTokenCache = "cached-token"
 	processTokenCacheKey = "vbr"
 	processTokenExpiresAt = time.Now().Add(10 * time.Minute)

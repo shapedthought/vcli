@@ -125,9 +125,13 @@ func callBasicAuth(t *testing.T, serverURL, username, password string, profile m
 	return &AuthResult{Token: token, ExpiresIn: 3600, TokenType: "session", IsBasicAuth: true}, nil
 }
 
-// ---- OAuth Authentication ------------------------------------------------------
+// ---- OAuth Authentication flow -------------------------------------------------
+// Note: these tests exercise the OAuth/BasicAuth HTTP flows via callOAuth/callBasicAuth
+// helper functions backed by mock servers. They do not call Authenticator.Authenticate
+// directly (which builds https:// URLs incompatible with httptest servers).
+// Coverage of Authenticator.Authenticate itself requires integration tests (#77).
 
-func TestAuthenticator_OAuth_Success(t *testing.T) {
+func TestOAuthFlow_Success(t *testing.T) {
 	srv := newMockOAuthServer(t)
 	defer srv.Close()
 
@@ -156,7 +160,7 @@ func TestAuthenticator_OAuth_Success(t *testing.T) {
 	}
 }
 
-func TestAuthenticator_OAuth_InvalidCredentials(t *testing.T) {
+func TestOAuthFlow_InvalidCredentials(t *testing.T) {
 	srv := newMockOAuthServer(t)
 	defer srv.Close()
 
@@ -175,9 +179,9 @@ func TestAuthenticator_OAuth_InvalidCredentials(t *testing.T) {
 	}
 }
 
-// ---- Basic Auth (Enterprise Manager) ------------------------------------------
+// ---- Basic Auth (Enterprise Manager) flow -------------------------------------
 
-func TestAuthenticator_BasicAuth_Success(t *testing.T) {
+func TestBasicAuthFlow_Success(t *testing.T) {
 	srv := newMockBasicAuthServer(t)
 	defer srv.Close()
 
@@ -199,7 +203,7 @@ func TestAuthenticator_BasicAuth_Success(t *testing.T) {
 	}
 }
 
-func TestAuthenticator_BasicAuth_InvalidCredentials(t *testing.T) {
+func TestBasicAuthFlow_InvalidCredentials(t *testing.T) {
 	srv := newMockBasicAuthServer(t)
 	defer srv.Close()
 

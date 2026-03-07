@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/shapedthought/owlctl/models"
-	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/state"
 	"github.com/shapedthought/owlctl/utils"
 	"github.com/shapedthought/owlctl/vhttp"
@@ -438,17 +437,7 @@ Exit Codes:
 				log.Fatal("This command only works with VBR at the moment.")
 			}
 
-			var result ApplyResult
-			if repoApplyOverlayFile != "" {
-				fmt.Printf("Applying overlay: %s\n", repoApplyOverlayFile)
-				mergedSpec, err := resources.MergeYAMLFiles(args[0], repoApplyOverlayFile, resources.DefaultMergeOptions())
-				if err != nil {
-					log.Fatalf("Failed to merge with overlay: %v", err)
-				}
-				result = applyResourceSpec(mergedSpec, repoApplyConfig, profile, repoApplyDryRun, nil)
-			} else {
-				result = applyResource(args[0], repoApplyConfig, profile, repoApplyDryRun)
-			}
+			result := applyWithOptionalOverlay(args[0], repoApplyOverlayFile, repoApplyConfig, profile, repoApplyDryRun)
 			if result.Error != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 				outcome := DetermineApplyOutcome([]ApplyResult{result})
@@ -531,17 +520,7 @@ Exit Codes:
 				log.Fatal("This command only works with VBR at the moment.")
 			}
 
-			var result ApplyResult
-			if sobrApplyOverlayFile != "" {
-				fmt.Printf("Applying overlay: %s\n", sobrApplyOverlayFile)
-				mergedSpec, err := resources.MergeYAMLFiles(args[0], sobrApplyOverlayFile, resources.DefaultMergeOptions())
-				if err != nil {
-					log.Fatalf("Failed to merge with overlay: %v", err)
-				}
-				result = applyResourceSpec(mergedSpec, sobrApplyConfig, profile, sobrApplyDryRun, nil)
-			} else {
-				result = applyResource(args[0], sobrApplyConfig, profile, sobrApplyDryRun)
-			}
+			result := applyWithOptionalOverlay(args[0], sobrApplyOverlayFile, sobrApplyConfig, profile, sobrApplyDryRun)
 			if result.Error != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 				outcome := DetermineApplyOutcome([]ApplyResult{result})

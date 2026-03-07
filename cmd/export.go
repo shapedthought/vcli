@@ -509,6 +509,26 @@ func addExportFlags(cmd *cobra.Command) {
 var jobExportCmd = &cobra.Command{
 	Use:   "export [job-id]",
 	Short: "Export VBR jobs to declarative YAML format",
-	Long:  exportCmd.Long,
-	Run:   exportCmd.Run,
+	Long: `Export existing VBR backup jobs to declarative YAML configuration files.
+
+Examples:
+  # Export single job to stdout
+  owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c
+
+  # Export single job to file
+  owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c -o backup.yaml
+
+  # Export as overlay (minimal patch with only changed fields)
+  owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay -o overlay.yaml
+
+  # Export as overlay with specific base
+  owlctl job export 57b3baab-6237-41bf-add7-db63d41d984c --as-overlay --base base/defaults.yaml -o overlay.yaml
+
+  # Export all jobs to current directory
+  owlctl job export --all
+
+  # Export all jobs to specific directory
+  owlctl job export --all -d ./configs/
+`,
+	Run: exportCmd.Run,
 }

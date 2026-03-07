@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/shapedthought/owlctl/models"
-	"github.com/shapedthought/owlctl/resources"
 	"github.com/shapedthought/owlctl/state"
 	"github.com/shapedthought/owlctl/utils"
 	"github.com/shapedthought/owlctl/vhttp"
@@ -508,17 +507,7 @@ Exit Codes:
 				log.Fatal("This command only works with VBR at the moment.")
 			}
 
-			var result ApplyResult
-			if kmsApplyOverlayFile != "" {
-				fmt.Printf("Applying overlay: %s\n", kmsApplyOverlayFile)
-				mergedSpec, err := resources.MergeYAMLFiles(args[0], kmsApplyOverlayFile, resources.DefaultMergeOptions())
-				if err != nil {
-					log.Fatalf("Failed to merge with overlay: %v", err)
-				}
-				result = applyResourceSpec(mergedSpec, kmsApplyConfig, profile, kmsApplyDryRun, nil)
-			} else {
-				result = applyResource(args[0], kmsApplyConfig, profile, kmsApplyDryRun)
-			}
+			result := applyWithOptionalOverlay(args[0], kmsApplyOverlayFile, kmsApplyConfig, profile, kmsApplyDryRun)
 			if result.Error != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
 				outcome := DetermineApplyOutcome([]ApplyResult{result})

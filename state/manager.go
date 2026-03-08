@@ -199,7 +199,7 @@ func (m *Manager) UpdateResource(resource *Resource) error {
 	if inst.Product == "" {
 		inst.Product = activeProduct()
 	}
-	inst.Resources[resource.Name] = resource
+	state.SetResource(activeInstance(), resource)
 
 	return m.Save(state)
 }

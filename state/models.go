@@ -57,7 +57,7 @@ func NewState() *State {
 }
 
 // getInstance returns the InstanceState for the given key, creating it if needed.
-// Handles nil entries that may result from JSON unmarshaling of "instance": null.
+// Handles nil entries that may result from JSON unmarshaling of "instances": {"<key>": null}.
 func (s *State) getInstance(instance string) *InstanceState {
 	if s.Instances == nil {
 		s.Instances = make(map[string]*InstanceState)
@@ -90,16 +90,18 @@ func (s *State) SetResource(instance string, resource *Resource) {
 
 // DeleteResource removes a resource from the given instance
 func (s *State) DeleteResource(instance, name string) {
-	if inst, ok := s.Instances[instance]; ok {
-		delete(inst.Resources, name)
+	inst, ok := s.Instances[instance]
+	if !ok || inst == nil || inst.Resources == nil {
+		return
 	}
+	delete(inst.Resources, name)
 }
 
 // ListResources returns all resources of a given type within the given instance.
 // Pass an empty resourceType to return all resources.
 func (s *State) ListResources(instance, resourceType string) []*Resource {
 	inst, ok := s.Instances[instance]
-	if !ok {
+	if !ok || inst == nil || inst.Resources == nil {
 		return nil
 	}
 	var resources []*Resource

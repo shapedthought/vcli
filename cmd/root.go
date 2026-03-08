@@ -26,7 +26,10 @@ var rootCmd = &cobra.Command{
 		// --instance: load config, resolve, and activate the instance
 		effectiveInstance := instanceFlag
 		if effectiveInstance == "" {
-			settings, _ := utils.TryReadSettings()
+			settings, err := utils.TryReadSettings()
+			if err != nil {
+				return fmt.Errorf("failed to read settings.json: %w (fix or remove the file, then retry)", err)
+			}
 			effectiveInstance = settings.DefaultInstance
 		}
 

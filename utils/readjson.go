@@ -149,12 +149,20 @@ func TryReadSettings() (models.Settings, error) {
 }
 
 // WriteSettings persists s to settings.json at the configured path.
+// Creates the settings directory if it does not already exist.
 func WriteSettings(s models.Settings) error {
 	data, err := json.MarshalIndent(s, "", "    ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal settings: %w", err)
 	}
-	settingsFile := SettingPath() + "settings.json"
+	settingsDir := SettingPath()
+	settingsFile := settingsDir + "settings.json"
+	if settingsDir != "" {
+		dir := strings.TrimRight(settingsDir, "/\\")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create settings directory: %w", err)
+		}
+	}
 	if err := os.WriteFile(settingsFile, data, 0600); err != nil {
 		return fmt.Errorf("failed to write settings.json: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/shapedthought/owlctl/config"
 	"github.com/shapedthought/owlctl/utils"
@@ -53,8 +54,13 @@ var instanceListCmd = &cobra.Command{
 			return
 		}
 
-		settings, _ := utils.TryReadSettings()
-		defaultInstance := settings.DefaultInstance
+		settings, err := utils.TryReadSettings()
+		defaultInstance := ""
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to read settings.json; default instance marker may be unavailable: %v\n", err)
+		} else {
+			defaultInstance = settings.DefaultInstance
+		}
 
 		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
 		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "----", "-------", "---", "--------------", "-----------")
@@ -120,7 +126,10 @@ Examples:
 			log.Fatalf("Cannot set default: %v", err)
 		}
 
-		settings, _ := utils.TryReadSettings()
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			log.Fatalf("Failed to read settings.json: %v (fix or remove the file, then retry)", err)
+		}
 		settings.DefaultInstance = name
 		if err := utils.WriteSettings(settings); err != nil {
 			log.Fatalf("Failed to save settings: %v", err)
@@ -150,7 +159,10 @@ var instanceUnsetCmd = &cobra.Command{
 	Short: "Clear the default instance from settings.json",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		settings, _ := utils.TryReadSettings()
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			log.Fatalf("Failed to read settings.json: %v (fix or remove the file, then retry)", err)
+		}
 		if settings.DefaultInstance == "" {
 			fmt.Println("No default instance is set.")
 			return
@@ -239,6 +251,9 @@ Examples:
 		if instanceAddURL == "" {
 			log.Fatal("--url is required")
 		}
+		if strings.Contains(instanceAddURL, "://") {
+			log.Fatalf("--url must be a hostname or IP address only, without a scheme (e.g. \"vbr-prod.example.com\", not %q)", instanceAddURL)
+		}
 		if instanceAddProduct == "" {
 			log.Fatal("--product is required")
 		}
@@ -314,8 +329,10 @@ var instanceRemoveCmd = &cobra.Command{
 		fmt.Printf("Instance %q removed from owlctl.yaml.\n", name)
 
 		// If this instance was the default, clear it from settings.json
-		settings, _ := utils.TryReadSettings()
-		if settings.DefaultInstance == name {
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not read settings.json to check DefaultInstance: %v\n", err)
+		} else if settings.DefaultInstance == name {
 			settings.DefaultInstance = ""
 			if err := utils.WriteSettings(settings); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not clear DefaultInstance from settings.json: %v\n", err)

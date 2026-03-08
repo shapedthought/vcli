@@ -49,9 +49,40 @@ func activeInstance() string {
 }
 
 // activeProduct returns the currently active product name (e.g. "vbr", "azure").
-// Reads OWLCTL_ACTIVE_PRODUCT env var; returns empty string when not set.
+// Reads OWLCTL_ACTIVE_PRODUCT env var; falls back to SelectedProfile from settings.json.
 func activeProduct() string {
-	return os.Getenv("OWLCTL_ACTIVE_PRODUCT")
+	if prod := os.Getenv("OWLCTL_ACTIVE_PRODUCT"); prod != "" {
+		return prod
+	}
+	return selectedProfileFromSettings()
+}
+
+// selectedProfileFromSettings reads SelectedProfile from settings.json without
+// importing the utils package (which would create a circular dependency).
+// Returns empty string if the file cannot be found, read, or parsed.
+func selectedProfileFromSettings() string {
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
+	var settingsFile string
+	if settingsPath != "" {
+		settingsFile = filepath.Join(settingsPath, "settings.json")
+	} else {
+		usr, err := user.Current()
+		if err != nil {
+			return ""
+		}
+		settingsFile = filepath.Join(usr.HomeDir, ".owlctl", "settings.json")
+	}
+	data, err := os.ReadFile(settingsFile)
+	if err != nil {
+		return ""
+	}
+	var s struct {
+		SelectedProfile string `json:"selectedProfile"`
+	}
+	if err := json.Unmarshal(data, &s); err != nil {
+		return ""
+	}
+	return s.SelectedProfile
 }
 
 // Load reads the state file from disk
@@ -195,11 +226,12 @@ func (m *Manager) UpdateResource(resource *Resource) error {
 		return err
 	}
 
-	inst := state.getInstance(activeInstance())
+	instName := activeInstance()
+	inst := state.getInstance(instName)
 	if inst.Product == "" {
 		inst.Product = activeProduct()
 	}
-	state.SetResource(activeInstance(), resource)
+	state.SetResource(instName, resource)
 
 	return m.Save(state)
 }

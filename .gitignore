@@ -7,7 +7,6 @@
 *.txt
 Dockerfile
 .dockerignore
-CLAUDE.md
 analysis.md
 .owlctl/
 .gitignore
@@ -17,3 +16,4 @@ owlctl
 settings.json
 profiles.json
 .env
+docs/internal/

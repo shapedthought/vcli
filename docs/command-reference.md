@@ -157,6 +157,31 @@ owlctl encryption kms-apply kms.yaml --dry-run
 
 **Note:** Repos, SOBRs, and KMS are update-only. Create them in VBR console first.
 
+### Configuration Backup Settings (Singleton)
+
+VBR configuration backup is a singleton resource — one set of settings per server, no name or `--all` required.
+
+```bash
+# Snapshot current settings to state
+owlctl config-backup snapshot
+
+# Detect drift between state and live VBR
+owlctl config-backup diff
+owlctl config-backup diff --severity warning
+owlctl config-backup diff --security-only
+
+# Export current settings to YAML
+owlctl config-backup export
+owlctl config-backup export -o config-backup.yaml
+
+# Apply settings from YAML
+owlctl config-backup apply config-backup.yaml
+owlctl config-backup apply config-backup.yaml --dry-run
+owlctl config-backup apply config-backup.yaml --overlay prod-overlay.yaml
+```
+
+---
+
 ### Snapshot State
 
 ```bash
@@ -175,6 +200,9 @@ owlctl encryption snapshot --all
 # KMS Servers
 owlctl encryption kms-snapshot <name>
 owlctl encryption kms-snapshot --all
+
+# Configuration Backup (singleton — no name needed)
+owlctl config-backup snapshot
 ```
 
 **Note:** Jobs are snapshotted automatically on apply.
@@ -195,6 +223,9 @@ owlctl repo diff --all
 owlctl repo sobr-diff --all
 owlctl encryption diff --all
 owlctl encryption kms-diff --all
+
+# Configuration Backup (singleton)
+owlctl config-backup diff
 
 # Severity filtering
 owlctl job diff --all --severity critical   # Only CRITICAL
@@ -250,15 +281,55 @@ owlctl job diff --group sql-tier
 
 ## Instance Commands
 
-Instances define named server connections with product type, credentials, and TLS settings. They replace `--target` for multi-server workflows. Defined in `owlctl.yaml`.
+Instances define named server connections with product type, credentials, and TLS settings. They replace `--target` for multi-server workflows. Stored in `owlctl.yaml`.
 
 ```bash
-# List all instances
+# Add an instance (creates owlctl.yaml if it doesn't exist)
+owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD \
+  --description "Production VBR server"
+
+# Overwrite an existing instance
+owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --force
+
+# Set a default instance — no --instance flag needed on subsequent commands
+owlctl instance set vbr-prod
+
+# Show the current default instance
+owlctl instance get
+
+# Clear the default instance
+owlctl instance unset
+
+# List all instances (* marks the default)
 owlctl instance list
 
 # Show instance details (product, URL, credential ref)
 owlctl instance show vbr-prod
+
+# Remove an instance (also clears DefaultInstance in settings.json if it was the default)
+owlctl instance remove vbr-prod
 ```
+
+**`instance add` flags:**
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--url` | Yes | Server hostname or IP |
+| `--product` | Yes | `vbr`, `ent_man`, `vb365`, `vone`, `aws`, `azure`, `gcp` |
+| `--credential-ref` | No | Env var prefix (reads `OWLCTL_{REF}_USERNAME` / `_PASSWORD`) |
+| `--description` | No | Human-readable label |
+| `--port` | No | Port override (default: product default) |
+| `--insecure` | No | Skip TLS verification for this instance |
+| `--force` | No | Overwrite if instance already exists |
+
+### Default instance
+
+`owlctl instance set` persists a default to `settings.json`. All subsequent commands use it without `--instance`. The `--instance` flag always takes precedence if both are present.
+
+If the default instance is removed from `owlctl.yaml`, owlctl will error with a reminder to run `owlctl instance unset`.
 
 ### Using --instance
 
@@ -408,6 +479,7 @@ owlctl job export --all -d specs/jobs/
 owlctl repo export --all -d specs/repos/
 owlctl repo sobr-export --all -d specs/sobrs/
 owlctl encryption kms-export --all -d specs/kms/
+owlctl config-backup export -o specs/config-backup.yaml
 
 # Commit to Git
 git add specs/

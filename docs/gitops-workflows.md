@@ -244,9 +244,18 @@ variables:
   OWLCTL_URL: $VBR_URL
 ```
 
-### owlctl.yaml for Groups and Targets
+### owlctl.yaml for Groups and Instances
 
-Optional file for group-based deployments and multi-server targeting:
+Optional file for group-based deployments and multi-server targeting. Use `owlctl instance add` to register instances without hand-editing the file:
+
+```bash
+owlctl instance add vbr-dev     --url vbr-dev.example.com     --product vbr --credential-ref DEV     --description "Development VBR"
+owlctl instance add vbr-staging --url vbr-staging.example.com --product vbr --credential-ref STAGING --description "Staging VBR"
+owlctl instance add vbr-prod    --url vbr-prod.example.com    --product vbr --credential-ref PROD    --description "Production VBR"
+owlctl instance add vbr-dr      --url vbr-dr.example.com      --product vbr --credential-ref DR      --description "DR site"
+```
+
+Then add your `groups:` section to `owlctl.yaml`. The resulting file looks like:
 
 ```yaml
 # owlctl.yaml - Groups and instances
@@ -256,22 +265,22 @@ kind: Config
 instances:
   vbr-dev:
     product: vbr
-    url: https://vbr-dev.example.com
+    url: vbr-dev.example.com
     credentialRef: DEV
     description: Development VBR
   vbr-staging:
     product: vbr
-    url: https://vbr-staging.example.com
+    url: vbr-staging.example.com
     credentialRef: STAGING
     description: Staging VBR
   vbr-prod:
     product: vbr
-    url: https://vbr-prod.example.com
+    url: vbr-prod.example.com
     credentialRef: PROD
     description: Production VBR
   vbr-dr:
     product: vbr
-    url: https://vbr-dr.example.com
+    url: vbr-dr.example.com
     credentialRef: DR
     description: DR site
 
@@ -554,6 +563,13 @@ jobs:
           cat sobr-drift.txt >> drift-report.md
           echo "" >> drift-report.md
           if [ $SOBR_EXIT -eq 4 ]; then CRITICAL=1; fi
+
+          echo "### Configuration Backup" >> drift-report.md
+          ./owlctl config-backup diff --security-only > cb-drift.txt 2>&1
+          CB_EXIT=$?
+          cat cb-drift.txt >> drift-report.md
+          echo "" >> drift-report.md
+          if [ $CB_EXIT -eq 4 ]; then CRITICAL=1; fi
 
           echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
 
@@ -1251,6 +1267,10 @@ jobs:
 
           echo "## Encryption" >> compliance-report.md
           ./owlctl encryption diff --all >> compliance-report.md 2>&1
+          echo "" >> compliance-report.md
+
+          echo "## Configuration Backup" >> compliance-report.md
+          ./owlctl config-backup diff >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
       - name: Upload report

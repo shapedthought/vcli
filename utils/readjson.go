@@ -128,6 +128,47 @@ func OverrideProfilePort(port int) { profilePortOverride = &port }
 // ClearProfilePortOverride removes the port override, reverting to the product default.
 func ClearProfilePortOverride() { profilePortOverride = nil }
 
+// TryReadSettings reads settings.json, returning a zero-value Settings if the
+// file does not exist. Other errors are returned. Safe to call before init.
+func TryReadSettings() (models.Settings, error) {
+	if settingsOverride != nil {
+		return *settingsOverride, nil
+	}
+	var settings models.Settings
+	data, err := os.ReadFile(SettingPath() + "settings.json")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return settings, nil
+		}
+		return settings, err
+	}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return settings, err
+	}
+	return settings, nil
+}
+
+// WriteSettings persists s to settings.json at the configured path.
+// Creates the settings directory if it does not already exist.
+func WriteSettings(s models.Settings) error {
+	data, err := json.MarshalIndent(s, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings: %w", err)
+	}
+	settingsDir := SettingPath()
+	settingsFile := settingsDir + "settings.json"
+	if settingsDir != "" {
+		dir := strings.TrimRight(settingsDir, "/\\")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create settings directory: %w", err)
+		}
+	}
+	if err := os.WriteFile(settingsFile, data, 0600); err != nil {
+		return fmt.Errorf("failed to write settings.json: %w", err)
+	}
+	return nil
+}
+
 func ReadSettings() models.Settings {
 	if settingsOverride != nil {
 		return *settingsOverride

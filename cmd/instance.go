@@ -4,36 +4,37 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
 var instanceCmd = &cobra.Command{
 	Use:   "instance",
 	Short: "Manage named instances",
-	Long: `Instance commands for listing and inspecting named server connections
-defined in owlctl.yaml.
+	// PersistentPreRunE is set to a no-op so that all instance subcommands bypass
+	// the root PersistentPreRunE, which tries to activate DefaultInstance. This is
+	// important because:
+	//   - instance set/unset/get/list/show/add/remove only manage config files and
+	//     do not need a live server connection
+	//   - instance unset is the recovery command for a stale DefaultInstance; if the
+	//     root hook runs first it would error before unset can fix the problem
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
+	Long: `Instance commands for managing named server connections defined in owlctl.yaml.
 
 Instances define named server connections with product type, URL, port,
 credential references, and TLS settings. They replace the simpler "targets"
 and support multi-server automation.
 
-Example owlctl.yaml:
-  instances:
-    vbr-prod:
-      product: vbr
-      url: https://vbr-prod.example.com
-      credentialRef: PROD
-      description: Production VBR server
-    vbr-dr:
-      product: vbr
-      url: https://vbr-dr.example.com
-      credentialRef: DR
-      description: DR site VBR server
-
 Commands:
-  owlctl instance list              List all defined instances
+  owlctl instance add <name>        Add or update an instance in owlctl.yaml
+  owlctl instance remove <name>     Remove an instance from owlctl.yaml
+  owlctl instance set <name>        Set the default instance (persisted to settings.json)
+  owlctl instance get               Show the current default instance
+  owlctl instance unset             Clear the default instance
+  owlctl instance list              List all defined instances (* marks the default)
   owlctl instance show <name>       Show details of a specific instance
 `,
 }
@@ -53,8 +54,16 @@ var instanceListCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
-		fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", "----", "-------", "---", "--------------", "-----------")
+		settings, err := utils.TryReadSettings()
+		defaultInstance := ""
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to read settings.json; default instance marker may be unavailable: %v\n", err)
+		} else {
+			defaultInstance = settings.DefaultInstance
+		}
+
+		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
+		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "----", "-------", "---", "--------------", "-----------")
 
 		for _, name := range names {
 			inst, err := cfg.GetInstance(name)
@@ -78,8 +87,92 @@ var instanceListCmd = &cobra.Command{
 				url = url[:35] + "..."
 			}
 
-			fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", name, inst.Product, url, credRef, desc)
+			marker := ""
+			if name == defaultInstance {
+				marker = "*"
+			}
+
+			fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", marker, name, inst.Product, url, credRef, desc)
 		}
+
+		if defaultInstance != "" {
+			fmt.Println("\n* = default instance (set via 'owlctl instance set')")
+		}
+	},
+}
+
+var instanceSetCmd = &cobra.Command{
+	Use:   "set <name>",
+	Short: "Set the default instance in settings.json",
+	Long: `Set a named instance as the default so --instance is not needed on every command.
+
+The instance must exist in owlctl.yaml. Use 'owlctl instance unset' to clear.
+
+Examples:
+  owlctl instance set vbr-prod
+  owlctl instance get
+  owlctl instance unset
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if _, err := cfg.GetInstance(name); err != nil {
+			log.Fatalf("Cannot set default: %v", err)
+		}
+
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			log.Fatalf("Failed to read settings.json: %v (fix or remove the file, then retry)", err)
+		}
+		settings.DefaultInstance = name
+		if err := utils.WriteSettings(settings); err != nil {
+			log.Fatalf("Failed to save settings: %v", err)
+		}
+
+		fmt.Printf("Default instance set to %q.\n", name)
+		fmt.Println("Run 'owlctl instance unset' to clear.")
+	},
+}
+
+var instanceGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Show the current default instance from settings.json",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings, _ := utils.TryReadSettings()
+		if settings.DefaultInstance == "" {
+			fmt.Println("(none)")
+		} else {
+			fmt.Println(settings.DefaultInstance)
+		}
+	},
+}
+
+var instanceUnsetCmd = &cobra.Command{
+	Use:   "unset",
+	Short: "Clear the default instance from settings.json",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			log.Fatalf("Failed to read settings.json: %v (fix or remove the file, then retry)", err)
+		}
+		if settings.DefaultInstance == "" {
+			fmt.Println("No default instance is set.")
+			return
+		}
+		prev := settings.DefaultInstance
+		settings.DefaultInstance = ""
+		if err := utils.WriteSettings(settings); err != nil {
+			log.Fatalf("Failed to save settings: %v", err)
+		}
+		fmt.Printf("Default instance %q cleared.\n", prev)
 	},
 }
 
@@ -126,7 +219,144 @@ var instanceShowCmd = &cobra.Command{
 	},
 }
 
+var (
+	instanceAddProduct       string
+	instanceAddURL           string
+	instanceAddPort          int
+	instanceAddCredentialRef string
+	instanceAddDescription   string
+	instanceAddInsecure      bool
+	instanceAddForce         bool
+)
+
+var validProducts = []string{"vbr", "ent_man", "vb365", "vone", "aws", "azure", "gcp"}
+
+var instanceAddCmd = &cobra.Command{
+	Use:   "add <name>",
+	Short: "Add or update an instance in owlctl.yaml",
+	Long: `Add a named instance to owlctl.yaml, or update it if it already exists.
+
+If owlctl.yaml does not exist it will be created. If OWLCTL_CONFIG is set,
+the file at that path is used instead.
+
+Examples:
+  owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr
+  owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credential-ref PROD --description "Production VBR"
+  owlctl instance add vbr-dr   --url vbr-dr.example.com   --product vbr --insecure
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		if instanceAddURL == "" {
+			log.Fatal("--url is required")
+		}
+		if strings.Contains(instanceAddURL, "://") {
+			log.Fatalf("--url must be a hostname or IP address only, without a scheme (e.g. \"vbr-prod.example.com\", not %q)", instanceAddURL)
+		}
+		if instanceAddProduct == "" {
+			log.Fatal("--product is required")
+		}
+
+		validProduct := false
+		for _, p := range validProducts {
+			if instanceAddProduct == p {
+				validProduct = true
+				break
+			}
+		}
+		if !validProduct {
+			log.Fatalf("invalid product %q — must be one of: %v", instanceAddProduct, validProducts)
+		}
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if _, exists := cfg.Instances[name]; exists && !instanceAddForce {
+			log.Fatalf("Instance %q already exists. Use --force to overwrite.", name)
+		}
+
+		inst := config.InstanceConfig{
+			Product:       instanceAddProduct,
+			URL:           instanceAddURL,
+			CredentialRef: instanceAddCredentialRef,
+			Description:   instanceAddDescription,
+		}
+		if instanceAddPort != 0 {
+			inst.Port = instanceAddPort
+		}
+		if cmd.Flags().Changed("insecure") {
+			inst.Insecure = &instanceAddInsecure
+		}
+
+		cfg.AddInstance(name, inst)
+
+		if err := cfg.Save(); err != nil {
+			log.Fatalf("Failed to save owlctl.yaml: %v", err)
+		}
+
+		fmt.Printf("Instance %q saved to owlctl.yaml.\n", name)
+		if inst.CredentialRef != "" {
+			fmt.Printf("Set credentials: OWLCTL_%s_USERNAME / OWLCTL_%s_PASSWORD\n", inst.CredentialRef, inst.CredentialRef)
+		} else {
+			fmt.Println("No credential ref set — will use OWLCTL_USERNAME / OWLCTL_PASSWORD.")
+		}
+	},
+}
+
+var instanceRemoveCmd = &cobra.Command{
+	Use:   "remove <name>",
+	Short: "Remove an instance from owlctl.yaml",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if err := cfg.RemoveInstance(name); err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		if err := cfg.Save(); err != nil {
+			log.Fatalf("Failed to save owlctl.yaml: %v", err)
+		}
+
+		fmt.Printf("Instance %q removed from owlctl.yaml.\n", name)
+
+		// If this instance was the default, clear it from settings.json
+		settings, err := utils.TryReadSettings()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not read settings.json to check DefaultInstance: %v\n", err)
+		} else if settings.DefaultInstance == name {
+			settings.DefaultInstance = ""
+			if err := utils.WriteSettings(settings); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not clear DefaultInstance from settings.json: %v\n", err)
+			} else {
+				fmt.Printf("Cleared %q as the default instance.\n", name)
+			}
+		}
+	},
+}
+
 func init() {
+	instanceAddCmd.Flags().StringVar(&instanceAddURL, "url", "", "Server hostname or IP (required)")
+	instanceAddCmd.Flags().StringVar(&instanceAddProduct, "product", "", "Veeam product: vbr, ent_man, vb365, vone, aws, azure, gcp (required)")
+	instanceAddCmd.Flags().IntVar(&instanceAddPort, "port", 0, "Port override (default: product default)")
+	instanceAddCmd.Flags().StringVar(&instanceAddCredentialRef, "credential-ref", "", "Credential ref (reads OWLCTL_{REF}_USERNAME / _PASSWORD)")
+	instanceAddCmd.Flags().StringVar(&instanceAddDescription, "description", "", "Human-readable description")
+	instanceAddCmd.Flags().BoolVar(&instanceAddInsecure, "insecure", false, "Skip TLS verification for this instance")
+	instanceAddCmd.Flags().BoolVar(&instanceAddForce, "force", false, "Overwrite if instance already exists")
+
+	instanceCmd.AddCommand(instanceAddCmd)
+	instanceCmd.AddCommand(instanceRemoveCmd)
+	instanceCmd.AddCommand(instanceSetCmd)
+	instanceCmd.AddCommand(instanceGetCmd)
+	instanceCmd.AddCommand(instanceUnsetCmd)
 	instanceCmd.AddCommand(instanceListCmd)
 	instanceCmd.AddCommand(instanceShowCmd)
 	rootCmd.AddCommand(instanceCmd)

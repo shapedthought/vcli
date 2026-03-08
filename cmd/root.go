@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -22,24 +23,40 @@ var rootCmd = &cobra.Command{
 	Short: "A CLI application for Veeam APIs",
 	Long:  `A CLI application that works with all Veeam APIs`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// --instance: load config, resolve, and activate the instance
+		effectiveInstance := instanceFlag
+		if effectiveInstance == "" {
+			settings, err := utils.TryReadSettings()
+			if err != nil {
+				return fmt.Errorf("failed to read settings.json: %w (fix or remove the file, then retry)", err)
+			}
+			effectiveInstance = settings.DefaultInstance
+		}
+
 		if instanceFlag != "" && targetFlag != "" {
 			return fmt.Errorf("cannot use --instance and --target together")
 		}
+		if effectiveInstance != "" && targetFlag != "" {
+			return fmt.Errorf("cannot use --target when a default instance is set — run 'owlctl instance unset' or use --instance explicitly")
+		}
 
-		// --instance: load config, resolve, and activate the instance
-		if instanceFlag != "" {
+		if effectiveInstance != "" {
 			cfg, err := config.LoadConfig()
 			if err != nil {
 				return fmt.Errorf("failed to load owlctl.yaml: %w", err)
 			}
 
-			resolved, err := config.ResolveInstance(cfg, instanceFlag)
+			resolved, err := config.ResolveInstance(cfg, effectiveInstance)
 			if err != nil {
-				return fmt.Errorf("--instance %q: %w", instanceFlag, err)
+				if instanceFlag == "" {
+					// came from DefaultInstance — give a helpful hint
+					return fmt.Errorf("default instance %q not found in owlctl.yaml — run 'owlctl instance unset' to clear", effectiveInstance)
+				}
+				return fmt.Errorf("--instance %q: %w", effectiveInstance, err)
 			}
 
 			if err := config.ActivateInstance(resolved); err != nil {
-				return fmt.Errorf("failed to activate instance %q: %w", instanceFlag, err)
+				return fmt.Errorf("failed to activate instance %q: %w", effectiveInstance, err)
 			}
 			return nil
 		}

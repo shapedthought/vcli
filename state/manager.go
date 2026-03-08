@@ -39,6 +39,52 @@ func NewManager() *Manager {
 	}
 }
 
+// activeInstance returns the currently active instance name.
+// Reads OWLCTL_ACTIVE_INSTANCE env var; falls back to "default".
+func activeInstance() string {
+	if inst := os.Getenv("OWLCTL_ACTIVE_INSTANCE"); inst != "" {
+		return inst
+	}
+	return "default"
+}
+
+// activeProduct returns the currently active product name (e.g. "vbr", "azure").
+// Reads OWLCTL_ACTIVE_PRODUCT env var; falls back to SelectedProfile from settings.json.
+func activeProduct() string {
+	if prod := os.Getenv("OWLCTL_ACTIVE_PRODUCT"); prod != "" {
+		return prod
+	}
+	return selectedProfileFromSettings()
+}
+
+// selectedProfileFromSettings reads SelectedProfile from settings.json without
+// importing the utils package (which would create a circular dependency).
+// Returns empty string if the file cannot be found, read, or parsed.
+func selectedProfileFromSettings() string {
+	settingsPath := os.Getenv("OWLCTL_SETTINGS_PATH")
+	var settingsFile string
+	if settingsPath != "" {
+		settingsFile = filepath.Join(settingsPath, "settings.json")
+	} else {
+		usr, err := user.Current()
+		if err != nil {
+			return ""
+		}
+		settingsFile = filepath.Join(usr.HomeDir, ".owlctl", "settings.json")
+	}
+	data, err := os.ReadFile(settingsFile)
+	if err != nil {
+		return ""
+	}
+	var s struct {
+		SelectedProfile string `json:"selectedProfile"`
+	}
+	if err := json.Unmarshal(data, &s); err != nil {
+		return ""
+	}
+	return s.SelectedProfile
+}
+
 // Load reads the state file from disk
 // Returns a new empty state if file doesn't exist
 func (m *Manager) Load() (*State, error) {
@@ -58,9 +104,9 @@ func (m *Manager) Load() (*State, error) {
 		return nil, fmt.Errorf("failed to parse state file: %w", err)
 	}
 
-	// Initialize resources map if nil (shouldn't happen, but defensive)
-	if state.Resources == nil {
-		state.Resources = make(map[string]*Resource)
+	// Initialize instances map if nil (defensive)
+	if state.Instances == nil {
+		state.Instances = make(map[string]*InstanceState)
 	}
 
 	// Migrate old state versions forward
@@ -74,7 +120,7 @@ func (m *Manager) Load() (*State, error) {
 // migrateState upgrades an older state to CurrentStateVersion in-memory.
 // The migrated state is persisted on the next Save() call.
 func migrateState(s *State) {
-	// v1 → v2: populate Origin field
+	// v1 → v2: populate Origin field (operates on legacy Resources field)
 	if s.Version < 2 {
 		for _, r := range s.Resources {
 			if r.Origin == "" {
@@ -88,7 +134,27 @@ func migrateState(s *State) {
 	}
 
 	// v2 → v3: History field added (no migration needed - omitempty handles it)
-	// Existing resources will have empty history, which is fine
+
+	// v3 → v4: merge flat Resources into Instances["default"]
+	// Merges rather than overwrites to avoid discarding any existing default instance data.
+	if s.Version < 4 && s.Resources != nil {
+		if s.Instances == nil {
+			s.Instances = make(map[string]*InstanceState)
+		}
+		defaultInst, ok := s.Instances["default"]
+		if !ok || defaultInst == nil {
+			s.Instances["default"] = &InstanceState{Resources: s.Resources}
+		} else {
+			if defaultInst.Resources == nil {
+				defaultInst.Resources = s.Resources
+			} else {
+				for name, r := range s.Resources {
+					defaultInst.Resources[name] = r
+				}
+			}
+		}
+		s.Resources = nil
+	}
 
 	s.Version = CurrentStateVersion
 }
@@ -152,38 +218,44 @@ func (m *Manager) GetStatePath() string {
 	return m.statePath
 }
 
-// UpdateResource is a convenience method that loads state, updates a resource, and saves
+// UpdateResource loads state, updates a resource under the active instance, and saves.
+// Stamps the active product onto the InstanceState if not already set.
 func (m *Manager) UpdateResource(resource *Resource) error {
 	state, err := m.Load()
 	if err != nil {
 		return err
 	}
 
-	state.SetResource(resource)
+	instName := activeInstance()
+	inst := state.getInstance(instName)
+	if inst.Product == "" {
+		inst.Product = activeProduct()
+	}
+	state.SetResource(instName, resource)
 
 	return m.Save(state)
 }
 
-// RemoveResource is a convenience method that loads state, removes a resource, and saves
+// RemoveResource loads state, removes a resource from the active instance, and saves
 func (m *Manager) RemoveResource(name string) error {
 	state, err := m.Load()
 	if err != nil {
 		return err
 	}
 
-	state.DeleteResource(name)
+	state.DeleteResource(activeInstance(), name)
 
 	return m.Save(state)
 }
 
-// GetResource is a convenience method to load and retrieve a single resource
+// GetResource loads state and retrieves a single resource from the active instance
 func (m *Manager) GetResource(name string) (*Resource, error) {
 	state, err := m.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	resource, exists := state.GetResource(name)
+	resource, exists := state.GetResource(activeInstance(), name)
 	if !exists {
 		return nil, fmt.Errorf("resource '%s' not found in state", name)
 	}
@@ -191,14 +263,14 @@ func (m *Manager) GetResource(name string) (*Resource, error) {
 	return resource, nil
 }
 
-// ListResources is a convenience method to load and list resources
+// ListResources loads state and lists resources of the given type from the active instance
 func (m *Manager) ListResources(resourceType string) ([]*Resource, error) {
 	state, err := m.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	return state.ListResources(resourceType), nil
+	return state.ListResources(activeInstance(), resourceType), nil
 }
 
 // stateExists checks if the state file exists

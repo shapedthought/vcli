@@ -87,6 +87,7 @@ owlctl supports declarative management for these VBR resource types:
 | **Scale-Out Repositories (SOBRs)** | `repo sobr-export`, `repo sobr-apply`, `repo sobr-snapshot`, `repo sobr-diff` | ❌ No | Update-only (create in VBR console) |
 | **Encryption Passwords** | `encryption export`, `encryption snapshot`, `encryption diff` | ❌ No | Read-only (password values never exposed) |
 | **KMS Servers** | `encryption kms-export`, `encryption kms-apply`, `encryption kms-snapshot`, `encryption kms-diff` | ❌ No | Update-only (create in VBR console) |
+| **Configuration Backup** | `config-backup export`, `config-backup apply`, `config-backup snapshot`, `config-backup diff` | N/A | Singleton resource — one set of settings per server |
 
 ## Key Concepts
 
@@ -333,51 +334,56 @@ owlctl encryption kms-snapshot "Azure Key Vault"
 owlctl encryption kms-snapshot --all
 ```
 
-**Note:** Jobs are snapshotted automatically when you apply them. Manual snapshots not needed for jobs.
+**Configuration Backup (Singleton):**
+```bash
+# Snapshot configuration backup settings
+owlctl config-backup snapshot
+```
+
+**Note:** Jobs are snapshotted automatically when you apply them. Manual snapshots not needed for jobs. Configuration backup is a singleton — no name or `--all` required.
 
 ### State File Format
 
-`state.json` stores resource states:
+`state.json` stores resource states, scoped by instance. Resources from all instance connections are kept in separate namespaces:
+
 ```json
 {
-  "jobs": {
-    "database-backup": {
-      "id": "57b3baab-6237-41bf-add7-db63d41d984c",
-      "config": { /* full job configuration */ },
-      "lastSnapshot": "2024-01-15T10:30:00Z",
-      "origin": "applied"
-    }
-  },
-  "repositories": {
-    "Default Backup Repository": {
-      "id": "a1b2c3d4-...",
-      "config": { /* full repo configuration */ },
-      "lastSnapshot": "2024-01-15T10:31:00Z",
-      "origin": "snapshot"
+  "version": 4,
+  "instances": {
+    "default": {
+      "product": "vbr",
+      "resources": {
+        "Database Backup": {
+          "type": "VBRJob",
+          "id": "57b3baab-6237-41bf-add7-db63d41d984c",
+          "name": "Database Backup",
+          "lastApplied": "2024-01-15T10:30:00Z",
+          "lastAppliedBy": "administrator",
+          "origin": "applied",
+          "spec": { }
+        },
+        "Default Backup Repository": {
+          "type": "VBRRepository",
+          "id": "a1b2c3d4-...",
+          "name": "Default Backup Repository",
+          "lastApplied": "2024-01-15T10:31:00Z",
+          "lastAppliedBy": "administrator",
+          "origin": "snapshot",
+          "spec": { }
+        }
+      }
+    },
+    "vbr-prod": {
+      "product": "vbr",
+      "resources": { }
     }
   }
 }
 ```
 
-### Adopt Existing Resources
+The `"default"` instance holds resources for commands run without `--instance`. Named instances (e.g., `"vbr-prod"`) are populated when commands run with `--instance vbr-prod`.
 
-Adopt existing resources into declarative management without applying changes:
-
-```bash
-# Adopt repository (snapshot without changes)
-owlctl repo adopt "Default Backup Repository"
-
-# Adopt all repositories
-owlctl repo adopt --all
-
-# Adopt SOBR
-owlctl repo sobr-adopt "SOBR-Production"
-
-# Adopt KMS server
-owlctl encryption kms-adopt "Azure Key Vault"
-```
-
-Adopt takes a snapshot and marks the resource as declaratively managed in `state.json` with `origin: "adopted"`.
+See [State Management Guide](state-management.md) for the full state file reference and migration history.
 
 ## Drift Detection
 
@@ -401,6 +407,11 @@ owlctl repo diff --all
 owlctl repo sobr-diff --all
 owlctl encryption diff --all
 owlctl encryption kms-diff --all
+
+# Configuration Backup (singleton — no name or --all needed)
+owlctl config-backup diff
+owlctl config-backup diff --severity warning
+owlctl config-backup diff --security-only
 
 # Filter by severity
 owlctl job diff --all --severity critical    # Only CRITICAL
@@ -706,21 +717,42 @@ This is useful for one-off operations or simple setups that don't need the full 
 
 Instances define named server connections with product type, URL, credentials, and TLS settings. They enable multi-server automation from a single `owlctl.yaml`.
 
-### Instance Schema
+### Creating Instances (Recommended)
+
+Use `owlctl instance add` to register instances without hand-editing YAML:
+
+```bash
+owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD \
+  --description "Production VBR server"
+
+owlctl instance add vbr-dr \
+  --url vbr-dr.example.com \
+  --product vbr \
+  --credential-ref DR \
+  --description "Disaster recovery site"
+```
+
+This creates or updates `owlctl.yaml` and prints which environment variables to set for credentials. Use `--force` to overwrite an existing instance.
+
+### Instance Schema (Reference)
+
+The equivalent YAML written to `owlctl.yaml`:
 
 ```yaml
-# In owlctl.yaml
 instances:
   vbr-prod:
-    product: vbr                         # Required: vbr, azure, vb365, vone, etc.
-    url: https://vbr-prod.example.com    # Required: server address
+    product: vbr                         # Required: vbr, ent_man, vb365, vone, aws, azure, gcp
+    url: vbr-prod.example.com            # Required: server address
     port: 9419                           # Optional: override product default port
     insecure: true                       # Optional: override global TLS setting
     credentialRef: PROD                  # Optional: env var prefix for credentials
     description: Production VBR server   # Optional: human-readable description
   vbr-dr:
     product: vbr
-    url: https://vbr-dr.example.com
+    url: vbr-dr.example.com
     credentialRef: DR
     description: Disaster recovery site
 ```
@@ -736,11 +768,39 @@ When `credentialRef` is not set, falls back to `OWLCTL_USERNAME` / `OWLCTL_PASSW
 ### Instance Commands
 
 ```bash
-# List all instances
+# Add an instance
+owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credential-ref PROD
+
+# Remove an instance (also clears DefaultInstance in settings.json if it was the default)
+owlctl instance remove vbr-prod
+
+# Set a default — no --instance flag needed on subsequent commands
+owlctl instance set vbr-prod
+
+# Show the current default
+owlctl instance get
+
+# Clear the default
+owlctl instance unset
+
+# List all instances (* marks the default)
 owlctl instance list
 
 # Show instance details
 owlctl instance show vbr-prod
+```
+
+### Default instance
+
+`owlctl instance set` persists the active instance to `settings.json`. Once set, all commands use it automatically — no `--instance` flag needed on every invocation. The `--instance` flag still takes precedence when explicitly provided.
+
+```bash
+owlctl instance set vbr-prod
+owlctl login                      # uses vbr-prod
+owlctl repo snapshot --all        # uses vbr-prod
+owlctl job diff --all             # uses vbr-prod
+
+owlctl --instance vbr-dr job diff --all   # override for this command only
 ```
 
 ### Using --instance

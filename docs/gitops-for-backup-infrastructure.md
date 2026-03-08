@@ -216,6 +216,7 @@ These templates follow the same patterns that teams already use for application 
 | Scale-Out Repositories | Yes | Yes | Yes | Yes |
 | Encryption Passwords | Yes | Read-only | Yes | Yes |
 | KMS Servers | Yes | Yes | Yes | Yes |
+| Configuration Backup | Yes | Yes | Yes | Yes (singleton) |
 
 ---
 
@@ -300,6 +301,7 @@ chmod +x owlctl
 ./owlctl repo sobr-snapshot --all
 ./owlctl encryption snapshot --all
 ./owlctl encryption kms-snapshot --all
+./owlctl config-backup snapshot          # Singleton — no --all needed
 
 # Commit to Git
 git add infrastructure/ state.json

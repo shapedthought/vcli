@@ -11,6 +11,7 @@ owlctl provides drift detection across multiple VBR resource types. It compares 
 | Scale-Out Repositories | `owlctl repo sobr-snapshot` | `owlctl repo sobr-diff` |
 | Encryption Passwords | `owlctl encryption snapshot` | `owlctl encryption diff` |
 | KMS Servers | `owlctl encryption kms-snapshot` | `owlctl encryption kms-diff` |
+| Configuration Backup | `owlctl config-backup snapshot` | `owlctl config-backup diff` |
 
 ## How It Works
 
@@ -21,23 +22,31 @@ owlctl provides drift detection across multiple VBR resource types. It compares 
 
 ### State File
 
-State is stored in `state.json` at either `$OWLCTL_SETTINGS_PATH` or `~/.owlctl/`.
+State is stored in `state.json` at either `$OWLCTL_SETTINGS_PATH` or `~/.owlctl/`. Resources are scoped by instance so multiple VBR servers don't collide.
 
 ```json
 {
-  "version": 1,
-  "resources": {
-    "Backup Job 1": {
-      "type": "VBRJob",
-      "id": "c07c7ea3-...",
-      "name": "Backup Job 1",
-      "lastApplied": "2026-02-01T14:30:00Z",
-      "lastAppliedBy": "edwardhoward",
-      "spec": { }
+  "version": 4,
+  "instances": {
+    "default": {
+      "product": "vbr",
+      "resources": {
+        "Backup Job 1": {
+          "type": "VBRJob",
+          "id": "c07c7ea3-...",
+          "name": "Backup Job 1",
+          "lastApplied": "2026-02-01T14:30:00Z",
+          "lastAppliedBy": "edwardhoward",
+          "origin": "applied",
+          "spec": { }
+        }
+      }
     }
   }
 }
 ```
+
+Commands run without `--instance` use the `"default"` instance. Named instances (e.g., `--instance vbr-prod`) use their own namespace.
 
 > **Note**: State files are operational tools for drift detection, not compliance-grade audit logs. For compliance, use Git commit history + CI/CD logs + VBR audit logs.
 
@@ -176,6 +185,34 @@ owlctl encryption kms-snapshot --all
 # Detect drift
 owlctl encryption kms-diff --all
 ```
+
+## Configuration Backup Drift Detection
+
+Configuration backup is a singleton resource (one set of settings per VBR server) — no name or `--all` flag is needed.
+
+```bash
+# Snapshot current configuration backup settings
+owlctl config-backup snapshot
+
+# Detect drift
+owlctl config-backup diff
+
+# Filter by severity
+owlctl config-backup diff --severity warning
+owlctl config-backup diff --security-only
+```
+
+Configuration backup drift uses its own severity map:
+
+| Field | Severity |
+|-------|----------|
+| `isEnabled` | CRITICAL |
+| `encryption.isEnabled` | CRITICAL |
+| `backupRepositoryId` | WARNING |
+| `encryption.passwordId` | WARNING |
+| `restorePointsToKeep` | WARNING |
+| `schedule` | INFO |
+| `notifications` | INFO |
 
 ## Severity Classification
 

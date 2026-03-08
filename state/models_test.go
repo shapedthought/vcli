@@ -11,11 +11,11 @@ func TestNewState(t *testing.T) {
 	if s.Version != CurrentStateVersion {
 		t.Errorf("Expected version %d, got %d", CurrentStateVersion, s.Version)
 	}
-	if s.Resources == nil {
-		t.Fatal("Expected Resources map to be initialized")
+	if s.Instances == nil {
+		t.Fatal("Expected Instances map to be initialized")
 	}
-	if len(s.Resources) != 0 {
-		t.Errorf("Expected empty Resources map, got %d entries", len(s.Resources))
+	if len(s.Instances) != 0 {
+		t.Errorf("Expected empty Instances map, got %d entries", len(s.Instances))
 	}
 }
 
@@ -29,9 +29,9 @@ func TestStateSetAndGetResource(t *testing.T) {
 		Spec: map[string]interface{}{"key": "value"},
 	}
 
-	s.SetResource(r)
+	s.SetResource("default", r)
 
-	got, exists := s.GetResource("TestJob")
+	got, exists := s.GetResource("default", "TestJob")
 	if !exists {
 		t.Fatal("Expected resource to exist after SetResource")
 	}
@@ -46,19 +46,28 @@ func TestStateSetAndGetResource(t *testing.T) {
 func TestStateGetResourceMissing(t *testing.T) {
 	s := NewState()
 
-	_, exists := s.GetResource("nonexistent")
+	_, exists := s.GetResource("default", "nonexistent")
 	if exists {
 		t.Error("Expected exists=false for missing resource")
 	}
 }
 
+func TestStateGetResourceMissingInstance(t *testing.T) {
+	s := NewState()
+
+	_, exists := s.GetResource("no-such-instance", "MyJob")
+	if exists {
+		t.Error("Expected exists=false for missing instance")
+	}
+}
+
 func TestStateDeleteResource(t *testing.T) {
 	s := NewState()
-	s.SetResource(&Resource{Name: "ToDelete", Type: "VBRJob", ID: "1"})
+	s.SetResource("default", &Resource{Name: "ToDelete", Type: "VBRJob", ID: "1"})
 
-	s.DeleteResource("ToDelete")
+	s.DeleteResource("default", "ToDelete")
 
-	_, exists := s.GetResource("ToDelete")
+	_, exists := s.GetResource("default", "ToDelete")
 	if exists {
 		t.Error("Expected resource to be deleted")
 	}
@@ -68,25 +77,28 @@ func TestStateDeleteResourceMissing(t *testing.T) {
 	s := NewState()
 
 	// Should not panic
-	s.DeleteResource("nonexistent")
+	s.DeleteResource("default", "nonexistent")
+}
 
-	if len(s.Resources) != 0 {
-		t.Errorf("Expected empty resources, got %d", len(s.Resources))
-	}
+func TestStateDeleteResourceMissingInstance(t *testing.T) {
+	s := NewState()
+
+	// Should not panic for a non-existent instance
+	s.DeleteResource("no-such-instance", "MyJob")
 }
 
 func TestStateListResources(t *testing.T) {
 	s := NewState()
-	s.SetResource(&Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
-	s.SetResource(&Resource{Name: "Job2", Type: "VBRJob", ID: "2"})
-	s.SetResource(&Resource{Name: "Repo1", Type: "VBRRepository", ID: "3"})
+	s.SetResource("default", &Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
+	s.SetResource("default", &Resource{Name: "Job2", Type: "VBRJob", ID: "2"})
+	s.SetResource("default", &Resource{Name: "Repo1", Type: "VBRRepository", ID: "3"})
 
-	jobs := s.ListResources("VBRJob")
+	jobs := s.ListResources("default", "VBRJob")
 	if len(jobs) != 2 {
 		t.Errorf("Expected 2 VBRJob resources, got %d", len(jobs))
 	}
 
-	repos := s.ListResources("VBRRepository")
+	repos := s.ListResources("default", "VBRRepository")
 	if len(repos) != 1 {
 		t.Errorf("Expected 1 VBRRepository resource, got %d", len(repos))
 	}
@@ -94,9 +106,9 @@ func TestStateListResources(t *testing.T) {
 
 func TestStateListResourcesNoMatch(t *testing.T) {
 	s := NewState()
-	s.SetResource(&Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
+	s.SetResource("default", &Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
 
-	result := s.ListResources("VBREncryptionPassword")
+	result := s.ListResources("default", "VBREncryptionPassword")
 	if len(result) != 0 {
 		t.Errorf("Expected 0 matches, got %d", len(result))
 	}
@@ -104,13 +116,44 @@ func TestStateListResourcesNoMatch(t *testing.T) {
 
 func TestStateListResourcesEmptyType(t *testing.T) {
 	s := NewState()
-	s.SetResource(&Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
-	s.SetResource(&Resource{Name: "Repo1", Type: "VBRRepository", ID: "2"})
+	s.SetResource("default", &Resource{Name: "Job1", Type: "VBRJob", ID: "1"})
+	s.SetResource("default", &Resource{Name: "Repo1", Type: "VBRRepository", ID: "2"})
 
-	// Empty type string returns all resources
-	all := s.ListResources("")
+	// Empty type string returns all resources in the instance
+	all := s.ListResources("default", "")
 	if len(all) != 2 {
 		t.Errorf("Expected 2 resources for empty type filter, got %d", len(all))
+	}
+}
+
+func TestStateListResourcesMissingInstance(t *testing.T) {
+	s := NewState()
+
+	result := s.ListResources("no-such-instance", "VBRJob")
+	if result != nil {
+		t.Errorf("Expected nil for missing instance, got %v", result)
+	}
+}
+
+func TestStateInstanceIsolation(t *testing.T) {
+	s := NewState()
+	s.SetResource("vbr-prod", &Resource{Name: "Production", Type: "VBRJob", ID: "1"})
+	s.SetResource("azure-prod", &Resource{Name: "Production", Type: "AzurePolicy", ID: "2"})
+
+	vbrRes, ok := s.GetResource("vbr-prod", "Production")
+	if !ok {
+		t.Fatal("Expected resource in vbr-prod")
+	}
+	if vbrRes.Type != "VBRJob" {
+		t.Errorf("Expected VBRJob in vbr-prod, got %s", vbrRes.Type)
+	}
+
+	azureRes, ok := s.GetResource("azure-prod", "Production")
+	if !ok {
+		t.Fatal("Expected resource in azure-prod")
+	}
+	if azureRes.Type != "AzurePolicy" {
+		t.Errorf("Expected AzurePolicy in azure-prod, got %s", azureRes.Type)
 	}
 }
 

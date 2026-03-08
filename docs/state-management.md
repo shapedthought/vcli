@@ -147,6 +147,8 @@ owlctl --instance vbr-prod job diff --all
 owlctl --instance vbr-dr repo diff --all
 ```
 
+> **Important**: You must use the same `--instance` flag on both snapshot and diff commands. A snapshot taken with `--instance vbr-prod` is stored under `instances["vbr-prod"]`. Running `diff` without `--instance` looks in `instances["default"]` and will not find that state — reporting no baseline rather than the correct drift.
+
 ### Multi-instance snapshot workflow
 
 ```bash

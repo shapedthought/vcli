@@ -145,6 +145,21 @@ The severity level of the header reflects the highest severity drift found. The 
 | `description` | WARNING |
 | All other fields | INFO |
 
+### Configuration Backup Fields
+
+Configuration backup is a singleton resource. Drift is detected against the last snapshot taken with `owlctl config-backup snapshot`.
+
+| Field Path | Default Severity |
+|-----------|-----------------|
+| `isEnabled` | CRITICAL |
+| `encryption.isEnabled` | CRITICAL |
+| `backupRepositoryId` | WARNING |
+| `encryption.passwordId` | WARNING |
+| `restorePointsToKeep` | WARNING |
+| `schedule` | INFO |
+| `notifications` | INFO |
+| All other fields | INFO |
+
 ## Example: Complete Security Workflow
 
 ```bash
@@ -153,6 +168,7 @@ owlctl repo snapshot --all
 owlctl repo sobr-snapshot --all
 owlctl encryption snapshot --all
 owlctl encryption kms-snapshot --all
+owlctl config-backup snapshot          # Singleton — no --all needed
 
 # 2. Apply job configurations (creates job state)
 owlctl job apply prod-backup.yaml
@@ -162,6 +178,7 @@ owlctl job diff --all --security-only
 owlctl repo diff --all --security-only
 owlctl repo sobr-diff --all --security-only
 owlctl encryption diff --all --security-only
+owlctl config-backup diff --security-only
 
 # 4. Full audit check
 owlctl job diff --all
@@ -169,6 +186,7 @@ owlctl repo diff --all
 owlctl repo sobr-diff --all
 owlctl encryption diff --all
 owlctl encryption kms-diff --all
+owlctl config-backup diff
 ```
 
 ### Automated Security Gate
@@ -183,7 +201,8 @@ for CMD in \
     "owlctl job diff --all --severity critical" \
     "owlctl repo diff --all --severity critical" \
     "owlctl repo sobr-diff --all --severity critical" \
-    "owlctl encryption diff --all --severity critical"
+    "owlctl encryption diff --all --severity critical" \
+    "owlctl config-backup diff --severity critical"
 do
     eval $CMD
     if [ $? -eq 4 ]; then

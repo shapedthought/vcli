@@ -555,6 +555,13 @@ jobs:
           echo "" >> drift-report.md
           if [ $SOBR_EXIT -eq 4 ]; then CRITICAL=1; fi
 
+          echo "### Configuration Backup" >> drift-report.md
+          ./owlctl config-backup diff --security-only > cb-drift.txt 2>&1
+          CB_EXIT=$?
+          cat cb-drift.txt >> drift-report.md
+          echo "" >> drift-report.md
+          if [ $CB_EXIT -eq 4 ]; then CRITICAL=1; fi
+
           echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
 
       - name: Create Issue on Critical Drift
@@ -1251,6 +1258,10 @@ jobs:
 
           echo "## Encryption" >> compliance-report.md
           ./owlctl encryption diff --all >> compliance-report.md 2>&1
+          echo "" >> compliance-report.md
+
+          echo "## Configuration Backup" >> compliance-report.md
+          ./owlctl config-backup diff >> compliance-report.md 2>&1
           echo "" >> compliance-report.md
 
       - name: Upload report

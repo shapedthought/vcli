@@ -467,6 +467,7 @@ rm ~/.owlctl/state.json
 ./owlctl repo sobr-snapshot --all
 ./owlctl encryption snapshot --all
 ./owlctl encryption kms-snapshot --all
+./owlctl config-backup snapshot          # Singleton — no --all needed
 ```
 
 ### Resource Not Found (Exit Code 6)
@@ -488,7 +489,9 @@ rm ~/.owlctl/state.json
 | `OWLCTL_PASSWORD` | Yes | API password |
 | `OWLCTL_URL` | Yes | Veeam server hostname/IP (without https:// or port) |
 | `OWLCTL_SETTINGS_PATH` | No | Directory for config files (default: current directory) |
-| `OWLCTL_CONFIG` | No | Path to owlctl.yaml (planned feature) |
+| `OWLCTL_CONFIG` | No | Path to owlctl.yaml |
+| `OWLCTL_{REF}_USERNAME` | No | Username for named credential ref (e.g., `OWLCTL_PROD_USERNAME`) |
+| `OWLCTL_{REF}_PASSWORD` | No | Password for named credential ref (e.g., `OWLCTL_PROD_PASSWORD`) |
 
 ## Exit Codes
 

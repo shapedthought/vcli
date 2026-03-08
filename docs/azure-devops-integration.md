@@ -449,6 +449,7 @@ steps:
       ./owlctl repo sobr-snapshot --all
       ./owlctl encryption snapshot --all
       ./owlctl encryption kms-snapshot --all
+      ./owlctl config-backup snapshot
     displayName: 'Bootstrap declarative management'
 ```
 
@@ -649,6 +650,7 @@ steps:
       ./owlctl repo sobr-diff --all --security-only
       ./owlctl encryption diff --all --security-only
       ./owlctl encryption kms-diff --all --security-only
+      ./owlctl config-backup diff --security-only      # Singleton — no --all flag
 
       # Epic #23 Phase 2 (planned — #29, #30, #31, #32)
       ./owlctl rbac diff --all --security-only
@@ -658,7 +660,6 @@ steps:
 
       # Epic #23 Phase 3 (planned — #33, #34, #35)
       ./owlctl malware diff --all --security-only
-      ./owlctl config-backup diff --all --security-only
       ./owlctl notifications diff --all --security-only
     displayName: 'Full security scan'
 ```

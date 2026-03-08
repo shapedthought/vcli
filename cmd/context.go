@@ -15,6 +15,14 @@ import (
 var contextCmd = &cobra.Command{
 	Use:   "context",
 	Short: "Switch and inspect the active environment context",
+	// PersistentPreRunE is set to a no-op so that all context subcommands bypass
+	// the root PersistentPreRunE, which tries to activate DefaultInstance. This is
+	// important because:
+	//   - context use/current/list only manage config files and do not need a live
+	//     server connection
+	//   - context use - is the recovery command for a stale DefaultInstance; if the
+	//     root hook runs first it would error before the clear can happen
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	Long: `Manage the active context (named instance) for owlctl commands.
 
 Contexts map directly to named instances defined in owlctl.yaml. Use

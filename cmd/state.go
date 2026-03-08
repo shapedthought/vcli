@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"text/tabwriter"
-	"os"
 
 	"github.com/shapedthought/owlctl/state"
 	"github.com/spf13/cobra"
@@ -199,7 +199,11 @@ func showStateResource(resourceName string) {
 
 	activeInst := instanceFlag
 	if activeInst == "" {
-		activeInst = "default"
+		if envInst := os.Getenv("OWLCTL_ACTIVE_INSTANCE"); envInst != "" {
+			activeInst = envInst
+		} else {
+			activeInst = "default"
+		}
 	}
 
 	// First pass: look in active instance

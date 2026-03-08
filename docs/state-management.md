@@ -51,90 +51,75 @@ export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 
 ## State File Format
 
-`state.json` stores resource configurations organized by type:
+`state.json` (v4) organises resources by **instance**, then by **resource name**. Each instance also records which product it belongs to, enabling multi-product support (VBR, Azure, AWS, etc.) without name collisions.
 
 ```json
 {
-  "jobs": {
-    "Database Backup": {
-      "id": "57b3baab-6237-41bf-add7-db63d41d984c",
-      "config": {
-        "name": "Database Backup",
-        "type": "VSphereBackup",
-        "repository": "prod-repo",
-        "storage": {
-          "compression": "Optimal",
-          "retention": {
-            "type": "Days",
-            "quantity": 30
-          }
+  "version": 4,
+  "instances": {
+    "default": {
+      "product": "vbr",
+      "resources": {
+        "Database Backup": {
+          "type": "VBRJob",
+          "id": "57b3baab-6237-41bf-add7-db63d41d984c",
+          "name": "Database Backup",
+          "lastApplied": "2025-01-15T10:30:00Z",
+          "lastAppliedBy": "admin",
+          "origin": "applied",
+          "spec": { ... }
+        },
+        "Default Backup Repository": {
+          "type": "VBRRepository",
+          "id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+          "name": "Default Backup Repository",
+          "lastApplied": "2025-01-15T10:31:00Z",
+          "lastAppliedBy": "admin",
+          "origin": "observed",
+          "spec": { ... }
         }
-        // ... full job configuration
-      },
-      "lastSnapshot": "2024-01-15T10:30:00Z",
-      "origin": "applied"
-    }
-  },
-  "repositories": {
-    "Default Backup Repository": {
-      "id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
-      "config": {
-        "name": "Default Backup Repository",
-        "type": "LinuxLocal",
-        "path": "/backup",
-        "immutabilityEnabled": true
-        // ... full repository configuration
-      },
-      "lastSnapshot": "2024-01-15T10:31:00Z",
-      "origin": "snapshot"
-    }
-  },
-  "sobrs": {
-    "SOBR-Production": {
-      "id": "b2c3d4e5-6789-01bc-def1-234567890abc",
-      "config": {
-        "name": "SOBR-Production",
-        "extents": [
-          // ... extent configurations
-        ]
-      },
-      "lastSnapshot": "2024-01-15T10:32:00Z",
-      "origin": "adopted"
-    }
-  },
-  "encryptionPasswords": {
-    "Production Encryption Key": {
-      "id": "c3d4e5f6-7890-12cd-ef12-34567890abcd",
-      "config": {
-        "description": "Production encryption password",
-        "hint": "Company standard key"
-        // Password value never stored
-      },
-      "lastSnapshot": "2024-01-15T10:33:00Z",
-      "origin": "snapshot"
-    }
-  },
-  "kmsServers": {
-    "Azure Key Vault": {
-      "id": "d4e5f6g7-8901-23de-f123-4567890abcde",
-      "config": {
-        "name": "Azure Key Vault",
-        "type": "Azure",
-        "endpoint": "https://vault.azure.net"
-        // ... KMS configuration
-      },
-      "lastSnapshot": "2024-01-15T10:34:00Z",
-      "origin": "applied"
+      }
+    },
+    "vbr-prod": {
+      "product": "vbr",
+      "resources": {
+        "Database Backup": {
+          "type": "VBRJob",
+          ...
+        }
+      }
     }
   }
 }
 ```
 
 **Field definitions:**
+- **version** - State file format version (current: 4)
+- **instances** - Map of instance name → instance state
+- **instances[name].product** - Product identifier (`vbr`, `azure`, `aws`, etc.)
+- **instances[name].resources** - Map of resource name → resource
+- **type** - Resource kind (e.g. `VBRJob`, `VBRRepository`, `VBRConfigurationBackup`)
 - **id** - VBR resource ID (UUID)
-- **config** - Full resource configuration as JSON
-- **lastSnapshot** - ISO 8601 timestamp of last snapshot
+- **name** - Resource name
+- **lastApplied** - ISO 8601 timestamp of last snapshot or apply
+- **lastAppliedBy** - OS username of who ran the command
 - **origin** - How the resource entered state management (see below)
+- **spec** - Full resource configuration as a JSON object
+
+### Instance scoping
+
+When no `--instance` flag is active, all resources are stored under `instances["default"]`. When using `--instance vbr-prod`, resources are stored under `instances["vbr-prod"]`. The same resource name in different instances never collides.
+
+The active instance is controlled by the `OWLCTL_ACTIVE_INSTANCE` environment variable, which is set automatically by `ActivateInstance()` when `--instance` is used.
+
+### Automatic migration
+
+State files from earlier versions are migrated automatically on first load:
+- **v1→v2**: `origin` field populated (`VBRJob` → `"applied"`, others → `"observed"`)
+- **v2→v3**: `history` field introduced (no data migration needed)
+- **v3→v4**: flat `resources` map moved into `instances["default"]`
+
+No manual steps are required. The migrated state is written back on the next save.
 
 ## Creating State
 
@@ -603,16 +588,21 @@ git commit -m "Adopt existing VBR resources into declarative management"
 git push
 ```
 
-### 5. Separate State by Environment
+### 5. Separate State by Instance
 
-Use different state files for different environments:
+State v4 scopes resources by instance automatically — you don't need separate state files per environment. Define instances in `owlctl.yaml` and use `--instance`:
+
 ```bash
-# Production
-export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/prod/"
-owlctl repo snapshot --all
+# Production VBR — stored under instances["vbr-prod"]
+owlctl --instance vbr-prod repo snapshot --all
 
-# Development
-export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/dev/"
+# DR VBR — stored under instances["vbr-dr"]
+owlctl --instance vbr-dr repo snapshot --all
+```
+
+If you prefer separate state files (e.g. for isolated CI/CD runners), you can still use `OWLCTL_SETTINGS_PATH`:
+```bash
+export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/prod/"
 owlctl repo snapshot --all
 ```
 

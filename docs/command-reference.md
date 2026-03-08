@@ -157,6 +157,31 @@ owlctl encryption kms-apply kms.yaml --dry-run
 
 **Note:** Repos, SOBRs, and KMS are update-only. Create them in VBR console first.
 
+### Configuration Backup Settings (Singleton)
+
+VBR configuration backup is a singleton resource — one set of settings per server, no name or `--all` required.
+
+```bash
+# Snapshot current settings to state
+owlctl config-backup snapshot
+
+# Detect drift between state and live VBR
+owlctl config-backup diff
+owlctl config-backup diff --severity warning
+owlctl config-backup diff --security-only
+
+# Export current settings to YAML
+owlctl config-backup export
+owlctl config-backup export -o config-backup.yaml
+
+# Apply settings from YAML
+owlctl config-backup apply config-backup.yaml
+owlctl config-backup apply config-backup.yaml --dry-run
+owlctl config-backup apply config-backup.yaml --overlay prod-overlay.yaml
+```
+
+---
+
 ### Snapshot State
 
 ```bash
@@ -175,6 +200,9 @@ owlctl encryption snapshot --all
 # KMS Servers
 owlctl encryption kms-snapshot <name>
 owlctl encryption kms-snapshot --all
+
+# Configuration Backup (singleton — no name needed)
+owlctl config-backup snapshot
 ```
 
 **Note:** Jobs are snapshotted automatically on apply.
@@ -195,6 +223,9 @@ owlctl repo diff --all
 owlctl repo sobr-diff --all
 owlctl encryption diff --all
 owlctl encryption kms-diff --all
+
+# Configuration Backup (singleton)
+owlctl config-backup diff
 
 # Severity filtering
 owlctl job diff --all --severity critical   # Only CRITICAL
@@ -408,6 +439,7 @@ owlctl job export --all -d specs/jobs/
 owlctl repo export --all -d specs/repos/
 owlctl repo sobr-export --all -d specs/sobrs/
 owlctl encryption kms-export --all -d specs/kms/
+owlctl config-backup export -o specs/config-backup.yaml
 
 # Commit to Git
 git add specs/

@@ -97,17 +97,25 @@ export OWLCTL_URL="vbr.example.com"
 
 **Declarative Mode** (infrastructure-as-code for VBR):
 ```bash
-# Export existing configuration
+# Register your VBR server (creates owlctl.yaml)
+./owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr
+./owlctl instance set vbr-prod
+
+# Export existing configuration to YAML
 ./owlctl job export <job-id> -o my-job.yaml
 
-# Apply configuration
+# Apply configuration (also saves state for drift detection)
 ./owlctl job apply my-job.yaml --dry-run
+./owlctl job apply my-job.yaml
 
-# Detect drift
+# Snapshot resources that aren't managed by apply yet
+./owlctl repo snapshot --all
+
+# Detect drift against saved state
 ./owlctl job diff --all --security-only
 ```
 
-📖 **Next steps:** [User Guide](user_guide.md) | [GitOps Workflows](docs/gitops-workflows.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
+📖 **Next steps:** [Getting Started](docs/getting-started.md) | [State Management](docs/state-management.md) | [GitOps Workflows](docs/gitops-workflows.md) | [Drift Detection](docs/drift-detection.md) | [Azure DevOps Integration](docs/azure-devops-integration.md)
 
 ## Detailed Documentation
 
@@ -380,6 +388,7 @@ owlctl job diff --all --security-only        # WARNING and above
 | `1` | Error |
 
 For full details, see:
+- [State Management Guide](docs/state-management.md)
 - [Drift Detection Guide](docs/drift-detection.md)
 - [Security Alerting](docs/security-alerting.md)
 

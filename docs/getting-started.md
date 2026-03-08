@@ -87,6 +87,18 @@ This creates:
 ./owlctl init profiles
 ```
 
+> **What `init` creates:** `settings.json` (owlctl settings) and `profiles.json` (Veeam product API profiles). It does **not** create `owlctl.yaml` or `state.json` — those come later.
+
+### Configuration Files at a Glance
+
+| File | Created by | Purpose |
+|------|-----------|---------|
+| `settings.json` | `owlctl init` | Active profile, TLS setting, default instance |
+| `profiles.json` | `owlctl init` | Per-product API metadata (ports, endpoints, headers) |
+| `headers.json` | `owlctl login` | Auth token for the current session |
+| `owlctl.yaml` | `owlctl instance add` | Named instance and group definitions |
+| `state.json` | first `snapshot` or `apply` | Drift detection baseline for managed resources |
+
 ### 2. Set Credentials
 
 owlctl reads credentials from environment variables:
@@ -125,7 +137,7 @@ Set the Veeam product you're connecting to:
 ./owlctl profile --get
 ```
 
-Profile commands require explicit arguments and return clean output for scripting.
+> **Using instances?** When you use `--instance` or `owlctl instance set`, the profile is set automatically from the instance definition. You can skip this step if you're going straight to the instance-based workflow below.
 
 **Available Profiles:**
 - `vbr` - Veeam Backup & Replication (port 9419)
@@ -136,7 +148,38 @@ Profile commands require explicit arguments and return clean output for scriptin
 - `azure` - Veeam Backup for Azure (port 443)
 - `gcp` - Veeam Backup for GCP (port 13140)
 
-### 4. Login
+### 4. Register an Instance (Recommended for Declarative Mode)
+
+If you plan to use declarative mode, register your server as a named instance. This creates `owlctl.yaml` and lets you avoid passing connection flags on every command.
+
+```bash
+# Register a VBR instance (creates owlctl.yaml if it doesn't exist)
+./owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --description "Production VBR"
+
+# Set it as the default — no --instance flag needed from here on
+./owlctl instance set vbr-prod
+
+# Verify
+./owlctl instance get
+```
+
+**With separate credentials per instance** (for multi-server setups):
+```bash
+export OWLCTL_PROD_USERNAME="administrator"
+export OWLCTL_PROD_PASSWORD="your-password"
+
+./owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD
+```
+
+> Skip this step if you're only using imperative mode with environment variables.
+
+### 5. Login
 
 Authenticate with the Veeam API:
 
@@ -185,7 +228,7 @@ owlctl supports two distinct modes of operation. Choose based on your use case.
 - `owlctl post <endpoint>` - Trigger operations (with optional `-f data.json`)
 - `owlctl put <endpoint> -f data.json` - Update resources
 
-See the [User Guide](../user_guide.md) for complete imperative mode documentation.
+See the [Imperative Mode Guide](imperative-mode.md) for complete documentation.
 
 ### Declarative Mode (VBR Only)
 
@@ -258,7 +301,20 @@ git commit -m "Update retention to 30 days for prod backup"
 git push
 ```
 
-#### 6. Detect Drift
+#### 6. Snapshot State
+
+Before drift detection can work, owlctl needs a baseline. Every `apply` saves state automatically. For resources you haven't applied yet (repositories, SOBRs, encryption, KMS), take a snapshot first:
+
+```bash
+./owlctl repo snapshot --all
+./owlctl repo sobr-snapshot --all
+./owlctl encryption snapshot --all
+./owlctl encryption kms-snapshot --all
+```
+
+> **Why?** `diff` compares the live VBR configuration against the last saved state. Without a snapshot or prior apply, there is nothing to compare against and diff will report that resources are untracked. See the [State Management Guide](state-management.md) for a full explanation.
+
+#### 7. Detect Drift
 
 Someone makes a manual change in VBR? owlctl will detect it:
 
@@ -368,17 +424,18 @@ See [Declarative Mode Guide](declarative-mode.md#groups) for the full groups ref
 
 ### Imperative Mode Users
 
-- Read the [User Guide](../user_guide.md) for detailed command reference
+- Read the [Imperative Mode Guide](imperative-mode.md) for detailed command reference
 - Learn about [API profiles](../user_guide.md#profiles) for multi-product management
 - Explore [output formatting](../user_guide.md#using-with-nushell) with jq and Nushell
 
 ### Declarative Mode Users
 
-- **Start here:** [GitOps Workflows Guide](gitops-workflows.md) - Comprehensive CI/CD integration
-- Deep dive into [Drift Detection](drift-detection.md)
-- Understand [Security Alerting](security-alerting.md) severity classification
-- Set up [Azure DevOps Integration](azure-devops-integration.md) for CI/CD
-- Review [pipeline templates](../examples/pipelines/) for automation
+- **Start here:** [State Management Guide](state-management.md) - How state works, instance scoping, and bootstrapping drift detection
+- [GitOps Workflows Guide](gitops-workflows.md) - Comprehensive CI/CD integration
+- [Drift Detection](drift-detection.md) - Severity classification and filtering
+- [Security Alerting](security-alerting.md) - Value-aware severity reference
+- [Azure DevOps Integration](azure-devops-integration.md) for CI/CD
+- [Pipeline templates](../examples/pipelines/) for automation
 
 ### Both
 

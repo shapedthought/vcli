@@ -2,6 +2,8 @@
 
 owlctl maintains state in `state.json` to enable drift detection and track declarative resource management. This guide explains how state management works and best practices for using it.
 
+> **New to owlctl?** Complete [Getting Started](getting-started.md) first — it covers installation, credentials, instance setup, and your first snapshot before returning here.
+
 ## Table of Contents
 
 - [Overview](#overview)

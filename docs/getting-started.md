@@ -177,6 +177,20 @@ export OWLCTL_PROD_PASSWORD="your-password"
   --credential-ref PROD
 ```
 
+**Managing multiple environments (e.g. VBR + Azure)?** Use `context` commands to switch between them:
+
+```bash
+./owlctl instance add azure-prod --url azure.example.com --product azure --credential-ref AZURE
+
+# Switch context when working on a different environment
+./owlctl context use azure-prod
+./owlctl get policies
+
+# Switch back
+./owlctl context use vbr-prod
+./owlctl context list    # see all environments, * marks the active one
+```
+
 > Skip this step if you're only using imperative mode with environment variables.
 
 ### 5. Login

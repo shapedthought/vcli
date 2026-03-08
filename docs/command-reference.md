@@ -8,6 +8,7 @@ Fast reference for common owlctl commands. See full documentation in [User Guide
 - [Imperative Commands (All Products)](#imperative-commands-all-products)
 - [Declarative Commands (VBR Only)](#declarative-commands-vbr-only)
 - [Group Commands](#group-commands)
+- [Context Commands](#context-commands)
 - [Instance Commands](#instance-commands)
 - [Target Commands](#target-commands)
 - [Common Flags](#common-flags)
@@ -276,6 +277,31 @@ owlctl job diff --group sql-tier
 ```
 
 **Note:** `--group` is mutually exclusive with positional file args, `-o/--overlay`, `--env`, and `--all`.
+
+---
+
+## Context Commands
+
+Context commands provide a familiar way to switch between environments, modelled on `kubectl config`. A context is a named instance from `owlctl.yaml`.
+
+```bash
+# List all contexts (* marks the active one)
+owlctl context list
+
+# Switch active context
+owlctl context use vbr-prod
+owlctl context use azure-prod
+
+# Clear the active context
+owlctl context use -
+
+# Show the current active context
+owlctl context current
+```
+
+> **Context vs Instance:** `context` commands are aliases for the equivalent `instance` operations — `context use` = `instance set`, `context current` = `instance get`, `context list` = `instance list`. Use whichever feels natural. All instance configuration (add, remove, show) remains under `owlctl instance`.
+
+> **Familiar with kubectl?** The pattern is the same: `owlctl context use` = `kubectl config use-context`, `owlctl context list` = `kubectl config get-contexts`, `owlctl context current` = `kubectl config current-context`.
 
 ---
 

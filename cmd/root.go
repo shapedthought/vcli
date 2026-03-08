@@ -23,15 +23,18 @@ var rootCmd = &cobra.Command{
 	Short: "A CLI application for Veeam APIs",
 	Long:  `A CLI application that works with all Veeam APIs`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if instanceFlag != "" && targetFlag != "" {
-			return fmt.Errorf("cannot use --instance and --target together")
-		}
-
 		// --instance: load config, resolve, and activate the instance
 		effectiveInstance := instanceFlag
 		if effectiveInstance == "" {
-			settings := utils.ReadSettings()
+			settings, _ := utils.TryReadSettings()
 			effectiveInstance = settings.DefaultInstance
+		}
+
+		if instanceFlag != "" && targetFlag != "" {
+			return fmt.Errorf("cannot use --instance and --target together")
+		}
+		if effectiveInstance != "" && targetFlag != "" {
+			return fmt.Errorf("cannot use --target when a default instance is set — run 'owlctl instance unset' or use --instance explicitly")
 		}
 
 		if effectiveInstance != "" {

@@ -107,7 +107,7 @@ func ActivateInstance(resolved *ResolvedInstance) error {
 
 	// 5. Override settings so ReadSettings() returns the instance's product + insecure
 	// Read current settings first to preserve fields not overridden by the instance
-	currentSettings := utils.ReadSettings()
+	currentSettings, _ := utils.TryReadSettings()
 	currentSettings.SelectedProfile = resolved.Product
 	if resolved.Insecure != nil {
 		currentSettings.ApiNotSecure = *resolved.Insecure

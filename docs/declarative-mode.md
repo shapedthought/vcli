@@ -771,7 +771,7 @@ When `credentialRef` is not set, falls back to `OWLCTL_USERNAME` / `OWLCTL_PASSW
 # Add an instance
 owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credential-ref PROD
 
-# Remove an instance
+# Remove an instance (also clears DefaultInstance in settings.json if it was the default)
 owlctl instance remove vbr-prod
 
 # Set a default — no --instance flag needed on subsequent commands

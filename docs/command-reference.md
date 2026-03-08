@@ -309,7 +309,7 @@ owlctl instance list
 # Show instance details (product, URL, credential ref)
 owlctl instance show vbr-prod
 
-# Remove an instance
+# Remove an instance (also clears DefaultInstance in settings.json if it was the default)
 owlctl instance remove vbr-prod
 ```
 

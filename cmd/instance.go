@@ -13,6 +13,14 @@ import (
 var instanceCmd = &cobra.Command{
 	Use:   "instance",
 	Short: "Manage named instances",
+	// PersistentPreRunE is set to a no-op so that all instance subcommands bypass
+	// the root PersistentPreRunE, which tries to activate DefaultInstance. This is
+	// important because:
+	//   - instance set/unset/get/list/show/add/remove only manage config files and
+	//     do not need a live server connection
+	//   - instance unset is the recovery command for a stale DefaultInstance; if the
+	//     root hook runs first it would error before unset can fix the problem
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	Long: `Instance commands for managing named server connections defined in owlctl.yaml.
 
 Instances define named server connections with product type, URL, port,
@@ -45,7 +53,7 @@ var instanceListCmd = &cobra.Command{
 			return
 		}
 
-		settings := utils.ReadSettings()
+		settings, _ := utils.TryReadSettings()
 		defaultInstance := settings.DefaultInstance
 
 		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
@@ -112,7 +120,7 @@ Examples:
 			log.Fatalf("Cannot set default: %v", err)
 		}
 
-		settings := utils.ReadSettings()
+		settings, _ := utils.TryReadSettings()
 		settings.DefaultInstance = name
 		if err := utils.WriteSettings(settings); err != nil {
 			log.Fatalf("Failed to save settings: %v", err)
@@ -128,7 +136,7 @@ var instanceGetCmd = &cobra.Command{
 	Short: "Show the current default instance from settings.json",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		settings := utils.ReadSettings()
+		settings, _ := utils.TryReadSettings()
 		if settings.DefaultInstance == "" {
 			fmt.Println("(none)")
 		} else {
@@ -142,7 +150,7 @@ var instanceUnsetCmd = &cobra.Command{
 	Short: "Clear the default instance from settings.json",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		settings := utils.ReadSettings()
+		settings, _ := utils.TryReadSettings()
 		if settings.DefaultInstance == "" {
 			fmt.Println("No default instance is set.")
 			return
@@ -304,6 +312,17 @@ var instanceRemoveCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Instance %q removed from owlctl.yaml.\n", name)
+
+		// If this instance was the default, clear it from settings.json
+		settings, _ := utils.TryReadSettings()
+		if settings.DefaultInstance == name {
+			settings.DefaultInstance = ""
+			if err := utils.WriteSettings(settings); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not clear DefaultInstance from settings.json: %v\n", err)
+			} else {
+				fmt.Printf("Cleared %q as the default instance.\n", name)
+			}
+		}
 	},
 }
 

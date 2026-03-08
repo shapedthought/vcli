@@ -467,6 +467,32 @@ After completing any task, consider these second-order effects before finishing:
 - Does `docs/command-reference.md` need a new entry?
 - Are there examples elsewhere using the old/deprecated approach that should be updated?
 
+### Session Start — Load Vault Context
+
+At the start of every session, proactively search the Obsidian vault to load relevant context:
+
+```bash
+~/.npm-global/bin/qmd query "owlctl <topic>"
+```
+
+Key vault notes: `owlctl/architecture.md`, `owlctl/veeam-api-notes.md`, `owlctl/known-issues.md`
+Vault path: `/Users/edwardhoward/Documents/obsidian vault/`
+Use the `/load-owlctl` skill as a fallback if not done automatically.
+
+### Keeping Long-Term Memory Current
+
+The vault notes and MEMORY.md are only useful if they stay accurate. Update them when:
+
+- **Architecture changes** — new commands, redesigned flows, new config file ownership rules → update `owlctl/architecture.md`
+- **Veeam API behaviour discovered** — new quirks, undocumented constraints, corrected port/auth info → update `owlctl/veeam-api-notes.md`
+- **Bugs fixed or debt introduced** — move fixed items to "Fixed (recent)" in `owlctl/known-issues.md`, add new debt entries
+- **MEMORY.md becomes stale** — if a note in MEMORY.md is wrong or outdated, correct it immediately rather than working around it
+
+After updating any vault note, re-index:
+```bash
+~/.npm-global/bin/qmd update && ~/.npm-global/bin/qmd embed
+```
+
 ### Documentation Consistency Rules
 
 These invariants must hold across all docs, README, and CLAUDE.md examples:

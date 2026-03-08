@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,10 @@ and support multi-server automation.
 Commands:
   owlctl instance add <name>        Add or update an instance in owlctl.yaml
   owlctl instance remove <name>     Remove an instance from owlctl.yaml
-  owlctl instance list              List all defined instances
+  owlctl instance set <name>        Set the default instance (persisted to settings.json)
+  owlctl instance get               Show the current default instance
+  owlctl instance unset             Clear the default instance
+  owlctl instance list              List all defined instances (* marks the default)
   owlctl instance show <name>       Show details of a specific instance
 `,
 }
@@ -41,8 +45,11 @@ var instanceListCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
-		fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", "----", "-------", "---", "--------------", "-----------")
+		settings := utils.ReadSettings()
+		defaultInstance := settings.DefaultInstance
+
+		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "NAME", "PRODUCT", "URL", "CREDENTIAL REF", "DESCRIPTION")
+		fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", "", "----", "-------", "---", "--------------", "-----------")
 
 		for _, name := range names {
 			inst, err := cfg.GetInstance(name)
@@ -66,8 +73,86 @@ var instanceListCmd = &cobra.Command{
 				url = url[:35] + "..."
 			}
 
-			fmt.Printf("%-20s %-10s %-40s %-15s %-30s\n", name, inst.Product, url, credRef, desc)
+			marker := ""
+			if name == defaultInstance {
+				marker = "*"
+			}
+
+			fmt.Printf("%-2s %-20s %-10s %-40s %-15s %-30s\n", marker, name, inst.Product, url, credRef, desc)
 		}
+
+		if defaultInstance != "" {
+			fmt.Println("\n* = default instance (set via 'owlctl instance set')")
+		}
+	},
+}
+
+var instanceSetCmd = &cobra.Command{
+	Use:   "set <name>",
+	Short: "Set the default instance in settings.json",
+	Long: `Set a named instance as the default so --instance is not needed on every command.
+
+The instance must exist in owlctl.yaml. Use 'owlctl instance unset' to clear.
+
+Examples:
+  owlctl instance set vbr-prod
+  owlctl instance get
+  owlctl instance unset
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if _, err := cfg.GetInstance(name); err != nil {
+			log.Fatalf("Cannot set default: %v", err)
+		}
+
+		settings := utils.ReadSettings()
+		settings.DefaultInstance = name
+		if err := utils.WriteSettings(settings); err != nil {
+			log.Fatalf("Failed to save settings: %v", err)
+		}
+
+		fmt.Printf("Default instance set to %q.\n", name)
+		fmt.Println("Run 'owlctl instance unset' to clear.")
+	},
+}
+
+var instanceGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Show the current default instance from settings.json",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		if settings.DefaultInstance == "" {
+			fmt.Println("(none)")
+		} else {
+			fmt.Println(settings.DefaultInstance)
+		}
+	},
+}
+
+var instanceUnsetCmd = &cobra.Command{
+	Use:   "unset",
+	Short: "Clear the default instance from settings.json",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := utils.ReadSettings()
+		if settings.DefaultInstance == "" {
+			fmt.Println("No default instance is set.")
+			return
+		}
+		prev := settings.DefaultInstance
+		settings.DefaultInstance = ""
+		if err := utils.WriteSettings(settings); err != nil {
+			log.Fatalf("Failed to save settings: %v", err)
+		}
+		fmt.Printf("Default instance %q cleared.\n", prev)
 	},
 }
 
@@ -233,6 +318,9 @@ func init() {
 
 	instanceCmd.AddCommand(instanceAddCmd)
 	instanceCmd.AddCommand(instanceRemoveCmd)
+	instanceCmd.AddCommand(instanceSetCmd)
+	instanceCmd.AddCommand(instanceGetCmd)
+	instanceCmd.AddCommand(instanceUnsetCmd)
 	instanceCmd.AddCommand(instanceListCmd)
 	instanceCmd.AddCommand(instanceShowCmd)
 	rootCmd.AddCommand(instanceCmd)

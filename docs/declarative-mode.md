@@ -774,11 +774,33 @@ owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credenti
 # Remove an instance
 owlctl instance remove vbr-prod
 
-# List all instances
+# Set a default — no --instance flag needed on subsequent commands
+owlctl instance set vbr-prod
+
+# Show the current default
+owlctl instance get
+
+# Clear the default
+owlctl instance unset
+
+# List all instances (* marks the default)
 owlctl instance list
 
 # Show instance details
 owlctl instance show vbr-prod
+```
+
+### Default instance
+
+`owlctl instance set` persists the active instance to `settings.json`. Once set, all commands use it automatically — no `--instance` flag needed on every invocation. The `--instance` flag still takes precedence when explicitly provided.
+
+```bash
+owlctl instance set vbr-prod
+owlctl login                      # uses vbr-prod
+owlctl repo snapshot --all        # uses vbr-prod
+owlctl job diff --all             # uses vbr-prod
+
+owlctl --instance vbr-dr job diff --all   # override for this command only
 ```
 
 ### Using --instance

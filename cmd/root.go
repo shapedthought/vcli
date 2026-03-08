@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/shapedthought/owlctl/config"
+	"github.com/shapedthought/owlctl/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -27,19 +28,29 @@ var rootCmd = &cobra.Command{
 		}
 
 		// --instance: load config, resolve, and activate the instance
-		if instanceFlag != "" {
+		effectiveInstance := instanceFlag
+		if effectiveInstance == "" {
+			settings := utils.ReadSettings()
+			effectiveInstance = settings.DefaultInstance
+		}
+
+		if effectiveInstance != "" {
 			cfg, err := config.LoadConfig()
 			if err != nil {
 				return fmt.Errorf("failed to load owlctl.yaml: %w", err)
 			}
 
-			resolved, err := config.ResolveInstance(cfg, instanceFlag)
+			resolved, err := config.ResolveInstance(cfg, effectiveInstance)
 			if err != nil {
-				return fmt.Errorf("--instance %q: %w", instanceFlag, err)
+				if instanceFlag == "" {
+					// came from DefaultInstance — give a helpful hint
+					return fmt.Errorf("default instance %q not found in owlctl.yaml — run 'owlctl instance unset' to clear", effectiveInstance)
+				}
+				return fmt.Errorf("--instance %q: %w", effectiveInstance, err)
 			}
 
 			if err := config.ActivateInstance(resolved); err != nil {
-				return fmt.Errorf("failed to activate instance %q: %w", instanceFlag, err)
+				return fmt.Errorf("failed to activate instance %q: %w", effectiveInstance, err)
 			}
 			return nil
 		}

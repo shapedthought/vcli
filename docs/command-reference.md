@@ -294,7 +294,16 @@ owlctl instance add vbr-prod \
 # Overwrite an existing instance
 owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --force
 
-# List all instances
+# Set a default instance — no --instance flag needed on subsequent commands
+owlctl instance set vbr-prod
+
+# Show the current default instance
+owlctl instance get
+
+# Clear the default instance
+owlctl instance unset
+
+# List all instances (* marks the default)
 owlctl instance list
 
 # Show instance details (product, URL, credential ref)
@@ -315,6 +324,12 @@ owlctl instance remove vbr-prod
 | `--port` | No | Port override (default: product default) |
 | `--insecure` | No | Skip TLS verification for this instance |
 | `--force` | No | Overwrite if instance already exists |
+
+### Default instance
+
+`owlctl instance set` persists a default to `settings.json`. All subsequent commands use it without `--instance`. The `--instance` flag always takes precedence if both are present.
+
+If the default instance is removed from `owlctl.yaml`, owlctl will error with a reminder to run `owlctl instance unset`.
 
 ### Using --instance
 

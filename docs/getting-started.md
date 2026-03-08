@@ -311,6 +311,9 @@ Groups are the recommended way to manage multiple specs with shared defaults and
   --credential-ref PROD \
   --description "Production VBR"
 
+# Set as default — no --instance flag needed from here on
+./owlctl instance set vbr-prod
+
 # Add a groups section to owlctl.yaml
 cat >> owlctl.yaml <<'EOF'
 

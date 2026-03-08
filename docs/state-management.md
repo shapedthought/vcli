@@ -122,7 +122,7 @@ State v4 automatically scopes all resources by the active instance. This means t
 
 ### How it works
 
-When you run a command without `--instance`, resources are stored under the `"default"` instance key. When you use `--instance <name>`, resources are stored under that instance's key:
+When you run a command without `--instance` (and no default is set), resources are stored under the `"default"` instance key. When you use `--instance <name>` or set a default with `owlctl instance set <name>`, resources are stored under that instance's key:
 
 ```bash
 # Stored under instances["default"]
@@ -147,7 +147,9 @@ owlctl --instance vbr-prod job diff --all
 owlctl --instance vbr-dr repo diff --all
 ```
 
-> **Important**: You must use the same `--instance` flag on both snapshot and diff commands. A snapshot taken with `--instance vbr-prod` is stored under `instances["vbr-prod"]`. Running `diff` without `--instance` looks in `instances["default"]` and will not find that state — reporting no baseline rather than the correct drift.
+> **Important**: Snapshot and diff must use the same instance. A snapshot taken with `--instance vbr-prod` is stored under `instances["vbr-prod"]`. Running `diff` without `--instance` (or with a different instance) looks in the wrong namespace and will report no baseline instead of the correct drift.
+>
+> The simplest way to avoid this is `owlctl instance set vbr-prod` — once set, all commands use that instance automatically and consistently.
 
 ### Multi-instance snapshot workflow
 

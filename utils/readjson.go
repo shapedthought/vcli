@@ -128,6 +128,19 @@ func OverrideProfilePort(port int) { profilePortOverride = &port }
 // ClearProfilePortOverride removes the port override, reverting to the product default.
 func ClearProfilePortOverride() { profilePortOverride = nil }
 
+// WriteSettings persists s to settings.json at the configured path.
+func WriteSettings(s models.Settings) error {
+	data, err := json.MarshalIndent(s, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings: %w", err)
+	}
+	settingsFile := SettingPath() + "settings.json"
+	if err := os.WriteFile(settingsFile, data, 0644); err != nil {
+		return fmt.Errorf("failed to write settings.json: %w", err)
+	}
+	return nil
+}
+
 func ReadSettings() models.Settings {
 	if settingsOverride != nil {
 		return *settingsOverride

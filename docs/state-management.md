@@ -8,6 +8,7 @@ owlctl maintains state in `state.json` to enable drift detection and track decla
 - [What is State?](#what-is-state)
 - [State File Location](#state-file-location)
 - [State File Format](#state-file-format)
+- [Instance Scoping](#instance-scoping)
 - [Creating State](#creating-state)
 - [State Origins](#state-origins)
 - [Updating State](#updating-state)
@@ -106,12 +107,6 @@ export OWLCTL_SETTINGS_PATH="$HOME/.owlctl/"
 - **origin** - How the resource entered state management (see below)
 - **spec** - Full resource configuration as a JSON object
 
-### Instance scoping
-
-When no `--instance` flag is active, all resources are stored under `instances["default"]`. When using `--instance vbr-prod`, resources are stored under `instances["vbr-prod"]`. The same resource name in different instances never collides.
-
-The active instance is controlled by the `OWLCTL_ACTIVE_INSTANCE` environment variable, which is set automatically by `ActivateInstance()` when `--instance` is used.
-
 ### Automatic migration
 
 State files from earlier versions are migrated automatically on first load:
@@ -120,6 +115,59 @@ State files from earlier versions are migrated automatically on first load:
 - **v3→v4**: flat `resources` map moved into `instances["default"]`
 
 No manual steps are required. The migrated state is written back on the next save.
+
+## Instance Scoping
+
+State v4 automatically scopes all resources by the active instance. This means the same resource name (e.g. `"Production Backup"`) can exist independently in multiple instances without collision.
+
+### How it works
+
+When you run a command without `--instance`, resources are stored under the `"default"` instance key. When you use `--instance <name>`, resources are stored under that instance's key:
+
+```bash
+# Stored under instances["default"]
+owlctl repo snapshot --all
+
+# Stored under instances["vbr-prod"]
+owlctl --instance vbr-prod repo snapshot --all
+
+# Stored under instances["vbr-dr"]
+owlctl --instance vbr-dr repo snapshot --all
+```
+
+### Drift detection is instance-aware
+
+Diff commands automatically compare against the state for the active instance:
+
+```bash
+# Checks instances["vbr-prod"] state against live vbr-prod
+owlctl --instance vbr-prod job diff --all
+
+# Checks instances["vbr-dr"] state against live vbr-dr
+owlctl --instance vbr-dr repo diff --all
+```
+
+### Multi-instance snapshot workflow
+
+```bash
+# Snapshot all instances defined in owlctl.yaml
+owlctl --instance vbr-prod repo snapshot --all
+owlctl --instance vbr-prod encryption kms-snapshot --all
+owlctl --instance vbr-prod config-backup snapshot
+
+owlctl --instance vbr-dr repo snapshot --all
+owlctl --instance vbr-dr encryption kms-snapshot --all
+owlctl --instance vbr-dr config-backup snapshot
+
+# Commit the full state (all instances are in one state.json)
+git add state.json
+git commit -m "Snapshot all VBR instances"
+git push
+```
+
+### Product tracking
+
+Each instance in state records its product (`vbr`, `azure`, `aws`, etc.), set automatically when the first resource is written. This enables future tooling (such as `export --all`) to correctly organise exported files without requiring `owlctl.yaml` to be present.
 
 ## Creating State
 

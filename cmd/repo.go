@@ -993,6 +993,52 @@ func listAllSobrs(profile models.Profile) ([]ResourceListItem, error) {
 	return items, nil
 }
 
+// exportAllReposToDir exports all repositories to the specified directory.
+// Registry-compatible: used by the global export command.
+func exportAllReposToDir(outDir string, profile models.Profile) error {
+	cfg := ResourceExportConfig{
+		Kind:            "VBRRepository",
+		DisplayName:     "repository",
+		PluralName:      "repositories",
+		IgnoreFields:    repoIgnoreFields,
+		FetchSingle:     fetchCurrentRepo,
+		FetchByID:       fetchRepoByID,
+		ListAll:         listAllRepos,
+		SupportsOverlay: true,
+	}
+	exportAllResources(cfg, profile, outDir, false, "")
+	return nil
+}
+
+// exportAllSobrsToDir exports all SOBRs to the specified directory.
+// Registry-compatible: used by the global export command.
+func exportAllSobrsToDir(outDir string, profile models.Profile) error {
+	cfg := ResourceExportConfig{
+		Kind:            "VBRScaleOutRepository",
+		DisplayName:     "scale-out repository",
+		PluralName:      "scale-out repositories",
+		IgnoreFields:    sobrIgnoreFields,
+		FetchSingle:     fetchCurrentSobr,
+		FetchByID:       fetchSobrByID,
+		ListAll:         listAllSobrs,
+		SupportsOverlay: true,
+	}
+	exportAllResources(cfg, profile, outDir, false, "")
+	return nil
+}
+
+// snapshotAllReposForRegistry is a registry-compatible wrapper for snapshotAllRepos.
+func snapshotAllReposForRegistry(profile models.Profile) error {
+	snapshotAllRepos()
+	return nil
+}
+
+// snapshotAllSobrsForRegistry is a registry-compatible wrapper for snapshotAllSobrs.
+func snapshotAllSobrsForRegistry(profile models.Profile) error {
+	snapshotAllSobrs()
+	return nil
+}
+
 func init() {
 	// Repo export flags
 	repoExportCmd.Flags().StringVarP(&repoExportOutput, "output", "o", "", "Output file (default: stdout)")

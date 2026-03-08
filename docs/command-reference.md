@@ -106,6 +106,40 @@ owlctl get sessions/<id>                    # Session details
 
 ## Declarative Commands (VBR Only)
 
+### Global Bulk Operations
+
+Export or snapshot all resource types in a single command:
+
+```bash
+# Export all resource types for the active instance
+owlctl export --all                             # writes to ./exports/
+owlctl export --all -d ./infra                  # custom output directory
+
+# Export all instances (one folder per instance)
+owlctl export --all --all-instances -d ./infra
+
+# Export from state.json without contacting VBR (offline)
+owlctl export --all --from-state -d ./infra
+
+# Snapshot all resource types for the active instance
+owlctl snapshot --all
+
+# Snapshot all instances at once
+owlctl snapshot --all --all-instances
+```
+
+The export folder structure mirrors `product/resource-type/`:
+```
+exports/
+  jobs/           daily-backup.yaml
+  repos/          primary-repo.yaml
+  sobrs/          scale-out-repo.yaml
+  encryption/     my-password.yaml
+  kms/            kms-server.yaml
+```
+
+> **Note:** Jobs are skipped by `snapshot --all` (they are managed declaratively via `job apply`). All other VBR resource types are included.
+
 ### Export Resources
 
 ```bash
@@ -186,19 +220,20 @@ owlctl config-backup apply config-backup.yaml --overlay prod-overlay.yaml
 ### Snapshot State
 
 ```bash
-# Repositories
+# Snapshot everything at once (recommended for onboarding)
+owlctl snapshot --all
+owlctl snapshot --all --all-instances          # across all defined instances
+
+# Per-resource-type (for selective snapshots)
 owlctl repo snapshot <name>
 owlctl repo snapshot --all
 
-# SOBRs
 owlctl repo sobr-snapshot <name>
 owlctl repo sobr-snapshot --all
 
-# Encryption Passwords
 owlctl encryption snapshot <name>
 owlctl encryption snapshot --all
 
-# KMS Servers
 owlctl encryption kms-snapshot <name>
 owlctl encryption kms-snapshot --all
 
@@ -206,7 +241,7 @@ owlctl encryption kms-snapshot --all
 owlctl config-backup snapshot
 ```
 
-**Note:** Jobs are snapshotted automatically on apply.
+**Note:** Jobs are snapshotted automatically on apply. `snapshot --all` skips jobs for this reason.
 
 ### Detect Drift
 
@@ -500,17 +535,20 @@ owlctl get jobs | jq '.data[] | {name: .name, type: .type}'
 ### Export All Configurations
 
 ```bash
-# Export everything to Git
-owlctl job export --all -d specs/jobs/
-owlctl repo export --all -d specs/repos/
-owlctl repo sobr-export --all -d specs/sobrs/
-owlctl encryption kms-export --all -d specs/kms/
-owlctl config-backup export -o specs/config-backup.yaml
+# Export everything in one command
+owlctl export --all -d specs/
+owlctl config-backup export -o specs/config-backup.yaml   # singleton, not included in export --all
 
 # Commit to Git
 git add specs/
 git commit -m "Snapshot VBR configuration"
 git push
+
+# Or export per resource type (for selective exports or overlay support)
+owlctl job export --all -d specs/jobs/
+owlctl repo export --all -d specs/repos/
+owlctl repo sobr-export --all -d specs/sobrs/
+owlctl encryption kms-export --all -d specs/kms/
 ```
 
 ### Group-Based Deployment
@@ -592,20 +630,14 @@ echo "No critical drift detected"
 ### Bootstrap Declarative Management
 
 ```bash
-# 1. Export current VBR state
-owlctl job export --all -d infrastructure/jobs/
-owlctl repo export --all -d infrastructure/repos/
-owlctl repo sobr-export --all -d infrastructure/sobrs/
-owlctl encryption kms-export --all -d infrastructure/kms/
+# 1. Export all VBR resources to YAML
+owlctl export --all -d infrastructure/
 
-# 2. Snapshot current state
-owlctl repo snapshot --all
-owlctl repo sobr-snapshot --all
-owlctl encryption snapshot --all
-owlctl encryption kms-snapshot --all
+# 2. Snapshot all resources to set drift detection baseline
+owlctl snapshot --all
 
 # 3. Commit to Git (state.json and specs)
-git add infrastructure/ state.json
+git add infrastructure/ ~/.owlctl/state.json
 git commit -m "Bootstrap VBR declarative management"
 git push
 

@@ -1064,6 +1064,52 @@ func listAllKmsServers(profile models.Profile) ([]ResourceListItem, error) {
 	return items, nil
 }
 
+// exportAllEncryptionToDir exports all encryption passwords to the specified directory.
+// Registry-compatible: used by the global export command.
+func exportAllEncryptionToDir(outDir string, profile models.Profile) error {
+	cfg := ResourceExportConfig{
+		Kind:            "VBREncryptionPassword",
+		DisplayName:     "encryption password",
+		PluralName:      "encryption passwords",
+		IgnoreFields:    encryptionIgnoreFields,
+		FetchSingle:     fetchEncryptionPasswordRaw,
+		FetchByID:       fetchEncryptionPasswordByID,
+		ListAll:         listAllEncryptionPasswords,
+		SanitizeSpec:    sanitizeEncryptionPassword,
+		SupportsOverlay: false,
+	}
+	exportAllResources(cfg, profile, outDir, false, "")
+	return nil
+}
+
+// exportAllKmsToDir exports all KMS servers to the specified directory.
+// Registry-compatible: used by the global export command.
+func exportAllKmsToDir(outDir string, profile models.Profile) error {
+	cfg := ResourceExportConfig{
+		Kind:            "VBRKmsServer",
+		DisplayName:     "KMS server",
+		PluralName:      "KMS servers",
+		IgnoreFields:    kmsIgnoreFields,
+		FetchSingle:     fetchCurrentKmsServer,
+		ListAll:         listAllKmsServers,
+		SupportsOverlay: true,
+	}
+	exportAllResources(cfg, profile, outDir, false, "")
+	return nil
+}
+
+// snapshotAllEncryptionForRegistry is a registry-compatible wrapper for snapshotAllEncryptionPasswords.
+func snapshotAllEncryptionForRegistry(profile models.Profile) error {
+	snapshotAllEncryptionPasswords()
+	return nil
+}
+
+// snapshotAllKmsForRegistry is a registry-compatible wrapper for snapshotAllKmsServers.
+func snapshotAllKmsForRegistry(profile models.Profile) error {
+	snapshotAllKmsServers()
+	return nil
+}
+
 func init() {
 	// Encryption export flags
 	encExportCmd.Flags().StringVarP(&encExportOutput, "output", "o", "", "Output file (default: stdout)")

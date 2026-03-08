@@ -258,19 +258,14 @@ See the [Imperative Mode Guide](imperative-mode.md) for complete documentation.
 #### 1. Export Existing Configuration
 
 ```bash
-# Export a single job
+# Export all resource types in one command (recommended for first-time setup)
+./owlctl export --all -d infrastructure/
+
+# Or export per resource type (useful when you need overlay support or selective exports)
 ./owlctl job export c07c7ea3-0471-43a6-af57-c03c0d82354a -o prod-backup.yaml
-
-# Export all jobs
 ./owlctl job export --all -d jobs/
-
-# Export repositories
 ./owlctl repo export --all -d repos/
-
-# Export SOBRs
 ./owlctl repo sobr-export --all -d sobrs/
-
-# Export KMS servers
 ./owlctl encryption kms-export --all -d kms/
 ```
 
@@ -320,6 +315,10 @@ git push
 Before drift detection can work, owlctl needs a baseline. Every `apply` saves state automatically. For resources you haven't applied yet (repositories, SOBRs, encryption, KMS), take a snapshot first:
 
 ```bash
+# Snapshot all resource types at once (recommended)
+./owlctl snapshot --all
+
+# Or snapshot per resource type
 ./owlctl repo snapshot --all
 ./owlctl repo sobr-snapshot --all
 ./owlctl encryption snapshot --all
@@ -535,11 +534,8 @@ cp ~/.owlctl/state.json ~/.owlctl/state.json.backup
 rm ~/.owlctl/state.json
 
 # Re-snapshot resources
-./owlctl repo snapshot --all
-./owlctl repo sobr-snapshot --all
-./owlctl encryption snapshot --all
-./owlctl encryption kms-snapshot --all
-./owlctl config-backup snapshot          # Singleton — no --all needed
+./owlctl snapshot --all
+./owlctl config-backup snapshot          # Singleton — not included in snapshot --all
 ```
 
 ### Resource Not Found (Exit Code 6)

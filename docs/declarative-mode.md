@@ -717,21 +717,42 @@ This is useful for one-off operations or simple setups that don't need the full 
 
 Instances define named server connections with product type, URL, credentials, and TLS settings. They enable multi-server automation from a single `owlctl.yaml`.
 
-### Instance Schema
+### Creating Instances (Recommended)
+
+Use `owlctl instance add` to register instances without hand-editing YAML:
+
+```bash
+owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD \
+  --description "Production VBR server"
+
+owlctl instance add vbr-dr \
+  --url vbr-dr.example.com \
+  --product vbr \
+  --credential-ref DR \
+  --description "Disaster recovery site"
+```
+
+This creates or updates `owlctl.yaml` and prints which environment variables to set for credentials. Use `--force` to overwrite an existing instance.
+
+### Instance Schema (Reference)
+
+The equivalent YAML written to `owlctl.yaml`:
 
 ```yaml
-# In owlctl.yaml
 instances:
   vbr-prod:
-    product: vbr                         # Required: vbr, azure, vb365, vone, etc.
-    url: https://vbr-prod.example.com    # Required: server address
+    product: vbr                         # Required: vbr, ent_man, vb365, vone, aws, azure, gcp
+    url: vbr-prod.example.com            # Required: server address
     port: 9419                           # Optional: override product default port
     insecure: true                       # Optional: override global TLS setting
     credentialRef: PROD                  # Optional: env var prefix for credentials
     description: Production VBR server   # Optional: human-readable description
   vbr-dr:
     product: vbr
-    url: https://vbr-dr.example.com
+    url: vbr-dr.example.com
     credentialRef: DR
     description: Disaster recovery site
 ```
@@ -747,6 +768,12 @@ When `credentialRef` is not set, falls back to `OWLCTL_USERNAME` / `OWLCTL_PASSW
 ### Instance Commands
 
 ```bash
+# Add an instance
+owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credential-ref PROD
+
+# Remove an instance
+owlctl instance remove vbr-prod
+
 # List all instances
 owlctl instance list
 

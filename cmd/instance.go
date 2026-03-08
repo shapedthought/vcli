@@ -12,27 +12,15 @@ import (
 var instanceCmd = &cobra.Command{
 	Use:   "instance",
 	Short: "Manage named instances",
-	Long: `Instance commands for listing and inspecting named server connections
-defined in owlctl.yaml.
+	Long: `Instance commands for managing named server connections defined in owlctl.yaml.
 
 Instances define named server connections with product type, URL, port,
 credential references, and TLS settings. They replace the simpler "targets"
 and support multi-server automation.
 
-Example owlctl.yaml:
-  instances:
-    vbr-prod:
-      product: vbr
-      url: https://vbr-prod.example.com
-      credentialRef: PROD
-      description: Production VBR server
-    vbr-dr:
-      product: vbr
-      url: https://vbr-dr.example.com
-      credentialRef: DR
-      description: DR site VBR server
-
 Commands:
+  owlctl instance add <name>        Add or update an instance in owlctl.yaml
+  owlctl instance remove <name>     Remove an instance from owlctl.yaml
   owlctl instance list              List all defined instances
   owlctl instance show <name>       Show details of a specific instance
 `,
@@ -126,7 +114,125 @@ var instanceShowCmd = &cobra.Command{
 	},
 }
 
+var (
+	instanceAddProduct       string
+	instanceAddURL           string
+	instanceAddPort          int
+	instanceAddCredentialRef string
+	instanceAddDescription   string
+	instanceAddInsecure      bool
+	instanceAddForce         bool
+)
+
+var validProducts = []string{"vbr", "ent_man", "vb365", "vone", "aws", "azure", "gcp"}
+
+var instanceAddCmd = &cobra.Command{
+	Use:   "add <name>",
+	Short: "Add or update an instance in owlctl.yaml",
+	Long: `Add a named instance to owlctl.yaml, or update it if it already exists.
+
+If owlctl.yaml does not exist it will be created. If OWLCTL_CONFIG is set,
+the file at that path is used instead.
+
+Examples:
+  owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr
+  owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --credential-ref PROD --description "Production VBR"
+  owlctl instance add vbr-dr   --url vbr-dr.example.com   --product vbr --insecure
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		if instanceAddURL == "" {
+			log.Fatal("--url is required")
+		}
+		if instanceAddProduct == "" {
+			log.Fatal("--product is required")
+		}
+
+		validProduct := false
+		for _, p := range validProducts {
+			if instanceAddProduct == p {
+				validProduct = true
+				break
+			}
+		}
+		if !validProduct {
+			log.Fatalf("invalid product %q — must be one of: %v", instanceAddProduct, validProducts)
+		}
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if _, exists := cfg.Instances[name]; exists && !instanceAddForce {
+			log.Fatalf("Instance %q already exists. Use --force to overwrite.", name)
+		}
+
+		inst := config.InstanceConfig{
+			Product:       instanceAddProduct,
+			URL:           instanceAddURL,
+			CredentialRef: instanceAddCredentialRef,
+			Description:   instanceAddDescription,
+		}
+		if instanceAddPort != 0 {
+			inst.Port = instanceAddPort
+		}
+		if cmd.Flags().Changed("insecure") {
+			inst.Insecure = &instanceAddInsecure
+		}
+
+		cfg.AddInstance(name, inst)
+
+		if err := cfg.Save(); err != nil {
+			log.Fatalf("Failed to save owlctl.yaml: %v", err)
+		}
+
+		fmt.Printf("Instance %q saved to owlctl.yaml.\n", name)
+		if inst.CredentialRef != "" {
+			fmt.Printf("Set credentials: OWLCTL_%s_USERNAME / OWLCTL_%s_PASSWORD\n", inst.CredentialRef, inst.CredentialRef)
+		} else {
+			fmt.Println("No credential ref set — will use OWLCTL_USERNAME / OWLCTL_PASSWORD.")
+		}
+	},
+}
+
+var instanceRemoveCmd = &cobra.Command{
+	Use:   "remove <name>",
+	Short: "Remove an instance from owlctl.yaml",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatalf("Failed to load owlctl.yaml: %v", err)
+		}
+
+		if err := cfg.RemoveInstance(name); err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		if err := cfg.Save(); err != nil {
+			log.Fatalf("Failed to save owlctl.yaml: %v", err)
+		}
+
+		fmt.Printf("Instance %q removed from owlctl.yaml.\n", name)
+	},
+}
+
 func init() {
+	instanceAddCmd.Flags().StringVar(&instanceAddURL, "url", "", "Server hostname or IP (required)")
+	instanceAddCmd.Flags().StringVar(&instanceAddProduct, "product", "", "Veeam product: vbr, ent_man, vb365, vone, aws, azure, gcp (required)")
+	instanceAddCmd.Flags().IntVar(&instanceAddPort, "port", 0, "Port override (default: product default)")
+	instanceAddCmd.Flags().StringVar(&instanceAddCredentialRef, "credential-ref", "", "Credential ref (reads OWLCTL_{REF}_USERNAME / _PASSWORD)")
+	instanceAddCmd.Flags().StringVar(&instanceAddDescription, "description", "", "Human-readable description")
+	instanceAddCmd.Flags().BoolVar(&instanceAddInsecure, "insecure", false, "Skip TLS verification for this instance")
+	instanceAddCmd.Flags().BoolVar(&instanceAddForce, "force", false, "Overwrite if instance already exists")
+
+	instanceCmd.AddCommand(instanceAddCmd)
+	instanceCmd.AddCommand(instanceRemoveCmd)
 	instanceCmd.AddCommand(instanceListCmd)
 	instanceCmd.AddCommand(instanceShowCmd)
 	rootCmd.AddCommand(instanceCmd)

@@ -298,23 +298,21 @@ See [Drift Detection Guide](drift-detection.md) for complete documentation.
 
 Groups are the recommended way to manage multiple specs with shared defaults and policy overrides. Define groups and instances in `owlctl.yaml`.
 
-### 1. Export Specs and Create owlctl.yaml
+### 1. Export Specs and Register Instance
 
 ```bash
 # Export existing jobs
 ./owlctl job export --all -d specs/jobs/
 
-# Create owlctl.yaml
-cat > owlctl.yaml <<'EOF'
-apiVersion: owlctl.veeam.com/v1
-kind: Config
+# Register instance (creates owlctl.yaml if it doesn't exist)
+./owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD \
+  --description "Production VBR"
 
-instances:
-  vbr-prod:
-    product: vbr
-    url: https://vbr-prod.example.com
-    credentialRef: PROD
-    description: Production VBR
+# Add a groups section to owlctl.yaml
+cat >> owlctl.yaml <<'EOF'
 
 groups:
   sql-tier:

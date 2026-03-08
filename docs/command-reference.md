@@ -281,15 +281,40 @@ owlctl job diff --group sql-tier
 
 ## Instance Commands
 
-Instances define named server connections with product type, credentials, and TLS settings. They replace `--target` for multi-server workflows. Defined in `owlctl.yaml`.
+Instances define named server connections with product type, credentials, and TLS settings. They replace `--target` for multi-server workflows. Stored in `owlctl.yaml`.
 
 ```bash
+# Add an instance (creates owlctl.yaml if it doesn't exist)
+owlctl instance add vbr-prod \
+  --url vbr-prod.example.com \
+  --product vbr \
+  --credential-ref PROD \
+  --description "Production VBR server"
+
+# Overwrite an existing instance
+owlctl instance add vbr-prod --url vbr-prod.example.com --product vbr --force
+
 # List all instances
 owlctl instance list
 
 # Show instance details (product, URL, credential ref)
 owlctl instance show vbr-prod
+
+# Remove an instance
+owlctl instance remove vbr-prod
 ```
+
+**`instance add` flags:**
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--url` | Yes | Server hostname or IP |
+| `--product` | Yes | `vbr`, `ent_man`, `vb365`, `vone`, `aws`, `azure`, `gcp` |
+| `--credential-ref` | No | Env var prefix (reads `OWLCTL_{REF}_USERNAME` / `_PASSWORD`) |
+| `--description` | No | Human-readable label |
+| `--port` | No | Port override (default: product default) |
+| `--insecure` | No | Skip TLS verification for this instance |
+| `--force` | No | Overwrite if instance already exists |
 
 ### Using --instance
 

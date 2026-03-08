@@ -191,6 +191,34 @@ func LoadConfigFrom(path string) (*VCLIConfig, error) {
 	return &config, nil
 }
 
+// Save saves the configuration back to the file it was loaded from.
+// If ConfigDir is set (i.e. the config was loaded from a file), it saves there.
+// Otherwise falls back to SaveConfig behaviour (current dir or OWLCTL_CONFIG env var).
+func (c *VCLIConfig) Save() error {
+	if c.ConfigDir != "" {
+		return SaveConfigTo(c, filepath.Join(c.ConfigDir, DefaultConfigName))
+	}
+	return SaveConfig(c)
+}
+
+// AddInstance adds or replaces an instance in the configuration.
+func (c *VCLIConfig) AddInstance(name string, inst InstanceConfig) {
+	if c.Instances == nil {
+		c.Instances = make(map[string]InstanceConfig)
+	}
+	c.Instances[name] = inst
+}
+
+// RemoveInstance removes an instance from the configuration.
+// Returns an error if the instance does not exist.
+func (c *VCLIConfig) RemoveInstance(name string) error {
+	if _, exists := c.Instances[name]; !exists {
+		return fmt.Errorf("instance %q not found in configuration", name)
+	}
+	delete(c.Instances, name)
+	return nil
+}
+
 // SaveConfig saves the configuration to the default location
 func SaveConfig(config *VCLIConfig) error {
 	configPath := DefaultConfigName
